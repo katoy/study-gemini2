@@ -6,6 +6,13 @@ class Agent:
     def play(self, game):
         raise NotImplementedError
 
+class FirstAgent(Agent):
+    def play(self, game):
+        valid_moves = game.get_valid_moves()
+        if valid_moves:
+            return valid_moves[0]
+        return None
+
 class RandomAgent(Agent):
     def play(self, game):
         valid_moves = game.get_valid_moves()

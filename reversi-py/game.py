@@ -1,6 +1,6 @@
 # game.py
 from board import Board
-from agent import RandomAgent, GainAgent  # Agentクラスをインポート
+from agent import RandomAgent, GainAgent, FirstAgent  # Agentクラスをインポート
 
 class Game:
     def __init__(self, board_size=8):
@@ -50,16 +50,18 @@ class Game:
         return self.board_size
 
     def set_players(self, player1_type, player2_type):
-        self.players = [player1_type, player2_type]
-        if player1_type != 0:
-            self.agents[-1] = self.create_agent(player1_type)
-        if player2_type != 0:
-            self.agents[1] = self.create_agent(player2_type)
+        self.players = [-1, 1]
+        self.agents[-1] = self.create_agent(player1_type)
+        self.agents[1] = self.create_agent(player2_type)
 
     def create_agent(self, agent_type):
-        if agent_type == 1:
-            return RandomAgent()
+        if agent_type == 0:
+            return None
+        elif agent_type == 1:
+            return FirstAgent()
         elif agent_type == 2:
+            return RandomAgent()
+        elif agent_type == 3:
             return GainAgent()
         else:
             return None

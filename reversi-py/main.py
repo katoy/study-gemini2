@@ -2,7 +2,7 @@
 import pygame
 from game import Game
 from gui import GameGUI, BLACK, WHITE  # BLACK と WHITE をインポート
-from agent import HumanAgent, RandomAgent, GainAgent
+from agent import HumanAgent, RandomAgent, GainAgent, FirstAgent
 
 def main():
     game = Game()
@@ -10,7 +10,7 @@ def main():
     clock = pygame.time.Clock()
 
     # プレイヤーの設定
-    game.set_players(0, 2)  # 黒:人間, 白:GainAgent
+    game.set_players(0, 3)  # 黒:人間, 白:GainAgent
 
     running = True
     while running:
@@ -25,6 +25,11 @@ def main():
                         game.place_stone(row, col)
                         game.switch_turn()
                         game.check_game_over()
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                        game.history_top()
+                    elif event.key == pygame.K_RIGHT:
+                        game.history_last()
 
         if game.game_over:
             winner = game.get_winner()
