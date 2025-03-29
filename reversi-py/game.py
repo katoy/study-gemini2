@@ -1,5 +1,6 @@
 # game.py
 from board import Board
+from agent import RandomAgent, GainAgent  # Agentクラスをインポート
 
 class Game:
     def __init__(self, board_size=8):
@@ -7,6 +8,14 @@ class Game:
         self.turn = -1  # 黒から開始
         self.game_over = False
         self.board_size = board_size
+        self.history = []  # プレイの履歴を保存するリスト
+        self.history_index = -1 #履歴のインデックス
+        self.players = [-1, 1] #プレイヤーのタイプ
+        self.agents = {
+            -1: None,  # 黒のプレイヤー（デフォルトは人間）
+            1: None   # 白のプレイヤー（デフォルトは人間）
+        }
+        self.message = "" #メッセージ
 
     def switch_turn(self):
         self.turn *= -1
@@ -25,13 +34,59 @@ class Game:
             return 0  # 引き分け
 
     def place_stone(self, row, col):
-        return self.board.place_stone(row, col, self.turn)
+        if self.board.place_stone(row, col, self.turn):
+            self.history.append(((row, col), self.turn, self.board.get_board()))  # 履歴に記録
+            self.history_index += 1
+            return True
+        return False
 
     def get_valid_moves(self):
-        return self.board.get_valid_moves(self.turn) # 修正箇所
+        return self.board.get_valid_moves(self.turn)
 
     def get_board(self):
         return self.board.get_board()
 
     def get_board_size(self):
         return self.board_size
+
+    def set_players(self, player1_type, player2_type):
+        self.players = [player1_type, player2_type]
+        if player1_type != 0:
+            self.agents[-1] = self.create_agent(player1_type)
+        if player2_type != 0:
+            self.agents[1] = self.create_agent(player2_type)
+
+    def create_agent(self, agent_type):
+        if agent_type == 1:
+            return RandomAgent()
+        elif agent_type == 2:
+            return GainAgent()
+        else:
+            return None
+
+    def set_message(self, message):
+        self.message = message
+
+    def get_message(self):
+        return self.message
+
+    def replay(self, index):
+        if 0 <= index < len(self.history):
+            self.board.board = [row[:] for row in self.history[index][2]]
+            self.turn = self.history[index][1]
+            self.history_index = index
+            return True
+        return False
+
+    def history_top(self):
+        if len(self.history) > 0:
+            self.replay(0)
+
+    def history_last(self):
+        if len(self.history) > 0:
+            self.replay(len(self.history) - 1)
+
+    def get_current_history(self):
+        if self.history_index >= 0:
+            return self.history[self.history_index]
+        return None

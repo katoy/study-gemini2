@@ -44,3 +44,12 @@ class GameGUI:
         col = x // self.cell_size
         row = y // self.cell_size
         return row, col
+
+    def draw_stone_animation(self, game, row, col, color): # game を引数に追加
+        radius = 0
+        while radius < self.cell_size // 2 - 5:
+            self.draw_board(game) # game を渡す
+            pygame.draw.circle(self.screen, color, (col * self.cell_size + self.cell_size // 2, row * self.cell_size + self.cell_size // 2), radius)
+            pygame.display.flip()
+            radius += 5
+            pygame.time.delay(10)
