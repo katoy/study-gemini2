@@ -17,6 +17,14 @@ class Game:
         }
         self.message = "ゲーム開始" #初期メッセージ
 
+    def reset(self):
+        self.board = Board(self.board_size)
+        self.turn = -1
+        self.game_over = False
+        self.history = []
+        self.history_index = -1
+        self.message = "ゲーム開始"
+
     def switch_turn(self):
         self.turn *= -1
         self.set_message(f"{'黒' if self.turn == -1 else '白'}の番です") #ターン切り替え時のメッセージ

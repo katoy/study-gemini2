@@ -9,6 +9,8 @@ GREEN = (0, 128, 0)
 GRAY = (128, 128, 128)
 BOARD_COLOR = (0, 128, 0)  # ボードの色を定義
 BACKGROUND_COLOR = (100, 100, 100)  # ボード外の背景色を定義（例：濃い灰色）
+BUTTON_COLOR = (50, 50, 50) #ボタンの色
+BUTTON_TEXT_COLOR = (200, 200, 200) #ボタンの文字色
 
 class GameGUI:
     def __init__(self, screen_width=400, screen_height=500): #画面サイズを変更
@@ -43,6 +45,8 @@ class GameGUI:
         self.board_bottom_margin = 100 # ボード下部のマージン
         self.board_size = 400 # ボードサイズを定義
         self.cell_size = self.board_size // 8 # セルのサイズを再計算
+        self.button_width = 150 #ボタンの幅
+        self.button_height = 50 #ボタンの高さ
 
     def draw_board(self, game):
         self.screen.fill(BACKGROUND_COLOR)  # ボード外の背景色で画面全体を塗りつぶす
@@ -91,7 +95,7 @@ class GameGUI:
 
     def draw_message(self, message):
         text = self.font.render(message, True, WHITE)
-        text_rect = text.get_rect(center=(self.screen_width // 2, self.screen_height - 40)) # メッセージの表示位置を変更
+        text_rect = text.get_rect(center=(self.screen_width // 2, self.screen_height - 60)) # メッセージの表示位置を変更
         self.screen.blit(text, text_rect)
 
     def get_clicked_cell(self, pos):
@@ -149,3 +153,26 @@ class GameGUI:
     def get_flipped_stones(self, game, row, col, turn):
         # board.pyのplace_stoneのロジックを呼び出す
         return game.get_flipped_stones(row, col, turn)
+
+    def draw_start_button(self):
+        button_x = (self.screen_width - self.button_width) // 2
+        button_y = (self.screen_height - self.button_height) // 2
+        pygame.draw.rect(self.screen, BUTTON_COLOR, (button_x, button_y, self.button_width, self.button_height))
+        text = self.font.render("ゲーム開始", True, BUTTON_TEXT_COLOR)
+        text_rect = text.get_rect(center=(button_x + self.button_width // 2, button_y + self.button_height // 2))
+        self.screen.blit(text, text_rect)
+        return (button_x, button_y, self.button_width, self.button_height)
+
+    def draw_restart_button(self, game_over=False):
+        button_x = (self.screen_width - self.button_width) // 2
+        button_y = (self.screen_height - self.button_height) // 2 if game_over else self.screen_height - 40
+        pygame.draw.rect(self.screen, BUTTON_COLOR, (button_x, button_y, self.button_width, self.button_height))
+        text = self.font.render("リスタート", True, BUTTON_TEXT_COLOR)
+        text_rect = text.get_rect(center=(button_x + self.button_width // 2, button_y + self.button_height // 2))
+        self.screen.blit(text, text_rect)
+        return (button_x, button_y, self.button_width, self.button_height)
+
+    def is_button_clicked(self, pos, button_rect):
+        x, y = pos
+        button_x, button_y, button_width, button_height = button_rect
+        return button_x <= x <= button_x + button_width and button_y <= y <= button_y + button_height
