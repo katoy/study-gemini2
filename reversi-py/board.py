@@ -66,3 +66,22 @@ class Board:
 
     def get_board(self):
         return self.board
+
+    def get_flipped_stones(self, row, col, turn):
+        flipped_stones = []
+        for dr in [-1, 0, 1]:
+            for dc in [-1, 0, 1]:
+                if dr == 0 and dc == 0:
+                    continue
+                r, c = row + dr, col + dc
+                to_flip = []
+                while 0 <= r < self.board_size and 0 <= c < self.board_size:
+                    if self.board[r][c] == 0:
+                        break
+                    if self.board[r][c] == turn:
+                        flipped_stones.extend(to_flip)
+                        break
+                    to_flip.append((r, c))
+                    r += dr
+                    c += dc
+        return flipped_stones

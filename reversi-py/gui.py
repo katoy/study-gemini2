@@ -1,5 +1,6 @@
 # gui.py
 import pygame
+import os
 
 # 色の定義
 BLACK = (0, 0, 0)
@@ -14,7 +15,28 @@ class GameGUI:
         self.screen_height = screen_height
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.display.set_caption("Reversi")
-        self.font = pygame.font.Font(None, 36)
+
+        # フォントの指定（x.py を参考に変更）
+        font_path = "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc"  # macOS 用のパス
+        if not os.path.exists(font_path):
+            font_path = "/System/Library/Fonts/ヒラギノ丸ゴ ProN W4.ttc" #macOS用パス
+        if not os.path.exists(font_path):
+            font_path = "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf" #ubuntu用パス
+        if not os.path.exists(font_path):
+            font_path = "/usr/share/fonts/truetype/fonts-japanese-mincho.ttf" #ubuntu用パス
+        if not os.path.exists(font_path):
+            font_path = None
+            print("日本語フォントが見つかりませんでした。デフォルトフォントを使用します。")
+
+        try:
+            if font_path:
+                self.font = pygame.font.Font(font_path, 36)
+            else:
+                self.font = pygame.font.Font(None, 36)
+        except Exception as e:
+            print(f"フォントの読み込みに失敗しました: {e}")
+            self.font = pygame.font.Font(None, 36)
+
         self.cell_size = self.screen_width // 8
 
     def draw_board(self, game):
@@ -45,11 +67,42 @@ class GameGUI:
         row = y // self.cell_size
         return row, col
 
-    def draw_stone_animation(self, game, row, col, color): # game を引数に追加
-        radius = 0
-        while radius < self.cell_size // 2 - 5:
-            self.draw_board(game) # game を渡す
-            pygame.draw.circle(self.screen, color, (col * self.cell_size + self.cell_size // 2, row * self.cell_size + self.cell_size // 2), radius)
+    def draw_stone_animation(self, game, row, col, color):
+        center = (col * self.cell_size + self.cell_size // 2, row * self.cell_size + self.cell_size // 2)
+        max_radius = self.cell_size // 2 - 5
+
+        # 石を置くアニメーション
+        for radius in range(0, max_radius, 5):
+            self.draw_board(game)
+            self.draw_valid_moves(game)
+            self.draw_message(game.get_message())
+            pygame.draw.circle(self.screen, color, center, radius)
             pygame.display.flip()
-            radius += 5
             pygame.time.delay(10)
+
+        # 最終的な石を描画
+        pygame.draw.circle(self.screen, color, center, max_radius)
+        pygame.display.flip()
+
+    def draw_flip_animation(self, game, flipped_stones, color):
+        max_radius = self.cell_size // 2 - 5
+        other_color = WHITE if color == BLACK else BLACK
+        for i in range(10):  # アニメーションのフレーム数
+            self.draw_board(game)
+            self.draw_valid_moves(game)
+            self.draw_message(game.get_message())
+            for fr, fc in flipped_stones:
+                stone_center = (fc * self.cell_size + self.cell_size // 2, fr * self.cell_size + self.cell_size // 2)
+                if i < 5:
+                    # 石が小さくなるアニメーション
+                    pygame.draw.circle(self.screen, GREEN, stone_center, max_radius - (max_radius / 5) * i)
+                else:
+                    # 石が大きくなるアニメーション
+                    pygame.draw.circle(self.screen, color, stone_center, (max_radius / 5) * (i - 4))
+            pygame.display.flip()
+            pygame.time.delay(10)
+
+    def get_flipped_stones(self, game, row, col, turn):
+        # board.pyのplace_stoneのロジックを呼び出す
+        return game.get_flipped_stones(row, col, turn)
+

@@ -15,10 +15,11 @@ class Game:
             -1: None,  # 黒のプレイヤー（デフォルトは人間）
             1: None   # 白のプレイヤー（デフォルトは人間）
         }
-        self.message = "" #メッセージ
+        self.message = "ゲーム開始" #初期メッセージ
 
     def switch_turn(self):
         self.turn *= -1
+        self.set_message(f"{'黒' if self.turn == -1 else '白'}の番です") #ターン切り替え時のメッセージ
 
     def check_game_over(self):
         if not self.board.get_valid_moves(-1) and not self.board.get_valid_moves(1):
@@ -39,6 +40,9 @@ class Game:
             self.history_index += 1
             return True
         return False
+
+    def get_flipped_stones(self, row, col, turn):
+        return self.board.get_flipped_stones(row, col, turn)
 
     def get_valid_moves(self):
         return self.board.get_valid_moves(self.turn)

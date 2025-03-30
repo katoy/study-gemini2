@@ -21,15 +21,17 @@ def main():
                 if not game.game_over and game.agents[game.turn] is None:
                     row, col = gui.get_clicked_cell(event.pos)
                     if (row, col) in game.get_valid_moves():
-                        gui.draw_stone_animation(game, row, col, WHITE if game.turn == 1 else BLACK) # game を渡す
                         game.place_stone(row, col)
+                        gui.draw_stone_animation(game, row, col, WHITE if game.turn == 1 else BLACK) # game を渡す
+                        flipped_stones = game.get_flipped_stones(row, col, -1 if game.turn == -1 else 1)
+                        gui.draw_flip_animation(game, flipped_stones, WHITE if game.turn == 1 else BLACK)
                         game.switch_turn()
                         game.check_game_over()
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_LEFT:
-                        game.history_top()
-                    elif event.key == pygame.K_RIGHT:
-                        game.history_last()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    game.history_top()
+                elif event.key == pygame.K_RIGHT:
+                    game.history_last()
 
         if game.game_over:
             winner = game.get_winner()
