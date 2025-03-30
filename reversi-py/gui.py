@@ -11,7 +11,7 @@ BOARD_COLOR = (0, 128, 0)  # ボードの色を定義
 BACKGROUND_COLOR = (100, 100, 100)  # ボード外の背景色を定義（例：濃い灰色）
 
 class GameGUI:
-    def __init__(self, screen_width=600, screen_height=600):
+    def __init__(self, screen_width=400, screen_height=500): #画面サイズを変更
         pygame.init()
         self.screen_width = screen_width
         self.screen_height = screen_height
@@ -32,25 +32,24 @@ class GameGUI:
 
         try:
             if font_path:
-                self.font = pygame.font.Font(font_path, 36)
+                self.font = pygame.font.Font(font_path, 24) #フォントサイズを変更
             else:
-                self.font = pygame.font.Font(None, 36)
+                self.font = pygame.font.Font(None, 24) #フォントサイズを変更
         except Exception as e:
             print(f"フォントの読み込みに失敗しました: {e}")
-            self.font = pygame.font.Font(None, 36)
+            self.font = pygame.font.Font(None, 24) #フォントサイズを変更
 
-        self.cell_size = self.screen_width // 8
         self.board_top_margin = 0 # ボード上部のマージン
         self.board_bottom_margin = 100 # ボード下部のマージン
-        self.board_height = self.screen_height - self.board_bottom_margin - self.board_top_margin # ボードの高さ
-        self.cell_size = self.board_height // 8
+        self.board_size = 400 # ボードサイズを定義
+        self.cell_size = self.board_size // 8 # セルのサイズを再計算
 
     def draw_board(self, game):
         self.screen.fill(BACKGROUND_COLOR)  # ボード外の背景色で画面全体を塗りつぶす
 
         # ボードの描画範囲を計算
-        board_width = self.cell_size * 8
-        board_height = self.cell_size * 8
+        board_width = self.board_size
+        board_height = self.board_size
         board_left = (self.screen_width - board_width) // 2
         board_top = self.board_top_margin
 
@@ -84,7 +83,7 @@ class GameGUI:
 
     def draw_valid_moves(self, game):
         valid_moves = game.get_valid_moves() # 合法手の取得
-        board_width = self.cell_size * 8
+        board_width = self.board_size
         board_left = (self.screen_width - board_width) // 2
         board_top = self.board_top_margin
         for row, col in valid_moves:
@@ -97,7 +96,7 @@ class GameGUI:
 
     def get_clicked_cell(self, pos):
         x, y = pos
-        board_width = self.cell_size * 8
+        board_width = self.board_size
         board_left = (self.screen_width - board_width) // 2
         board_top = self.board_top_margin
         if not (board_left <= x < board_left + board_width and board_top <= y < board_top + board_width):
@@ -107,7 +106,7 @@ class GameGUI:
         return row, col
 
     def draw_stone_animation(self, game, row, col, color):
-        board_width = self.cell_size * 8
+        board_width = self.board_size
         board_left = (self.screen_width - board_width) // 2
         board_top = self.board_top_margin
         center = (board_left + col * self.cell_size + self.cell_size // 2, board_top + row * self.cell_size + self.cell_size // 2)
@@ -129,7 +128,7 @@ class GameGUI:
     def draw_flip_animation(self, game, flipped_stones, color):
         max_radius = self.cell_size // 2 - 5
         other_color = WHITE if color == BLACK else BLACK
-        board_width = self.cell_size * 8
+        board_width = self.board_size
         board_left = (self.screen_width - board_width) // 2
         board_top = self.board_top_margin
         for i in range(10):  # アニメーションのフレーム数
