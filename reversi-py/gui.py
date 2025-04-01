@@ -11,9 +11,10 @@ BOARD_COLOR = (0, 128, 0)  # ボードの色を定義
 BACKGROUND_COLOR = (100, 100, 100)  # ボード外の背景色を定義（例：濃い灰色）
 BUTTON_COLOR = (50, 50, 50) #ボタンの色
 BUTTON_TEXT_COLOR = (200, 200, 200) #ボタンの文字色
+DISABLED_TEXT_COLOR = (100, 100, 100) #無効な文字色
 
 class GameGUI:
-    def __init__(self, screen_width=400, screen_height=500): #画面サイズを変更
+    def __init__(self, screen_width=450, screen_height=650): #画面サイズを変更
         pygame.init()
         self.screen_width = screen_width
         self.screen_height = screen_height
@@ -47,6 +48,11 @@ class GameGUI:
         self.cell_size = self.board_size // 8 # セルのサイズを再計算
         self.button_width = 150 #ボタンの幅
         self.button_height = 50 #ボタンの高さ
+        self.stone_count_margin = 5 #石の数の表示マージン
+        self.player_settings_margin = 40 # プレーヤー設定のマージン
+        self.message_margin = 5 #メッセージのマージン
+        self.radio_button_size = 20
+        self.radio_button_margin = 10
 
     def draw_board(self, game):
         self.screen.fill(BACKGROUND_COLOR)  # ボード外の背景色で画面全体を塗りつぶす
@@ -72,17 +78,17 @@ class GameGUI:
 
         # 石の数を表示
         black_count, white_count = game.board.count_stones()
-        self.draw_stone_count(black_count, white_count)
+        self.draw_stone_count(black_count, white_count, board_left, board_top, board_width, board_height)
 
-    def draw_stone_count(self, black_count, white_count):
+    def draw_stone_count(self, black_count, white_count, board_left, board_top, board_width, board_height):
         # 黒石の数を表示
         black_text = self.font.render(f"黒: {black_count}", True, BLACK)
-        black_rect = black_text.get_rect(topleft=(10, self.screen_height - 80))
+        black_rect = black_text.get_rect(topleft=(board_left, board_top + board_height + self.stone_count_margin))
         self.screen.blit(black_text, black_rect)
 
         # 白石の数を表示
         white_text = self.font.render(f"白: {white_count}", True, WHITE)
-        white_rect = white_text.get_rect(topright=(self.screen_width - 10, self.screen_height - 80))
+        white_rect = white_text.get_rect(topright=(board_left + board_width, board_top + board_height + self.stone_count_margin))
         self.screen.blit(white_text, white_rect)
 
     def draw_valid_moves(self, game):
@@ -95,7 +101,7 @@ class GameGUI:
 
     def draw_message(self, message):
         text = self.font.render(message, True, WHITE)
-        text_rect = text.get_rect(center=(self.screen_width // 2, self.screen_height - 60)) # メッセージの表示位置を変更
+        text_rect = text.get_rect(center=(self.screen_width // 2, self.screen_height - self.message_margin - 30)) # メッセージの表示位置を変更
         self.screen.blit(text, text_rect)
 
     def get_clicked_cell(self, pos):
@@ -121,6 +127,7 @@ class GameGUI:
             self.draw_board(game)
             self.draw_valid_moves(game)
             self.draw_message(game.get_message())
+            self.draw_player_settings(game, True)
             pygame.draw.circle(self.screen, color, center, radius)
             pygame.display.flip()
             pygame.time.delay(10)
@@ -139,6 +146,7 @@ class GameGUI:
             self.draw_board(game)
             self.draw_valid_moves(game)
             self.draw_message(game.get_message())
+            self.draw_player_settings(game, True)
             for fr, fc in flipped_stones:
                 stone_center = (board_left + fc * self.cell_size + self.cell_size // 2, board_top + fr * self.cell_size + self.cell_size // 2)
                 if i < 5:
@@ -176,3 +184,61 @@ class GameGUI:
         x, y = pos
         button_x, button_y, button_width, button_height = button_rect
         return button_x <= x <= button_x + button_width and button_y <= y <= button_y + button_height
+
+    def draw_radio_button(self, pos, size, selected):
+        x, y = pos
+        pygame.draw.circle(self.screen, WHITE, (x + size // 2, y + size // 2), size // 2, 1)
+        if selected:
+            pygame.draw.circle(self.screen, WHITE, (x + size // 2, y + size // 2), size // 4)
+
+    def draw_text(self, text, pos, enabled=True):
+        color = WHITE if enabled else DISABLED_TEXT_COLOR
+        text_surface = self.font.render(text, True, color)
+        self.screen.blit(text_surface, pos)
+
+    def draw_player_settings(self, game, enabled=False):
+
+        # ボードの描画範囲を計算
+        board_width = self.board_size
+        board_height = self.board_size
+        board_left = (self.screen_width - board_width) // 2
+        board_top = self.board_top_margin
+
+        #石の数の表示位置
+        stone_count_top = board_top + board_height + self.stone_count_margin
+
+        # プレーヤー設定の表示位置を調整
+        player_settings_top = stone_count_top + self.player_settings_margin
+
+        black_player_label_pos = (10, player_settings_top)
+        white_player_label_pos = (self.screen_width // 2, player_settings_top)
+
+        black_human_radio_pos = (black_player_label_pos[0], black_player_label_pos[1] + 30)
+        black_random_radio_pos = (black_player_label_pos[0], black_human_radio_pos[1] + 30)
+        white_human_radio_pos = (white_player_label_pos[0], white_player_label_pos[1] + 30)
+        white_random_radio_pos = (white_player_label_pos[0], white_human_radio_pos[1] + 30)
+
+        black_player_type = game.agents[-1]
+        white_player_type = game.agents[1]
+
+        # 黒プレイヤーの設定を描画
+        self.draw_text("黒プレイヤー", black_player_label_pos, enabled)
+        self.draw_text("人間", (black_human_radio_pos[0] + self.radio_button_size + self.radio_button_margin, black_human_radio_pos[1]), enabled)
+        self.draw_text("ランダム", (black_random_radio_pos[0] + self.radio_button_size + self.radio_button_margin, black_random_radio_pos[1]), enabled)
+        if black_player_type is None:
+            self.draw_radio_button(black_human_radio_pos, self.radio_button_size, True)
+            self.draw_radio_button(black_random_radio_pos, self.radio_button_size, False)
+        else:
+            self.draw_radio_button(black_human_radio_pos, self.radio_button_size, False)
+            self.draw_radio_button(black_random_radio_pos, self.radio_button_size, True)
+
+        # 白プレイヤーの設定を描画
+        self.draw_text("白プレイヤー", white_player_label_pos, enabled)
+        self.draw_text("人間", (white_human_radio_pos[0] + self.radio_button_size + self.radio_button_margin, white_human_radio_pos[1]), enabled)
+        self.draw_text("ランダム", (white_random_radio_pos[0] + self.radio_button_size + self.radio_button_margin, white_random_radio_pos[1]), enabled)
+        if white_player_type is None:
+            self.draw_radio_button(white_human_radio_pos, self.radio_button_size, True)
+            self.draw_radio_button(white_random_radio_pos, self.radio_button_size, False)
+        else:
+            self.draw_radio_button(white_human_radio_pos, self.radio_button_size, False)
+            self.draw_radio_button(white_random_radio_pos, self.radio_button_size, True)
