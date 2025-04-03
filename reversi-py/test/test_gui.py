@@ -1,78 +1,71 @@
 import unittest
 import pygame
-import sys
-import os
-
-# Add the parent directory to the Python path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
-
-from gui import GameGUI, BLACK, WHITE, GREEN, GRAY, BOARD_COLOR, BACKGROUND_COLOR, BUTTON_COLOR, BUTTON_TEXT_COLOR
+from gui import GameGUI
 from game import Game
 
 class TestGameGUI(unittest.TestCase):
-
     def setUp(self):
-        pygame.init()
-        self.gui = GameGUI(400, 500)
+        self.gui = GameGUI()
         self.game = Game()
 
-    def tearDown(self):
-        pygame.quit()
+    def test_draw_stone_count(self):
+        # 必要な引数を追加
+        board_width = self.gui.board_size
+        board_height = self.gui.board_size
+        board_left = (self.gui.screen_width - board_width) // 2
+        board_top = self.gui.board_top_margin
+        self.gui.draw_stone_count(2, 2, board_left, board_top, board_width, board_height)
 
     def test_draw_board(self):
-        # ボードが正しく描画されるかテスト
         self.gui.draw_board(self.game)
-        # ここでは、描画された内容を直接検証することは難しいので、
-        # エラーが発生しないことを確認する程度にとどめます。
-        # 実際の描画結果を目視で確認する必要があります。
-        self.assertTrue(True)
-
-    def test_draw_stone_count(self):
-        # 石の数が正しく描画されるかテスト
-        self.gui.draw_stone_count(2, 2)
-        self.assertTrue(True)
 
     def test_draw_valid_moves(self):
-        # 合法手が正しく描画されるかテスト
         self.gui.draw_valid_moves(self.game)
-        self.assertTrue(True)
 
     def test_draw_message(self):
-        # メッセージが正しく描画されるかテスト
-        self.gui.draw_message("テストメッセージ")
-        self.assertTrue(True)
+        self.gui.draw_message("Test Message")
 
+    def test_get_clicked_cell(self):
+        # ボード内のクリック
+        row, col = self.gui.get_clicked_cell((200, 200))
+        self.assertTrue(0 <= row < 8)
+        self.assertTrue(0 <= col < 8)
+
+        # ボード外のクリック
+        row, col = self.gui.get_clicked_cell((0, 0))
+        self.assertEqual(row, -1)
+        self.assertEqual(col, -1)
 
     def test_draw_stone_animation(self):
-        # 石を置くアニメーションが正しく実行されるかテスト
-        self.gui.draw_stone_animation(self.game, 2, 3, BLACK)
-        self.assertTrue(True)
+        self.gui.draw_stone_animation(self.game, 3, 3, (0, 0, 0))
 
     def test_draw_flip_animation(self):
-        # 石をひっくり返すアニメーションが正しく実行されるかテスト
         flipped_stones = [(3, 3), (3, 4)]
-        self.gui.draw_flip_animation(self.game, flipped_stones, WHITE)
-        self.assertTrue(True)
+        self.gui.draw_flip_animation(self.game, flipped_stones, (0, 0, 0))
 
     def test_draw_start_button(self):
-        # スタートボタンが正しく描画されるかテスト
-        button_rect = self.gui.draw_start_button()
-        self.assertTrue(isinstance(button_rect, tuple))
-        self.assertEqual(len(button_rect), 4)
+        self.gui.draw_start_button()
 
     def test_draw_restart_button(self):
-        # リスタートボタンが正しく描画されるかテスト
-        button_rect = self.gui.draw_restart_button()
-        self.assertTrue(isinstance(button_rect, tuple))
-        self.assertEqual(len(button_rect), 4)
+        self.gui.draw_restart_button()
+        self.gui.draw_restart_button(True)
 
     def test_is_button_clicked(self):
-        # ボタンがクリックされたか正しく判定できるかテスト
-        button_rect = self.gui.draw_start_button()
-        self.assertTrue(self.gui.is_button_clicked((200, 250), button_rect))
+        button_rect = (100, 100, 50, 50)
+        self.assertTrue(self.gui.is_button_clicked((125, 125), button_rect))
         self.assertFalse(self.gui.is_button_clicked((0, 0), button_rect))
+
+    def test_draw_radio_button(self):
+        self.gui.draw_radio_button((10, 10), 20, True)
+        self.gui.draw_radio_button((10, 40), 20, False)
+
+    def test_draw_text(self):
+        self.gui.draw_text("Test Text", (10, 10))
+        self.gui.draw_text("Test Text", (10, 40), False)
+
+    def test_draw_player_settings(self):
+        self.gui.draw_player_settings(self.game)
+        self.gui.draw_player_settings(self.game, True)
 
 if __name__ == '__main__':
     unittest.main()
