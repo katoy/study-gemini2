@@ -14,7 +14,8 @@ class TestGameGUI(unittest.TestCase):
         board_height = Screen.BOARD_SIZE  # Screen.BOARD_SIZE を使用
         board_left = (self.gui.screen_width - board_width) // 2
         board_top = Screen.BOARD_TOP_MARGIN # Screen.BOARD_TOP_MARGIN を使用
-        self.gui.draw_stone_count(2, 2, board_left, board_top, board_width, board_height)
+        board_rect = pygame.Rect(board_left, board_top, board_width, board_height)
+        self.gui._draw_stone_count(self.game, board_rect) #修正
 
     def test_draw_board(self):
         self.gui.draw_board(self.game)
