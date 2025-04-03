@@ -1,6 +1,6 @@
 import unittest
 import pygame
-from gui import GameGUI
+from gui import GameGUI, Screen  # Screen をインポート
 from game import Game
 
 class TestGameGUI(unittest.TestCase):
@@ -10,10 +10,10 @@ class TestGameGUI(unittest.TestCase):
 
     def test_draw_stone_count(self):
         # 必要な引数を追加
-        board_width = self.gui.board_size
-        board_height = self.gui.board_size
+        board_width = Screen.BOARD_SIZE  # Screen.BOARD_SIZE を使用
+        board_height = Screen.BOARD_SIZE  # Screen.BOARD_SIZE を使用
         board_left = (self.gui.screen_width - board_width) // 2
-        board_top = self.gui.board_top_margin
+        board_top = Screen.BOARD_TOP_MARGIN # Screen.BOARD_TOP_MARGIN を使用
         self.gui.draw_stone_count(2, 2, board_left, board_top, board_width, board_height)
 
     def test_draw_board(self):
@@ -51,13 +51,13 @@ class TestGameGUI(unittest.TestCase):
         self.gui.draw_restart_button(True)
 
     def test_is_button_clicked(self):
-        button_rect = (100, 100, 50, 50)
+        button_rect = pygame.Rect(100, 100, 50, 50)  # pygame.Rect を使用
         self.assertTrue(self.gui.is_button_clicked((125, 125), button_rect))
         self.assertFalse(self.gui.is_button_clicked((0, 0), button_rect))
 
     def test_draw_radio_button(self):
-        self.gui.draw_radio_button((10, 10), 20, True)
-        self.gui.draw_radio_button((10, 40), 20, False)
+        self.gui.draw_radio_button((10, 10), True)  # 余分な引数を削除
+        self.gui.draw_radio_button((10, 40), False)  # 余分な引数を削除
 
     def test_draw_text(self):
         self.gui.draw_text("Test Text", (10, 10))
