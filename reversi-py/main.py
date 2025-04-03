@@ -1,7 +1,7 @@
 # main.py
 import pygame
 from game import Game
-from gui import GameGUI, BLACK, WHITE  # BLACK と WHITE をインポート
+from gui import GameGUI, Color, Screen  # Screen クラスをインポート
 from agent import HumanAgent, RandomAgent, GainAgent, FirstAgent
 
 def main():
@@ -22,8 +22,8 @@ def main():
     white_player_selected = 0  # 0: 人間, 1: RandomAgent
 
     # ラジオボタンの描画位置とサイズ
-    radio_button_size = 20
-    radio_button_margin = 10
+    radio_button_size = Screen.RADIO_BUTTON_SIZE
+    radio_button_margin = Screen.RADIO_BUTTON_MARGIN
 
     while running:
         for event in pygame.event.get():
@@ -36,16 +36,16 @@ def main():
                     else:
                         # 黒プレイヤーのラジオボタンのクリック判定
                         # ボードの描画範囲を計算
-                        board_width = gui.board_size
-                        board_height = gui.board_size
+                        board_width = Screen.BOARD_SIZE
+                        board_height = Screen.BOARD_SIZE
                         board_left = (gui.screen_width - board_width) // 2
-                        board_top = gui.board_top_margin
+                        board_top = Screen.BOARD_TOP_MARGIN
 
                         #石の数の表示位置(ゲーム開始前は石の表示がないので、盤面の下端を基準にする)
-                        stone_count_top = board_top + board_height + gui.stone_count_margin
+                        stone_count_top = board_top + board_height + Screen.STONE_COUNT_MARGIN
 
                         # プレーヤー設定の表示位置を調整
-                        player_settings_top = stone_count_top + gui.player_settings_margin
+                        player_settings_top = stone_count_top + Screen.PLAYER_SETTINGS_MARGIN
 
                         black_player_label_pos = (10, player_settings_top)
                         white_player_label_pos = (gui.screen_width // 2, player_settings_top)
@@ -87,9 +87,9 @@ def main():
                         row, col = gui.get_clicked_cell(event.pos)
                         if (row, col) in game.get_valid_moves():
                             game.place_stone(row, col)
-                            gui.draw_stone_animation(game, row, col, WHITE if game.turn == 1 else BLACK)  # game を渡す
+                            gui.draw_stone_animation(game, row, col, Color.WHITE if game.turn == 1 else Color.BLACK)  # game を渡す
                             flipped_stones = game.get_flipped_stones(row, col, -1 if game.turn == -1 else 1)
-                            gui.draw_flip_animation(game, flipped_stones, WHITE if game.turn == 1 else BLACK)
+                            gui.draw_flip_animation(game, flipped_stones, Color.WHITE if game.turn == 1 else Color.BLACK)
                             game.switch_turn()
                             game.check_game_over()
             elif event.type == pygame.KEYDOWN:
@@ -103,16 +103,16 @@ def main():
             start_button_rect = gui.draw_start_button()  # スタートボタンを描画
 
             # ボードの描画範囲を計算
-            board_width = gui.board_size
-            board_height = gui.board_size
+            board_width = Screen.BOARD_SIZE
+            board_height = Screen.BOARD_SIZE
             board_left = (gui.screen_width - board_width) // 2
-            board_top = gui.board_top_margin
+            board_top = Screen.BOARD_TOP_MARGIN
 
             #石の数の表示位置(ゲーム開始前は石の表示がないので、盤面の下端を基準にする)
-            stone_count_top = board_top + board_height + gui.stone_count_margin
+            stone_count_top = board_top + board_height + Screen.STONE_COUNT_MARGIN
 
             # プレーヤー設定の表示位置を調整
-            player_settings_top = stone_count_top + gui.player_settings_margin
+            player_settings_top = stone_count_top + Screen.PLAYER_SETTINGS_MARGIN
 
             black_player_label_pos = (10, player_settings_top)
             white_player_label_pos = (gui.screen_width // 2, player_settings_top)
@@ -123,15 +123,15 @@ def main():
             white_random_radio_pos = (white_player_label_pos[0], white_human_radio_pos[1] + 30)
 
             # 黒プレイヤーのラジオボタンを描画
-            gui.draw_radio_button(black_human_radio_pos, radio_button_size, black_player_selected == 0)
-            gui.draw_radio_button(black_random_radio_pos, radio_button_size, black_player_selected == 1)
+            gui.draw_radio_button(black_human_radio_pos, black_player_selected == 0)
+            gui.draw_radio_button(black_random_radio_pos, black_player_selected == 1)
             gui.draw_text("黒プレイヤー", black_player_label_pos)
             gui.draw_text("人間", (black_human_radio_pos[0] + radio_button_size + radio_button_margin, black_human_radio_pos[1]))
             gui.draw_text("ランダム", (black_random_radio_pos[0] + radio_button_size + radio_button_margin, black_random_radio_pos[1]))
 
             # 白プレイヤーのラジオボタンを描画
-            gui.draw_radio_button(white_human_radio_pos, radio_button_size, white_player_selected == 0)
-            gui.draw_radio_button(white_random_radio_pos, radio_button_size, white_player_selected == 1)
+            gui.draw_radio_button(white_human_radio_pos, white_player_selected == 0)
+            gui.draw_radio_button(white_random_radio_pos, white_player_selected == 1)
             gui.draw_text("白プレイヤー", white_player_label_pos)
             gui.draw_text("人間", (white_human_radio_pos[0] + radio_button_size + radio_button_margin, white_human_radio_pos[1]))
             gui.draw_text("ランダム", (white_random_radio_pos[0] + radio_button_size + radio_button_margin, white_random_radio_pos[1]))
@@ -167,7 +167,7 @@ def main():
                     agent = game.agents[game.turn]
                     move = agent.play(game)
                     if move:
-                        gui.draw_stone_animation(game, move[0], move[1], WHITE if game.turn == 1 else BLACK)  # game を渡す
+                        gui.draw_stone_animation(game, move[0], move[1], Color.WHITE if game.turn == 1 else Color.BLACK)  # game を渡す
                         game.place_stone(move[0], move[1])
                         game.switch_turn()
                         game.check_game_over()
