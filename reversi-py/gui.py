@@ -101,7 +101,7 @@ class GameGUI:
 
     def draw_message(self, message):
         text = self.font.render(message, True, WHITE)
-        text_rect = text.get_rect(center=(self.screen_width // 2, self.screen_height - self.message_margin - 30)) # メッセージの表示位置を変更
+        text_rect = text.get_rect(center=(self.screen_width // 2, self.screen_height - self.message_margin - 70)) # メッセージの表示位置を変更
         self.screen.blit(text, text_rect)
 
     def get_clicked_cell(self, pos):
@@ -173,7 +173,7 @@ class GameGUI:
 
     def draw_restart_button(self, game_over=False):
         button_x = (self.screen_width - self.button_width) // 2
-        button_y = (self.screen_height - self.button_height) // 2 if game_over else self.screen_height - 40
+        button_y = (self.screen_height - self.button_height) // 2 if game_over else self.screen_height - 50
         pygame.draw.rect(self.screen, BUTTON_COLOR, (button_x, button_y, self.button_width, self.button_height))
         text = self.font.render("リスタート", True, BUTTON_TEXT_COLOR)
         text_rect = text.get_rect(center=(button_x + self.button_width // 2, button_y + self.button_height // 2))
@@ -207,11 +207,11 @@ class GameGUI:
         #石の数の表示位置
         stone_count_top = board_top + board_height + self.stone_count_margin
 
-        # プレーヤー設定の表示位置を調整
-        player_settings_top = stone_count_top + self.player_settings_margin
+        # プレーヤー設定の表示位置を調整(石の数との間隔を広げる)
+        player_settings_top = stone_count_top + self.player_settings_margin + 20 #ゲーム開始前とゲーム開始後で位置を合わせる
 
-        black_player_label_pos = (10, player_settings_top)
-        white_player_label_pos = (self.screen_width // 2, player_settings_top)
+        black_player_label_pos = (10, player_settings_top - 20) #手番表示との間隔を狭める
+        white_player_label_pos = (self.screen_width // 2, player_settings_top - 20)
 
         black_human_radio_pos = (black_player_label_pos[0], black_player_label_pos[1] + 30)
         black_random_radio_pos = (black_player_label_pos[0], black_human_radio_pos[1] + 30)

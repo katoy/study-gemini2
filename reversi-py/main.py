@@ -10,8 +10,8 @@ def main():
     clock = pygame.time.Clock()
 
     # プレイヤーの設定（初期値）
-    black_player_type = 0  # 0: 人間, 1: RandomAgent
-    white_player_type = 1  # 0: 人間, 1: RandomAgent
+    black_player_type = 0  # 0: 人間, 2: RandomAgent
+    white_player_type = 0  # 0: 人間, 2: RandomAgent
     game.set_players(black_player_type, white_player_type)
 
     game_started = False  # ゲーム開始フラグ
