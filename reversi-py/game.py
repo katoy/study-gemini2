@@ -24,6 +24,11 @@ class Game:
         self.history = []
         self.history_index = -1
         self.message = "ゲーム開始"
+        # プレイヤー設定を初期化
+        self.agents = {
+            -1: None,  # 黒のプレイヤー（デフォルトは人間）
+            1: None   # 白のプレイヤー（デフォルトは人間）
+        }
 
     def switch_turn(self):
         self.turn *= -1

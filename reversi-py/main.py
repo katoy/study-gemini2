@@ -74,15 +74,37 @@ def main():
                         game.set_players(black_player_type, white_player_type)
 
                 elif game.game_over:  # ゲームオーバー時
+                    # リスタートボタンのクリックを検知
                     if gui.is_button_clicked(event.pos, restart_button_rect):
                         game.reset()  # ゲームをリセット
                         game.set_players(black_player_type, white_player_type)  # プレイヤーを再設定
                         game_started = True
+                    # リセットボタンのクリックを検知
+                    elif gui.is_button_clicked(event.pos, reset_button_rect):
+                        game.reset()  # ゲームをリセット
+                        # プレイヤー設定を初期化
+                        black_player_type = 0
+                        white_player_type = 0
+                        black_player_selected = 0
+                        white_player_selected = 0
+                        game.set_players(black_player_type, white_player_type)
+                        game_started = False  # ゲーム開始前へ
                 else:  # ゲーム中
+                    # リスタートボタンのクリックを検知
                     if gui.is_button_clicked(event.pos, restart_button_rect):
                         game.reset()  # ゲームをリセット
                         game.set_players(black_player_type, white_player_type)  # プレイヤーを再設定
                         game_started = True
+                    # リセットボタンのクリックを検知
+                    elif gui.is_button_clicked(event.pos, reset_button_rect):
+                        game.reset()  # ゲームをリセット
+                        # プレイヤー設定を初期化
+                        black_player_type = 0
+                        white_player_type = 0
+                        black_player_selected = 0
+                        white_player_selected = 0
+                        game.set_players(black_player_type, white_player_type)
+                        game_started = False  # ゲーム開始前へ
                     elif not game.game_over and game.agents[game.turn] is None:
                         row, col = gui.get_clicked_cell(event.pos)
                         if (row, col) in game.get_valid_moves():
@@ -149,9 +171,11 @@ def main():
             else:
                 game.set_message("引き分けです！")
             gui.draw_board(game)
-            gui.draw_message(game.get_message())
+            gui.draw_message(game.get_message()) #button_heightを削除
             gui.draw_player_settings(game, True)
-            restart_button_rect = gui.draw_restart_button(True)  # リスタートボタンを描画
+            restart_button_rect = gui.draw_restart_button(True)  # リスタートボタンを描画 #button_heightを取得を削除
+            # リセットボタンを描画
+            reset_button_rect = gui.draw_reset_button(True) #button_heightを取得を削除
             pygame.display.flip()
             clock.tick(60)
             continue  # ゲームオーバーになったら、それ以降の処理を行わない
@@ -174,9 +198,11 @@ def main():
 
         gui.draw_board(game)
         gui.draw_valid_moves(game)
-        gui.draw_message(game.get_message())
+        restart_button_rect = gui.draw_restart_button()  # リスタートボタンを描画 #button_heightを取得を削除
+        # リセットボタンを描画
+        reset_button_rect = gui.draw_reset_button() #button_heightを取得を削除
+        gui.draw_message(game.get_message()) #button_heightを削除
         gui.draw_player_settings(game, True)
-        restart_button_rect = gui.draw_restart_button()  # リスタートボタンを描画
         pygame.display.flip()
         clock.tick(60)
 
