@@ -42,12 +42,14 @@ def main():
                         board_top = Screen.BOARD_TOP_MARGIN
 
                         #石の数の表示位置(ゲーム開始前は石の表示がないので、盤面の下端を基準にする)
-                        stone_count_top = board_top + board_height + Screen.STONE_COUNT_MARGIN
+                        stone_count_top = board_top + board_height + (gui.screen_width - (board_left + board_width)) #修正
 
                         # プレーヤー設定の表示位置を調整
                         player_settings_top = stone_count_top + Screen.PLAYER_SETTINGS_MARGIN
+                        # ボードの左マージンを取得
+                        left_margin = board_left
 
-                        black_player_label_pos = (10, player_settings_top)
+                        black_player_label_pos = (left_margin, player_settings_top)
                         white_player_label_pos = (gui.screen_width // 2, player_settings_top)
 
                         black_human_radio_pos = (black_player_label_pos[0], black_player_label_pos[1] + 30)
@@ -131,12 +133,14 @@ def main():
             board_top = Screen.BOARD_TOP_MARGIN
 
             #石の数の表示位置(ゲーム開始前は石の表示がないので、盤面の下端を基準にする)
-            stone_count_top = board_top + board_height + Screen.STONE_COUNT_MARGIN
+            stone_count_top = board_top + board_height + (gui.screen_width - (board_left + board_width)) #修正
 
             # プレーヤー設定の表示位置を調整
             player_settings_top = stone_count_top + Screen.PLAYER_SETTINGS_MARGIN
+            # ボードの左マージンを取得
+            left_margin = board_left
 
-            black_player_label_pos = (10, player_settings_top)
+            black_player_label_pos = (left_margin, player_settings_top)
             white_player_label_pos = (gui.screen_width // 2, player_settings_top)
 
             black_human_radio_pos = (black_player_label_pos[0], black_player_label_pos[1] + 30)
@@ -171,7 +175,7 @@ def main():
             else:
                 game.set_message("引き分けです！")
             gui.draw_board(game)
-            gui.draw_message(game.get_message()) #button_heightを削除
+            gui.draw_message(game.get_message(), is_game_over=True) #button_heightを削除
             gui.draw_player_settings(game, True)
             restart_button_rect = gui.draw_restart_button(True)  # リスタートボタンを描画 #button_heightを取得を削除
             # リセットボタンを描画
