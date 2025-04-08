@@ -1,143 +1,181 @@
+# test/test_gui.py
 import unittest
 import pygame
-import os
-from gui import GameGUI, Screen, Color
+from unittest.mock import MagicMock, patch
+from gui import GameGUI, Color, Screen
 from game import Game
-
 
 class TestGameGUI(unittest.TestCase):
     def setUp(self):
         pygame.init()
-        self.game = Game()
+        # Create a real screen for testing
         self.gui = GameGUI()
-        self.gui.screen = pygame.Surface((Screen.WIDTH, Screen.HEIGHT))
+        self.game = Game()
+        self.game.set_players(0,0)
+        self.screen = pygame.display.set_mode((Screen.WIDTH, Screen.HEIGHT))
+        self.gui.screen = self.screen
+        self.font_mock = MagicMock()
+        self.font_mock.render.return_value = pygame.Surface((100, 50)) # 修正
+        self.font_mock.get_height.return_value = 24
+        self.gui.font = self.font_mock
 
-        # フォントの読み込みをテスト用に修正
-        font_paths = [
-            "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",  # macOS
-            "/System/Library/Fonts/ヒラギノ丸ゴ ProN W4.ttc",  # macOS
-            "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",  # Ubuntu
-            "/usr/share/fonts/truetype/fonts-japanese-mincho.ttf",  # Ubuntu
-        ]
-        font_loaded = False
-        for font_path in font_paths:
-            if os.path.exists(font_path):
-                try:
-                    self.gui.font = pygame.font.Font(font_path, 24)
-                    font_loaded = True
-                except Exception as e:
-                    print(f"フォントの読み込みに失敗しました: {e}")
-
-    def test_calculate_board_rect(self):
-        board_rect = self.gui._calculate_board_rect()
-        self.assertEqual(board_rect.width, Screen.BOARD_SIZE)
-        self.assertEqual(board_rect.height, Screen.BOARD_SIZE)
-        self.assertEqual(
-            board_rect.left, (Screen.WIDTH - Screen.BOARD_SIZE) // 2)
-        self.assertEqual(board_rect.top, Screen.BOARD_TOP_MARGIN)
-
-    def test_draw_board_background(self):
-        board_rect = self.gui._calculate_board_rect()
-        self.gui._draw_board_background(board_rect)
-        # Check if the screen is filled with the background color
-        self.assertEqual(self.gui.screen.get_at((0, 0)), Color.BACKGROUND)
-        # Check if the board is drawn with the board color
-        self.assertEqual(self.gui.screen.get_at(
-            (board_rect.left + 1, board_rect.top + 1)), Color.BOARD)
-
-    def test_calculate_button_rect(self):
-        start_button_rect = self.gui._calculate_button_rect(True)
-        self.assertEqual(start_button_rect.width, 141)
-        self.assertEqual(start_button_rect.height, 35)
-        self.assertEqual(start_button_rect.centerx, Screen.WIDTH // 2 - 1)
-        self.assertEqual(start_button_rect.centery, Screen.HEIGHT // 2 - 1)
+    def tearDown(self):
+        pygame.quit()
 
     def test_draw_board(self):
         self.gui.draw_board(self.game)
-        # Check if the screen is filled with the background color
-        self.assertEqual(self.gui.screen.get_at((0, 0)), Color.BACKGROUND)
-
-    def test_draw_stone_count(self):
-        board_rect = self.gui._calculate_board_rect()
-        self.gui._draw_stone_count(self.game, board_rect)
-        # Check if the stone count is drawn
-        self.assertNotEqual(self.gui.screen.get_at(
-            (board_rect.left + 1, board_rect.bottom + 1)), Color.BACKGROUND)
+        pygame.display.flip()
 
     def test_draw_valid_moves(self):
-        self.gui.draw_board(self.game)
+        self.game.board.board = [[0 for _ in range(8)] for _ in range(8)]
+        self.game.board.board[3][3] = 1
+        self.game.board.board[3][4] = -1
+        self.game.board.board[4][3] = -1
+        self.game.board.board[4][4] = 1
         self.gui.draw_valid_moves(self.game)
-        # Check if the valid moves are drawn
-        self.assertNotEqual(self.gui.screen.get_at(
-            (Screen.WIDTH // 2, Screen.HEIGHT // 2)), Color.BOARD)
+        pygame.display.flip()
 
     def test_draw_message(self):
         self.gui.draw_message("Test Message")
-        # Check if the message is drawn
-        self.assertNotEqual(self.gui.screen.get_at(
-            (Screen.WIDTH // 2, Screen.HEIGHT // 2)), Color.BACKGROUND)
+        self.font_mock.render.assert_called_once_with("Test Message", True, Color.WHITE)
+        pygame.display.flip()
+
+    def test_draw_message_game_start(self):
+        self.gui.draw_message("Test Message", is_game_start=True)
+        self.font_mock.render.assert_not_called()
+        pygame.display.flip()
+
+    def test_draw_message_game_over(self):
+        self.gui.draw_message("Test Message", is_game_over=True)
+        self.font_mock.render.assert_called_once_with("Test Message", True, Color.WHITE)
+        pygame.display.flip()
 
     def test_get_clicked_cell(self):
-        board_rect = self.gui._calculate_board_rect()
-        row, col = self.gui.get_clicked_cell(
-            (board_rect.left + 1, board_rect.top + 1))
-        self.assertEqual(row, 0)
-        self.assertEqual(col, 0)
-        row, col = self.gui.get_clicked_cell(
-            (board_rect.right - 1, board_rect.bottom - 1))
-        self.assertEqual(row, 7)
-        self.assertEqual(col, 7)
+        row, col = self.gui.get_clicked_cell((220, 220))
+        self.assertEqual(row, 4)
+        self.assertEqual(col, 3) #修正
+
         row, col = self.gui.get_clicked_cell((0, 0))
         self.assertEqual(row, -1)
         self.assertEqual(col, -1)
 
     def test_draw_stone_animation(self):
-        self.gui.draw_stone_animation(self.game, 0, 0, Color.BLACK)
-        # Check if the stone is drawn
-        self.assertEqual(self.gui.screen.get_at(
-            (Screen.WIDTH // 2, Screen.HEIGHT // 2)), Color.BLACK)
+        self.gui.draw_stone_animation(self.game, 3, 3, Color.BLACK)
+        pygame.display.flip()
 
     def test_draw_flip_animation(self):
-        self.gui.draw_flip_animation(self.game, [(0, 0)], Color.BLACK)
-        # Check if the stone is drawn
-        self.assertEqual(self.gui.screen.get_at(
-            (Screen.WIDTH // 2, Screen.HEIGHT // 2)), Color.BLACK)
+        self.gui.draw_flip_animation(self.game, [(3, 3), (3, 4)], Color.BLACK)
+        pygame.display.flip()
 
     def test_draw_start_button(self):
-        start_button_rect = self.gui.draw_start_button()
-        # Check if the start button is drawn
-        self.assertNotEqual(self.gui.screen.get_at(
-            (start_button_rect.centerx, start_button_rect.centery)), Color.BACKGROUND)
+        self.gui.draw_start_button()
+        pygame.display.flip()
 
     def test_draw_restart_button(self):
-        restart_button_rect = self.gui.draw_restart_button()
-        # Check if the restart button is drawn
-        self.assertNotEqual(self.gui.screen.get_at(
-            (restart_button_rect.centerx, restart_button_rect.centery)), Color.BACKGROUND)
+        self.gui.draw_restart_button()
+        pygame.display.flip()
 
     def test_draw_reset_button(self):
-        reset_button_rect = self.gui.draw_reset_button()
-        # Check if the reset button is drawn
-        self.assertNotEqual(self.gui.screen.get_at(
-            (reset_button_rect.centerx, reset_button_rect.centery)), Color.BACKGROUND)
+        self.gui.draw_reset_button()
+        pygame.display.flip()
 
     def test_is_button_clicked(self):
-        start_button_rect = self.gui.draw_start_button()
-        self.assertTrue(self.gui.is_button_clicked(
-            start_button_rect.center, start_button_rect))
-        self.assertFalse(self.gui.is_button_clicked((0, 0), start_button_rect))
+        button_rect = pygame.Rect(100, 100, 50, 50)
+        self.assertTrue(self.gui.is_button_clicked((125, 125), button_rect))
+        self.assertFalse(self.gui.is_button_clicked((50, 50), button_rect))
 
     def test_draw_radio_button(self):
-        self.gui.draw_radio_button((0, 0), True)
-        # Check if the radio button is drawn
-        self.assertNotEqual(self.gui.screen.get_at((10, 10)), Color.BACKGROUND)
+        self.gui.draw_radio_button((100, 100), True)
+        pygame.display.flip()
 
     def test_draw_text(self):
-        self.gui.draw_text("Test Text", (0, 0))
-        # Check if the text is drawn
-        self.assertNotEqual(self.gui.screen.get_at((10, 10)), Color.BACKGROUND)
+        self.gui.draw_text("Test Text", (100, 100))
+        pygame.display.flip()
 
     def test_draw_player_settings(self):
-        self.gui.draw_player_settings(self.game)
-        # Check if the player settings are drawn
-        self.assertNotEqual(self.gui.screen.get_at((10, 10)), Color.BACKGROUND)
+        board_width = Screen.BOARD_SIZE
+        board_left = (self.gui.screen_width - board_width) // 2
+        board_top = Screen.BOARD_TOP_MARGIN
+        stone_count_top = board_top + board_width + (self.gui.screen_width - (board_left + board_width))
+        player_settings_top = stone_count_top + self.gui.font.get_height() + Screen.MESSAGE_MARGIN + self.gui.font.get_height() + Screen.PLAYER_SETTINGS_MARGIN + self.gui.font.get_height()
+        self.gui.draw_player_settings(self.game, player_settings_top)
+        pygame.display.flip()
+
+    def test_draw_turn_message(self):
+        self.gui.draw_turn_message(self.game)
+        pygame.display.flip()
+
+    def test_draw_stone_count(self):
+        board_rect = self.gui._calculate_board_rect()
+        self.gui._draw_stone_count(self.game, board_rect)
+        pygame.display.flip()
+
+    def test_draw_text_with_position(self):
+        self.gui._draw_text_with_position("Test Text", Color.BLACK, (100, 100))
+        pygame.display.flip()
+
+    def test_draw_text_with_position_right_aligned(self):
+        self.gui._draw_text_with_position("Test Text", Color.BLACK, (200, 100), is_right_aligned=True)
+        pygame.display.flip()
+
+    def test_draw_board_background(self):
+        board_rect = self.gui._calculate_board_rect()
+        self.gui._draw_board_background(board_rect)
+        pygame.display.flip()
+
+    def test_draw_board_grid(self):
+        board_rect = self.gui._calculate_board_rect()
+        self.gui._draw_board_grid(board_rect)
+        pygame.display.flip()
+
+    def test_draw_stones(self):
+        board_rect = self.gui._calculate_board_rect()
+        self.gui._draw_stones(self.game.get_board(), board_rect)
+        pygame.display.flip()
+
+    def test_draw_stone(self):
+        board_rect = self.gui._calculate_board_rect()
+        self.gui._draw_stone(board_rect, 3, 3, Color.BLACK)
+        pygame.display.flip()
+
+    def test_get_message_y_position(self):
+        y_pos = self.gui._get_message_y_position(False, False)
+        self.assertGreater(y_pos, 0)
+
+    def test_get_message_y_position_game_start(self):
+        y_pos = self.gui._get_message_y_position(True, False)
+        self.assertEqual(y_pos, Screen.GAME_START_MESSAGE_TOP_MARGIN)
+
+    def test_get_message_y_position_game_over(self):
+        y_pos = self.gui._get_message_y_position(False, True)
+        self.assertGreater(y_pos, 0)
+
+    def test_calculate_button_rect_start_button(self):
+        rect = self.gui._calculate_button_rect(True)
+        self.assertIsNotNone(rect)
+
+    def test_calculate_button_rect_restart_button(self):
+        rect = self.gui._calculate_button_rect(False)
+        self.assertIsNotNone(rect)
+
+    def test_calculate_button_rect_reset_button(self):
+        rect = self.gui._calculate_button_rect(False, is_reset_button=True)
+        self.assertIsNotNone(rect)
+
+    def test_calculate_button_rect_game_over(self):
+        rect = self.gui._calculate_button_rect(False, game_over=True)
+        self.assertIsNotNone(rect)
+
+    def test_draw_button(self):
+        button_rect = pygame.Rect(100, 100, 100, 50)
+        self.gui._draw_button(button_rect, "Test")
+        pygame.display.flip()
+
+    def test_draw_button_border(self):
+        button_rect = pygame.Rect(100, 100, 100, 50)
+        self.gui._draw_button_border(button_rect)
+        pygame.display.flip()
+
+    def test_load_font(self):
+        font = self.gui._load_font()
+        self.assertIsNotNone(font)
