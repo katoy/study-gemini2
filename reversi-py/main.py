@@ -26,6 +26,18 @@ def main():
     radio_button_margin = Screen.RADIO_BUTTON_MARGIN
 
     while running:
+        # ボードの描画範囲を計算
+        board_width = Screen.BOARD_SIZE
+        board_height = Screen.BOARD_SIZE
+        board_left = (gui.screen_width - board_width) // 2
+        board_top = Screen.BOARD_TOP_MARGIN
+
+        # 石の数の表示位置(ゲーム開始前は石の表示がないので、盤面の下端を基準にする)
+        stone_count_top = board_top + board_height + (gui.screen_width - (board_left + board_width))
+
+        # プレーヤー設定の表示位置を調整
+        player_settings_top = stone_count_top + gui.font.get_height() + Screen.MESSAGE_MARGIN + gui.font.get_height() + Screen.PLAYER_SETTINGS_MARGIN + gui.font.get_height()
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -33,19 +45,9 @@ def main():
                 if not game_started:  # ゲーム開始前
                     if gui.is_button_clicked(event.pos, start_button_rect):
                         game_started = True
+                        game.set_message("")  # ゲーム開始時にメッセージをクリア
                     else:
                         # 黒プレイヤーのラジオボタンのクリック判定
-                        # ボードの描画範囲を計算
-                        board_width = Screen.BOARD_SIZE
-                        board_height = Screen.BOARD_SIZE
-                        board_left = (gui.screen_width - board_width) // 2
-                        board_top = Screen.BOARD_TOP_MARGIN
-
-                        #石の数の表示位置(ゲーム開始前は石の表示がないので、盤面の下端を基準にする)
-                        stone_count_top = board_top + board_height + (gui.screen_width - (board_left + board_width)) #修正
-
-                        # プレーヤー設定の表示位置を調整
-                        player_settings_top = stone_count_top + Screen.PLAYER_SETTINGS_MARGIN
                         # ボードの左マージンを取得
                         left_margin = board_left
 
@@ -91,6 +93,9 @@ def main():
                         white_player_selected = 0
                         game.set_players(black_player_type, white_player_type)
                         game_started = False  # ゲーム開始前へ
+                    else:
+                        # ゲームオーバー時は、ラジオボタンのクリックを無視する
+                        pass
                 else:  # ゲーム中
                     # リスタートボタンのクリックを検知
                     if gui.is_button_clicked(event.pos, restart_button_rect):
@@ -126,41 +131,8 @@ def main():
             gui.draw_board(game)
             start_button_rect = gui.draw_start_button()  # スタートボタンを描画
 
-            # ボードの描画範囲を計算
-            board_width = Screen.BOARD_SIZE
-            board_height = Screen.BOARD_SIZE
-            board_left = (gui.screen_width - board_width) // 2
-            board_top = Screen.BOARD_TOP_MARGIN
-
-            #石の数の表示位置(ゲーム開始前は石の表示がないので、盤面の下端を基準にする)
-            stone_count_top = board_top + board_height + (gui.screen_width - (board_left + board_width)) #修正
-
-            # プレーヤー設定の表示位置を調整
-            player_settings_top = stone_count_top + Screen.PLAYER_SETTINGS_MARGIN
-            # ボードの左マージンを取得
-            left_margin = board_left
-
-            black_player_label_pos = (left_margin, player_settings_top)
-            white_player_label_pos = (gui.screen_width // 2, player_settings_top)
-
-            black_human_radio_pos = (black_player_label_pos[0], black_player_label_pos[1] + 30)
-            black_random_radio_pos = (black_player_label_pos[0], black_human_radio_pos[1] + 30)
-            white_human_radio_pos = (white_player_label_pos[0], white_player_label_pos[1] + 30)
-            white_random_radio_pos = (white_player_label_pos[0], white_human_radio_pos[1] + 30)
-
-            # 黒プレイヤーのラジオボタンを描画
-            gui.draw_radio_button(black_human_radio_pos, black_player_selected == 0)
-            gui.draw_radio_button(black_random_radio_pos, black_player_selected == 1)
-            gui.draw_text("黒プレイヤー", black_player_label_pos)
-            gui.draw_text("人間", (black_human_radio_pos[0] + radio_button_size + radio_button_margin, black_human_radio_pos[1]))
-            gui.draw_text("ランダム", (black_random_radio_pos[0] + radio_button_size + radio_button_margin, black_random_radio_pos[1]))
-
-            # 白プレイヤーのラジオボタンを描画
-            gui.draw_radio_button(white_human_radio_pos, white_player_selected == 0)
-            gui.draw_radio_button(white_random_radio_pos, white_player_selected == 1)
-            gui.draw_text("白プレイヤー", white_player_label_pos)
-            gui.draw_text("人間", (white_human_radio_pos[0] + radio_button_size + radio_button_margin, white_human_radio_pos[1]))
-            gui.draw_text("ランダム", (white_random_radio_pos[0] + radio_button_size + radio_button_margin, white_random_radio_pos[1]))
+            # プレーヤー設定UIを描画
+            gui.draw_player_settings(game, player_settings_top, True)
 
             pygame.display.flip()
             clock.tick(60)
@@ -175,11 +147,11 @@ def main():
             else:
                 game.set_message("引き分けです！")
             gui.draw_board(game)
-            gui.draw_message(game.get_message(), is_game_over=True) #button_heightを削除
-            gui.draw_player_settings(game, True)
-            restart_button_rect = gui.draw_restart_button(True)  # リスタートボタンを描画 #button_heightを取得を削除
+            gui.draw_message(game.get_message(), is_game_over=True)
+            gui.draw_player_settings(game, player_settings_top, True)
+            restart_button_rect = gui.draw_restart_button(True)  # リスタートボタンを描画
             # リセットボタンを描画
-            reset_button_rect = gui.draw_reset_button(True) #button_heightを取得を削除
+            reset_button_rect = gui.draw_reset_button(True)
             pygame.display.flip()
             clock.tick(60)
             continue  # ゲームオーバーになったら、それ以降の処理を行わない
@@ -202,11 +174,13 @@ def main():
 
         gui.draw_board(game)
         gui.draw_valid_moves(game)
-        restart_button_rect = gui.draw_restart_button()  # リスタートボタンを描画 #button_heightを取得を削除
+        gui.draw_turn_message(game)
+        restart_button_rect = gui.draw_restart_button()  # リスタートボタンを描画
         # リセットボタンを描画
-        reset_button_rect = gui.draw_reset_button() #button_heightを取得を削除
-        gui.draw_message(game.get_message()) #button_heightを削除
-        gui.draw_player_settings(game, True)
+        reset_button_rect = gui.draw_reset_button()
+        gui.draw_message(game.get_message())
+        # ゲーム中にエージェント設定UIを描画（無効化）
+        gui.draw_player_settings(game, player_settings_top, False)
         pygame.display.flip()
         clock.tick(60)
 

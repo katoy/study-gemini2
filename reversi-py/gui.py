@@ -13,6 +13,8 @@ class Color:
     BUTTON = (50, 50, 50)
     BUTTON_TEXT = (200, 200, 200)
     DISABLED_TEXT = (100, 100, 100)
+    DARK_BLUE = (0, 0, 128)  # 濃い青色を追加
+    LIGHT_BLUE = (173, 216, 230)  # 薄い青色を追加
 
 # 画面サイズとマージンの定義
 class Screen:
@@ -25,13 +27,14 @@ class Screen:
     PLAYER_SETTINGS_MARGIN = 30
     MESSAGE_MARGIN = 20
     TURN_MESSAGE_MARGIN = 5
-    TURN_MESSAGE_TOP_MARGIN = 5
+    TURN_MESSAGE_TOP_MARGIN = 10
     TURN_MESSAGE_TOP_MARGIN_GAME_START = 5
     GAME_START_MESSAGE_TOP_MARGIN = 200
-    RADIO_BUTTON_SIZE = 20
+    RADIO_BUTTON_SIZE = 24
     RADIO_BUTTON_MARGIN = 10
     BUTTON_BORDER_WIDTH = 2
     CELL_SIZE = BOARD_SIZE // 8
+    RADIO_BUTTON_INNER_CIRCLE_RATIO = 0.4 # 小さな円の比率を追加
 
 class GameGUI:
     def __init__(self, screen_width=Screen.WIDTH, screen_height=Screen.HEIGHT):
@@ -127,13 +130,14 @@ class GameGUI:
             pygame.draw.circle(self.screen, Color.GRAY, center, self.cell_size // 8)
 
     def draw_message(self, message, is_game_start=False, is_game_over=False):
-        text_surface = self.font.render(message, True, Color.WHITE)
-        text_rect = text_surface.get_rect(center=(self.screen_width // 2, self._get_message_y_position(is_game_start, is_game_over)))
-        self.screen.blit(text_surface, text_rect)
+        text_surface = self.font.render(message, True, Color.WHITE) if not is_game_start else None
+        if text_surface is not None:
+            text_rect = text_surface.get_rect(center=(self.screen_width // 2, self._get_message_y_position(is_game_start, is_game_over)))
+            self.screen.blit(text_surface, text_rect)
 
     def _get_message_y_position(self, is_game_start, is_game_over):
         if is_game_start:
-            return self._calculate_button_rect(True).y - self.font.get_height() // 2 - Screen.MESSAGE_MARGIN
+            return Screen.GAME_START_MESSAGE_TOP_MARGIN
         elif is_game_over:
             # ゲームオーバー時のメッセージ位置を調整
             return self._get_message_y_position_in_game()
@@ -143,9 +147,10 @@ class GameGUI:
     def _get_message_y_position_in_game(self):
         board_rect = self._calculate_board_rect()
         stone_count_top = board_rect.bottom + (self.screen_width - (board_rect.left + Screen.BOARD_SIZE))
-        player_settings_top = stone_count_top + Screen.PLAYER_SETTINGS_MARGIN
-        # プレーヤー設定UIの直下の行に表示されるように調整
-        return player_settings_top + 100
+        font_height = self.font.get_height()
+        turn_message_top = stone_count_top + font_height + Screen.TURN_MESSAGE_TOP_MARGIN
+        # 手番表示の直下の行に表示されるように調整
+        return turn_message_top
 
     def get_clicked_cell(self, pos):
         board_rect = self._calculate_board_rect()
@@ -167,7 +172,6 @@ class GameGUI:
             self.draw_board(game)
             self.draw_valid_moves(game)
             self.draw_message(game.get_message())
-            self.draw_player_settings(game, True)
             pygame.draw.circle(self.screen, color, center, radius)
             pygame.display.flip()
             pygame.time.delay(10)
@@ -183,7 +187,6 @@ class GameGUI:
             self.draw_board(game)
             self.draw_valid_moves(game)
             self.draw_message(game.get_message())
-            self.draw_player_settings(game, True)
             for fr, fc in flipped_stones:
                 stone_center = (
                     board_rect.left + fc * self.cell_size + self.cell_size // 2,
@@ -220,12 +223,15 @@ class GameGUI:
         else:
             total_button_width = button_width * 2 + Screen.BUTTON_MARGIN
             start_x = (self.screen_width - total_button_width) // 2
+
             if game_over:
                 # ゲームオーバー時のボタンの Y 座標を調整
                 message_y = self._get_message_y_position_in_game()
                 button_y = message_y + self.font.get_height() + Screen.MESSAGE_MARGIN
             else:
-                button_y = self._get_message_y_position_in_game() + self.font.get_height() + Screen.MESSAGE_MARGIN
+                # ゲーム中のボタンの Y 座標を手番表示の下に調整
+                button_y = self._get_message_y_position_in_game() + Screen.MESSAGE_MARGIN #font_heightを削除
+
             button_x = start_x + button_width + Screen.BUTTON_MARGIN if is_reset_button else start_x
 
         return pygame.Rect(button_x, button_y, button_width, button_height)
@@ -247,22 +253,26 @@ class GameGUI:
     def is_button_clicked(self, pos, button_rect):
         return button_rect.collidepoint(pos)
 
-    def draw_radio_button(self, pos, selected):
+    def draw_radio_button(self, pos, selected, enabled=True):
         x, y = pos
-        pygame.draw.circle(self.screen, Color.WHITE, (x + Screen.RADIO_BUTTON_SIZE // 2, y + Screen.RADIO_BUTTON_SIZE // 2), Screen.RADIO_BUTTON_SIZE // 2, 1)
+        center = (x + Screen.RADIO_BUTTON_SIZE // 2, y + Screen.RADIO_BUTTON_SIZE // 2)
+
+        # チェックボックスの枠を描画
+        pygame.draw.circle(self.screen, Color.DARK_BLUE if enabled else Color.LIGHT_BLUE, center, Screen.RADIO_BUTTON_SIZE // 2, 1)
+
         if selected:
-            pygame.draw.circle(self.screen, Color.WHITE, (x + Screen.RADIO_BUTTON_SIZE // 2, y + Screen.RADIO_BUTTON_SIZE // 2), Screen.RADIO_BUTTON_SIZE // 4)
+            # 選択状態の小さな円を描画
+            inner_circle_radius = int(Screen.RADIO_BUTTON_SIZE * Screen.RADIO_BUTTON_INNER_CIRCLE_RATIO // 2)
+            pygame.draw.circle(self.screen, Color.DARK_BLUE if enabled else Color.LIGHT_BLUE, center, inner_circle_radius)
 
     def draw_text(self, text, pos, enabled=True):
         color = Color.WHITE if enabled else Color.DISABLED_TEXT
         text_surface = self.font.render(text, True, color)
         self.screen.blit(text_surface, pos)
 
-    def draw_player_settings(self, game, enabled=False):
+    def draw_player_settings(self, game, player_settings_top, enabled=False):
         board_rect = self._calculate_board_rect()
-        stone_count_top = board_rect.bottom + (self.screen_width - (board_rect.left + Screen.BOARD_SIZE))
-        player_settings_top = stone_count_top + Screen.PLAYER_SETTINGS_MARGIN
-        left_margin = board_rect.left  # ボードの左マージンを取得
+        left_margin = board_rect.left
 
         black_player_label_pos = (left_margin, player_settings_top)
         white_player_label_pos = (self.screen_width // 2, player_settings_top)
@@ -275,14 +285,20 @@ class GameGUI:
         black_player_type = game.agents[-1]
         white_player_type = game.agents[1]
 
-        self.draw_text("黒プレイヤー", black_player_label_pos, enabled)
-        self.draw_text("人間", (black_human_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, black_human_radio_pos[1]), enabled)
-        self.draw_text("ランダム", (black_random_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, black_random_radio_pos[1]), enabled)
-        self.draw_radio_button(black_human_radio_pos, black_player_type is None)
-        self.draw_radio_button(black_random_radio_pos, black_player_type is not None)
+        self.draw_text("黒プレイヤー", black_player_label_pos) #enabledを削除
+        self.draw_text("人間", (black_human_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, black_human_radio_pos[1])) #enabledを削除
+        self.draw_text("ランダム", (black_random_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, black_random_radio_pos[1])) #enabledを削除
+        self.draw_radio_button(black_human_radio_pos, black_player_type is None, enabled)
+        self.draw_radio_button(black_random_radio_pos, black_player_type is not None, enabled)
 
-        self.draw_text("白プレイヤー", white_player_label_pos, enabled)
-        self.draw_text("人間", (white_human_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, white_human_radio_pos[1]), enabled)
-        self.draw_text("ランダム", (white_random_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, white_random_radio_pos[1]), enabled)
-        self.draw_radio_button(white_human_radio_pos, white_player_type is None)
-        self.draw_radio_button(white_random_radio_pos, white_player_type is not None)
+        self.draw_text("白プレイヤー", white_player_label_pos) #enabledを削除
+        self.draw_text("人間", (white_human_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, white_human_radio_pos[1])) #enabledを削除
+        self.draw_text("ランダム", (white_random_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, white_random_radio_pos[1])) #enabledを削除
+        self.draw_radio_button(white_human_radio_pos, white_player_type is None, enabled)
+        self.draw_radio_button(white_random_radio_pos, white_player_type is not None, enabled)
+
+    def draw_turn_message(self, game):
+        message = f"{'黒' if game.turn == -1 else '白'}の番です"
+        text_surface = self.font.render(message, True, Color.WHITE)
+        text_rect = text_surface.get_rect(center=(self.screen_width // 2, self._get_message_y_position_in_game()))
+        self.screen.blit(text_surface, text_rect)
