@@ -15,7 +15,7 @@ class Game:
             -1: None,  # 黒のプレイヤー（デフォルトは人間）
             1: None   # 白のプレイヤー（デフォルトは人間）
         }
-        self.message = "ゲーム開始" #初期メッセージ
+        self.message = "" #初期メッセージをクリア
 
     def reset(self):
         self.board = Board(self.board_size)
@@ -23,7 +23,7 @@ class Game:
         self.game_over = False
         self.history = []
         self.history_index = -1
-        self.message = "ゲーム開始"
+        self.message = "" #リセット時にメッセージをクリア
         # プレイヤー設定を初期化
         self.agents = {
             -1: None,  # 黒のプレイヤー（デフォルトは人間）
