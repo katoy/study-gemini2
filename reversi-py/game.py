@@ -1,6 +1,6 @@
 # game.py
 from board import Board
-from agent import RandomAgent, GainAgent, FirstAgent  # Agentクラスをインポート
+from agents import RandomAgent, GainAgent, FirstAgent  # Agentクラスをインポート
 
 class Game:
     def __init__(self, board_size=8):
