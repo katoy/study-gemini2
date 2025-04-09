@@ -32,7 +32,6 @@ class Game:
 
     def switch_turn(self):
         self.turn *= -1
-        self.set_message(f"{'黒' if self.turn == -1 else '白'}の番です") #ターン切り替え時のメッセージ
 
     def check_game_over(self):
         if not self.board.get_valid_moves(-1) and not self.board.get_valid_moves(1):
