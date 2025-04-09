@@ -3,130 +3,102 @@ import pygame
 import os
 # 必要なエージェントクラスをインポート
 from agents import RandomAgent, GainAgent, FirstAgent # HumanAgent は game.py で None として扱われるため、直接インポートは不要
-
-# 色の定義
-class Color:
-    # ... (変更なし) ...
-    BLACK = (0, 0, 0)
-    WHITE = (255, 255, 255)
-    GREEN = (0, 128, 0)
-    GRAY = (128, 128, 128)
-    BOARD = (0, 128, 0)
-    BACKGROUND = (100, 100, 100)
-    BUTTON = (50, 50, 50)
-    BUTTON_TEXT = (200, 200, 200)
-    DISABLED_TEXT = (100, 100, 100)
-    DARK_BLUE = (0, 0, 128)
-    LIGHT_BLUE = (173, 216, 230)
-
-# 画面サイズとマージンの定義
-class Screen:
-    WIDTH = 450
-    HEIGHT = 780 # UI要素が収まるように調整
-    BOARD_SIZE = 400
-    BOARD_TOP_MARGIN = 0
-    BUTTON_MARGIN = 10
-    BUTTON_VERTICAL_MARGIN = 3
-    # --- マージン定義 ---
-    TURN_MESSAGE_TOP_MARGIN = 10 # 石数表示と手番表示の間のマージン
-    TURN_MESSAGE_BOTTOM_MARGIN = 15 # 手番表示とボタンの間のマージン
-    BUTTON_BOTTOM_MARGIN = 15 # ボタンとプレイヤー設定UIの間のマージン
-    PLAYER_SETTINGS_BOTTOM_MARGIN = 20 # プレイヤー設定UIとメッセージの間のマージン (現在は未使用)
-    MESSAGE_MARGIN = 20 # メッセージと下端 or 他要素とのマージン (現在は未使用)
-    MESSAGE_ABOVE_TURN_MARGIN = 10 # メッセージと手番表示の間のマージン (追加)
-    # --------------------
-    GAME_START_MESSAGE_TOP_MARGIN = 200
-    RADIO_BUTTON_SIZE = 24
-    RADIO_BUTTON_MARGIN = 10
-    BUTTON_BORDER_WIDTH = 2
-    CELL_SIZE = BOARD_SIZE // 8
-    RADIO_BUTTON_INNER_CIRCLE_RATIO = 0.4
-    RADIO_Y_OFFSET = 30
-    RADIO_Y_SPACING = 30
+# --- config.theme からインポート ---
+from config.theme import Color, Screen
+# ---------------------------------
 
 class GameGUI:
     def __init__(self, screen_width=Screen.WIDTH, screen_height=Screen.HEIGHT):
-        # ... (変更なし) ...
         pygame.init()
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.display.set_caption("Reversi")
-        self.cell_size = Screen.CELL_SIZE
+        self.cell_size = Screen.CELL_SIZE # Screen.CELL_SIZE を使用
         self.font = self._load_font()
 
     # --- ヘルパーメソッド ---
     def _calculate_turn_message_center_y(self):
-        # ... (変更なし) ...
+        """手番表示の中心Y座標を計算する"""
         board_rect = self._calculate_board_rect()
         stone_count_y = board_rect.bottom + Screen.TURN_MESSAGE_TOP_MARGIN
         font_height = self.font.get_height()
+        # 石数表示の下 + マージン + 手番表示テキストの高さの半分
         return stone_count_y + font_height + Screen.TURN_MESSAGE_TOP_MARGIN + font_height // 2
 
     def _calculate_button_height(self):
-        # ... (変更なし) ...
+        """ボタンの高さを計算する"""
+        # ダミーテキストで高さを計算
         text_surface = self.font.render("Button", True, Color.BUTTON_TEXT)
         return text_surface.get_height() + Screen.BUTTON_VERTICAL_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
 
     def _calculate_player_settings_height(self):
-        # ... (変更なし) ...
+        """プレイヤー設定UIの高さを計算する"""
         font_height = self.font.get_height()
+        # ラベル高さ + オフセット + (ラジオボタン数-1)*間隔 + ラジオボタンサイズ
+        # ラジオボタンは4種類 (人間, First, Random, Gain) なので間隔は3つ
         return font_height + Screen.RADIO_Y_OFFSET + Screen.RADIO_Y_SPACING * 3 + Screen.RADIO_BUTTON_SIZE
 
     def _calculate_player_settings_top(self):
-        # ... (変更なし) ...
+        """プレイヤー設定UIの上端Y座標を計算する"""
+        # リスタート/リセットボタンの下端を基準にする
+        # is_start=False, game_over=False, is_reset=False でリスタートボタンのRectを取得
+        # (ゲーム開始前でもリスタート/リセットボタンと同じ高さ・幅のボタンがあると仮定して計算)
         button_rect = self._calculate_button_rect(False, False, False)
-        button_y = button_rect.top
-        button_height = button_rect.height
-        return button_y + button_height + Screen.BUTTON_BOTTOM_MARGIN
+        button_bottom = button_rect.bottom # ボタンの下端
+        return button_bottom + Screen.BUTTON_BOTTOM_MARGIN # ボタンの下端 + マージン
 
-    # --- メッセージ位置計算修正 ---
     def _get_message_y_position(self, is_game_start=False, is_game_over=False):
         """メッセージの中心Y座標を取得する"""
         if is_game_start:
             # ゲーム開始時は特定の位置
             return Screen.GAME_START_MESSAGE_TOP_MARGIN
         elif is_game_over:
-            # ゲームオーバー時は手番表示と同じ位置
+            # ゲームオーバー時は手番表示と同じ位置 (勝敗メッセージ用)
             return self._calculate_turn_message_center_y()
-        else: # ゲーム中
+        else: # ゲーム中 (パスなどのメッセージ用)
             # 手番表示の上に表示
             turn_message_center_y = self._calculate_turn_message_center_y()
             font_height = self.font.get_height()
             # メッセージの中心Y = 手番表示中心Y - フォント高さ - マージン
             return turn_message_center_y - font_height - Screen.MESSAGE_ABOVE_TURN_MARGIN
-    # --------------------------------
 
     def _load_font(self):
-        # ... (変更なし) ...
+        """利用可能な日本語フォントをロードする"""
         font_paths = [
             "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",  # macOS
             "/System/Library/Fonts/ヒラギノ丸ゴ ProN W4.ttc",  # macOS
             "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",  # Ubuntu
             "/usr/share/fonts/truetype/fonts-japanese-mincho.ttf",  # Ubuntu
+            "C:\Windows\Fonts\YuGothM.ttc", # Windows (游ゴシック Medium)
+            "C:\Windows\Fonts\meiryo.ttc", # Windows (メイリオ)
+            "C:\Windows\Fonts\msgothic.ttc", # Windows (MSゴシック)
         ]
+        # Windowsパスのバックスラッシュをエスケープ
+        font_paths = [p.replace('\\', '\\\\') for p in font_paths]
+
         for font_path in font_paths:
             if os.path.exists(font_path):
                 try:
                     return pygame.font.Font(font_path, 24)
                 except Exception as e:
-                    print(f"フォントの読み込みに失敗しました: {e}")
+                    print(f"フォントの読み込みに失敗しました ({font_path}): {e}")
         print("日本語フォントが見つかりませんでした。デフォルトフォントを使用します。")
-        return pygame.font.Font(None, 24)
+        return pygame.font.Font(None, 24) # デフォルトフォント
 
     def _calculate_board_rect(self):
-        # ... (変更なし) ...
+        """盤面の描画領域(Rect)を計算する"""
         board_left = (self.screen_width - Screen.BOARD_SIZE) // 2
         board_top = Screen.BOARD_TOP_MARGIN
         return pygame.Rect(board_left, board_top, Screen.BOARD_SIZE, Screen.BOARD_SIZE)
 
     def _draw_board_background(self, board_rect):
-        # ... (変更なし) ...
+        """画面背景と盤面の背景を描画する"""
         self.screen.fill(Color.BACKGROUND)
         pygame.draw.rect(self.screen, Color.BOARD, board_rect)
 
     def _draw_board_grid(self, board_rect):
-        # ... (変更なし) ...
+        """盤面のグリッド線を描画する"""
         for row in range(8):
             for col in range(8):
                 cell_rect = pygame.Rect(
@@ -135,27 +107,27 @@ class GameGUI:
                     self.cell_size,
                     self.cell_size
                 )
-                pygame.draw.rect(self.screen, Color.BLACK, cell_rect, 1)
+                pygame.draw.rect(self.screen, Color.BLACK, cell_rect, 1) # 線の太さ 1
 
     def _draw_stones(self, board, board_rect):
-        # ... (変更なし) ...
+        """盤面上のすべての石を描画する"""
         for row in range(8):
             for col in range(8):
-                if board[row][col] == 1:
+                if board[row][col] == 1: # 白石
                     self._draw_stone(board_rect, row, col, Color.WHITE)
-                elif board[row][col] == -1:
+                elif board[row][col] == -1: # 黒石
                     self._draw_stone(board_rect, row, col, Color.BLACK)
 
     def _draw_stone(self, board_rect, row, col, color):
-        # ... (変更なし) ...
+        """指定された位置に石を描画する"""
         center = (
             board_rect.left + col * self.cell_size + self.cell_size // 2,
             board_rect.top + row * self.cell_size + self.cell_size // 2
         )
-        pygame.draw.circle(self.screen, color, center, self.cell_size // 2 - 5)
+        pygame.draw.circle(self.screen, color, center, self.cell_size // 2 - 5) # 石の半径
 
     def draw_board(self, game):
-        # ... (変更なし) ...
+        """盤面全体を描画する（背景、グリッド、石、石数）"""
         board_rect = self._calculate_board_rect()
         self._draw_board_background(board_rect)
         self._draw_board_grid(board_rect)
@@ -163,23 +135,25 @@ class GameGUI:
         self._draw_stone_count(game, board_rect)
 
     def _draw_stone_count(self, game, board_rect):
-        # ... (変更なし) ...
+        """盤面下の石数を描画する"""
         black_count, white_count = game.board.count_stones()
         stone_count_y = board_rect.bottom + Screen.TURN_MESSAGE_TOP_MARGIN
         left_margin = board_rect.left
+        # 黒石数 (左寄せ)
         self._draw_text_with_position(f"黒: {black_count}", Color.BLACK, (left_margin, stone_count_y))
+        # 白石数 (右寄せ)
         self._draw_text_with_position(f"白: {white_count}", Color.WHITE, (self.screen_width - left_margin, stone_count_y), is_right_aligned=True)
 
     def _draw_text_with_position(self, text, color, pos, is_right_aligned=False):
-        # ... (変更なし) ...
+        """指定された位置にテキストを描画する（右寄せオプション付き）"""
         text_surface = self.font.render(text, True, color)
         text_rect = text_surface.get_rect(topleft=pos)
         if is_right_aligned:
-            text_rect.right = pos[0]
+            text_rect.right = pos[0] # 右端を指定したx座標に合わせる
         self.screen.blit(text_surface, text_rect)
 
     def draw_valid_moves(self, game):
-        # ... (変更なし) ...
+        """合法手を示すマーカーを描画する"""
         board_rect = self._calculate_board_rect()
         valid_moves = game.get_valid_moves()
         for row, col in valid_moves:
@@ -187,26 +161,29 @@ class GameGUI:
                 board_rect.left + col * self.cell_size + self.cell_size // 2,
                 board_rect.top + row * self.cell_size + self.cell_size // 2
             )
-            pygame.draw.circle(self.screen, Color.GRAY, center, self.cell_size // 8)
+            pygame.draw.circle(self.screen, Color.GRAY, center, self.cell_size // 8) # マーカーの半径
 
     def draw_message(self, message, is_game_start=False, is_game_over=False):
-        # ... (変更なし) ...
+        """画面中央にメッセージを描画する"""
         text_surface = self.font.render(message, True, Color.WHITE) if message else None
         if text_surface is not None:
-            text_rect = text_surface.get_rect(center=(self.screen_width // 2, self._get_message_y_position(is_game_start, is_game_over)))
+            # メッセージの位置を状況に応じて計算
+            y_pos = self._get_message_y_position(is_game_start, is_game_over)
+            text_rect = text_surface.get_rect(center=(self.screen_width // 2, y_pos))
             self.screen.blit(text_surface, text_rect)
 
     def get_clicked_cell(self, pos):
-        # ... (変更なし) ...
+        """クリックされた座標が盤面のどのセルに対応するかを返す"""
         board_rect = self._calculate_board_rect()
         if not board_rect.collidepoint(pos):
-            return -1, -1
+            return -1, -1 # 盤面外
+        # 盤面内の相対座標から行と列を計算
         col = (pos[0] - board_rect.left) // self.cell_size
         row = (pos[1] - board_rect.top) // self.cell_size
         return row, col
 
     def draw_stone_animation(self, game, row, col, color):
-        # ... (変更なし) ...
+        """石が置かれるアニメーションを描画する"""
         board_rect = self._calculate_board_rect()
         center = (
             board_rect.left + col * self.cell_size + self.cell_size // 2,
@@ -214,27 +191,37 @@ class GameGUI:
         )
         max_radius = self.cell_size // 2 - 5
 
-        for radius in range(0, max_radius, 5):
+        # 徐々に大きくなる円を描画
+        for radius in range(0, max_radius, 5): # 半径を5ずつ増やす
+            # アニメーション中に背景や他のUIも再描画
             self.draw_board(game)
             self.draw_turn_message(game)
             self.draw_message(game.get_message())
             self.draw_restart_button()
             self.draw_reset_button()
             player_settings_top = self._calculate_player_settings_top()
-            self.draw_player_settings(game, player_settings_top, False)
+            self.draw_player_settings(game, player_settings_top, False) # ゲーム中は設定無効
+            # アニメーション中の石を描画
             pygame.draw.circle(self.screen, color, center, radius)
-            pygame.display.flip()
-            pygame.time.delay(10)
+            pygame.display.flip() # 画面更新
+            pygame.time.delay(10) # 短い待機時間
 
     def draw_flip_animation(self, game, flipped_stones, color):
-        # ... (変更なし) ...
+        """石が裏返るアニメーションを描画する"""
         board_rect = self._calculate_board_rect()
         other_color = Color.WHITE if color == Color.BLACK else Color.BLACK
         max_radius = self.cell_size // 2 - 5
-        for i in range(10):
+
+        # アニメーションのステップ数
+        steps = 10
+        for i in range(steps):
+            # 現在の盤面状態を取得 (アニメーション中に他の石は固定)
             current_board_state = game.get_board()
+            # 背景とグリッドを再描画
             self._draw_board_background(board_rect)
             self._draw_board_grid(board_rect)
+
+            # 裏返らない石を描画
             for r in range(game.get_board_size()):
                 for c in range(game.get_board_size()):
                     is_flipping = False
@@ -242,17 +229,21 @@ class GameGUI:
                         if r == fr and c == fc:
                             is_flipping = True
                             break
-                    if not is_flipping:
+                    if not is_flipping: # 裏返らない石
                         if current_board_state[r][c] == 1:
                             self._draw_stone(board_rect, r, c, Color.WHITE)
                         elif current_board_state[r][c] == -1:
                             self._draw_stone(board_rect, r, c, Color.BLACK)
+
+            # 他のUI要素も再描画
             self.draw_turn_message(game)
             self.draw_message(game.get_message())
             self.draw_restart_button()
             self.draw_reset_button()
             player_settings_top = self._calculate_player_settings_top()
-            self.draw_player_settings(game, player_settings_top, False)
+            self.draw_player_settings(game, player_settings_top, False) # ゲーム中は設定無効
+
+            # 裏返る石のアニメーション描画
             for fr, fc in flipped_stones:
                 stone_center = (
                     board_rect.left + fc * self.cell_size + self.cell_size // 2,
@@ -260,124 +251,158 @@ class GameGUI:
                 )
                 current_radius = 0
                 current_color = other_color
-                if i < 5:
-                    current_radius = max_radius * (1 - i / 5.0)
+                # アニメーション前半：元の色で縮小
+                if i < steps // 2:
+                    current_radius = max_radius * (1 - (i / (steps // 2)))
                     current_color = other_color
+                # アニメーション後半：新しい色で拡大
                 else:
-                    current_radius = max_radius * ((i - 5) / 5.0)
+                    current_radius = max_radius * ((i - steps // 2) / (steps // 2))
                     current_color = color
                 pygame.draw.circle(self.screen, current_color, stone_center, int(current_radius))
-            pygame.display.flip()
-            pygame.time.delay(20)
+
+            pygame.display.flip() # 画面更新
+            pygame.time.delay(20) # アニメーション速度調整
 
     def draw_start_button(self):
-        # ... (変更なし) ...
-        button_rect = self._calculate_button_rect(True)
+        """ゲーム開始ボタンを描画する"""
+        button_rect = self._calculate_button_rect(True) # is_start_button=True
         return self._draw_button(button_rect, "ゲーム開始")
 
     def draw_restart_button(self, game_over=False):
-        # ... (変更なし) ...
-        button_rect = self._calculate_button_rect(False, game_over)
+        """リスタートボタンを描画する"""
+        button_rect = self._calculate_button_rect(False, game_over) # is_start_button=False
         return self._draw_button(button_rect, "リスタート")
 
     def draw_reset_button(self, game_over=False):
-        # ... (変更なし) ...
-        button_rect = self._calculate_button_rect(False, game_over, is_reset_button=True)
+        """リセットボタンを描画する"""
+        button_rect = self._calculate_button_rect(False, game_over, is_reset_button=True) # is_start_button=False
         return self._draw_button(button_rect, "リセット")
 
     def _calculate_button_rect(self, is_start_button, game_over=False, is_reset_button=False):
-        # ... (変更なし) ...
+        """ボタンの描画領域(Rect)を計算する"""
         text = "ゲーム開始" if is_start_button else ("リセット" if is_reset_button else "リスタート")
         text_surface = self.font.render(text, True, Color.BUTTON_TEXT)
         button_width = text_surface.get_width() + Screen.BUTTON_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
         button_height = self._calculate_button_height()
 
         if is_start_button:
+            # ゲーム開始ボタンは画面中央付近
             button_x = (self.screen_width - button_width) // 2
-            button_y = self.screen_height // 2 - button_height // 2
+            # 垂直方向も中央に配置
+            button_y = (self.screen_height - button_height) // 2
         else: # リスタート・リセットボタン
+            # 2つのボタンを横に並べる
             total_button_width = button_width * 2 + Screen.BUTTON_MARGIN
             start_x = (self.screen_width - total_button_width) // 2
+            # 手番表示の下に配置
             turn_message_center_y = self._calculate_turn_message_center_y()
             font_height = self.font.get_height()
             button_y = turn_message_center_y + font_height // 2 + Screen.TURN_MESSAGE_BOTTOM_MARGIN
+            # リセットボタンは右側
             button_x = start_x + button_width + Screen.BUTTON_MARGIN if is_reset_button else start_x
 
         return pygame.Rect(button_x, button_y, button_width, button_height)
 
     def _draw_button(self, button_rect, text):
-        # ... (変更なし) ...
+        """指定された領域にボタンを描画する"""
         text_surface = self.font.render(text, True, Color.BUTTON_TEXT)
         text_rect = text_surface.get_rect(center=button_rect.center)
+        # ボタン背景
         pygame.draw.rect(self.screen, Color.BUTTON, button_rect)
+        # ボタン枠線
         self._draw_button_border(button_rect)
+        # ボタンテキスト
         self.screen.blit(text_surface, text_rect)
-        return button_rect
+        return button_rect # クリック判定用にRectを返す
 
     def _draw_button_border(self, button_rect):
-        # ... (変更なし) ...
-        pygame.draw.line(self.screen, Color.WHITE, button_rect.topleft, button_rect.bottomleft, Screen.BUTTON_BORDER_WIDTH)
-        pygame.draw.line(self.screen, Color.WHITE, button_rect.topright, button_rect.bottomright, Screen.BUTTON_BORDER_WIDTH)
-        pygame.draw.line(self.screen, Color.WHITE, button_rect.topleft, button_rect.topright, Screen.BUTTON_BORDER_WIDTH)
-        pygame.draw.line(self.screen, Color.WHITE, button_rect.bottomleft, button_rect.bottomright, Screen.BUTTON_BORDER_WIDTH)
+        """ボタンの枠線を描画する"""
+        # 立体感を出すために少しずらして線を描画しても良いが、シンプルに枠線を描画
+        pygame.draw.rect(self.screen, Color.WHITE, button_rect, Screen.BUTTON_BORDER_WIDTH)
 
     def is_button_clicked(self, pos, button_rect):
-        # ... (変更なし) ...
+        """指定された座標がボタンの領域内にあるか判定する"""
         return button_rect is not None and button_rect.collidepoint(pos)
 
     def draw_radio_button(self, pos, selected, enabled=True):
-        # ... (変更なし) ...
+        """ラジオボタンを描画する"""
         x, y = pos
         center = (x + Screen.RADIO_BUTTON_SIZE // 2, y + Screen.RADIO_BUTTON_SIZE // 2)
-        outer_color = Color.DARK_BLUE if enabled else Color.LIGHT_BLUE
-        pygame.draw.circle(self.screen, outer_color, center, Screen.RADIO_BUTTON_SIZE // 2, 1)
+        # 外側の円
+        outer_color = Color.DARK_BLUE if enabled else Color.LIGHT_BLUE # 無効時は薄い色
+        pygame.draw.circle(self.screen, outer_color, center, Screen.RADIO_BUTTON_SIZE // 2, 1) # 線の太さ 1
+        # 選択されている場合、内側の円を描画
         if selected:
             inner_color = Color.DARK_BLUE if enabled else Color.LIGHT_BLUE
             inner_circle_radius = int(Screen.RADIO_BUTTON_SIZE * Screen.RADIO_BUTTON_INNER_CIRCLE_RATIO // 2)
             pygame.draw.circle(self.screen, inner_color, center, inner_circle_radius)
 
     def draw_text(self, text, pos, enabled=True):
-        # ... (変更なし) ...
-        color = Color.WHITE
+        """ラジオボタンの隣などにテキストを描画する"""
+        color = Color.WHITE if enabled else Color.DISABLED_TEXT # 無効時は薄い色
         text_surface = self.font.render(text, True, color)
-        self.screen.blit(text_surface, pos)
+        # テキストの左上座標を指定
+        text_rect = text_surface.get_rect(topleft=pos)
+        self.screen.blit(text_surface, text_rect)
 
     def draw_player_settings(self, game, player_settings_top, enabled=False):
-        # ... (変更なし) ...
+        """プレイヤー選択のラジオボタンUIを描画する"""
         board_rect = self._calculate_board_rect()
-        left_margin = board_rect.left
+        left_margin = board_rect.left # 盤面の左端に合わせる
+
+        # 各要素の基準位置
         black_player_label_pos = (left_margin, player_settings_top)
-        white_player_label_pos = (self.screen_width // 2, player_settings_top)
+        # 白プレイヤーのラベルは画面幅の中央から少し右に配置するか、黒プレイヤーの右に配置する
+        # ここでは画面中央を基準にする
+        white_player_label_pos = (self.screen_width // 2 + Screen.RADIO_BUTTON_MARGIN, player_settings_top) # 少し右にずらす
+
+        # ラジオボタンの垂直位置オフセットと間隔
         radio_y_offset = Screen.RADIO_Y_OFFSET
         radio_y_spacing = Screen.RADIO_Y_SPACING
+
+        # 黒プレイヤー設定のラジオボタンとテキストの位置
         black_human_radio_pos = (black_player_label_pos[0], black_player_label_pos[1] + radio_y_offset)
         black_first_radio_pos = (black_player_label_pos[0], black_human_radio_pos[1] + radio_y_spacing)
         black_random_radio_pos = (black_player_label_pos[0], black_first_radio_pos[1] + radio_y_spacing)
         black_gain_radio_pos = (black_player_label_pos[0], black_random_radio_pos[1] + radio_y_spacing)
+
+        # 白プレイヤー設定のラジオボタンとテキストの位置
         white_human_radio_pos = (white_player_label_pos[0], white_player_label_pos[1] + radio_y_offset)
         white_first_radio_pos = (white_player_label_pos[0], white_human_radio_pos[1] + radio_y_spacing)
         white_random_radio_pos = (white_player_label_pos[0], white_first_radio_pos[1] + radio_y_spacing)
         white_gain_radio_pos = (white_player_label_pos[0], white_random_radio_pos[1] + radio_y_spacing)
+
+        # 現在選択されているエージェントを取得
         black_agent = game.agents[-1]
         white_agent = game.agents[1]
-        self.draw_text("黒プレイヤー", black_player_label_pos, enabled)
+
+        # --- 修正箇所 ---
+        # ラベル描画 (常に白で描画)
+        self._draw_text_with_position("黒プレイヤー", Color.WHITE, black_player_label_pos)
+        self._draw_text_with_position("白プレイヤー", Color.WHITE, white_player_label_pos)
+
+        # ラジオボタンとテキストを描画 (黒) (テキストは常に白で描画)
+        radio_text_x_offset = Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN
         self.draw_radio_button(black_human_radio_pos, black_agent is None, enabled)
-        self.draw_text("人間", (black_human_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, black_human_radio_pos[1]), enabled)
+        self._draw_text_with_position("人間", Color.WHITE, (black_human_radio_pos[0] + radio_text_x_offset, black_human_radio_pos[1]))
         self.draw_radio_button(black_first_radio_pos, isinstance(black_agent, FirstAgent), enabled)
-        self.draw_text("First", (black_first_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, black_first_radio_pos[1]), enabled)
+        self._draw_text_with_position("First", Color.WHITE, (black_first_radio_pos[0] + radio_text_x_offset, black_first_radio_pos[1]))
         self.draw_radio_button(black_random_radio_pos, isinstance(black_agent, RandomAgent), enabled)
-        self.draw_text("Random", (black_random_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, black_random_radio_pos[1]), enabled)
+        self._draw_text_with_position("Random", Color.WHITE, (black_random_radio_pos[0] + radio_text_x_offset, black_random_radio_pos[1]))
         self.draw_radio_button(black_gain_radio_pos, isinstance(black_agent, GainAgent), enabled)
-        self.draw_text("Gain", (black_gain_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, black_gain_radio_pos[1]), enabled)
-        self.draw_text("白プレイヤー", white_player_label_pos, enabled)
+        self._draw_text_with_position("Gain", Color.WHITE, (black_gain_radio_pos[0] + radio_text_x_offset, black_gain_radio_pos[1]))
+
+        # ラジオボタンとテキストを描画 (白) (テキストは常に白で描画)
         self.draw_radio_button(white_human_radio_pos, white_agent is None, enabled)
-        self.draw_text("人間", (white_human_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, white_human_radio_pos[1]), enabled)
+        self._draw_text_with_position("人間", Color.WHITE, (white_human_radio_pos[0] + radio_text_x_offset, white_human_radio_pos[1]))
         self.draw_radio_button(white_first_radio_pos, isinstance(white_agent, FirstAgent), enabled)
-        self.draw_text("First", (white_first_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, white_first_radio_pos[1]), enabled)
+        self._draw_text_with_position("First", Color.WHITE, (white_first_radio_pos[0] + radio_text_x_offset, white_first_radio_pos[1]))
         self.draw_radio_button(white_random_radio_pos, isinstance(white_agent, RandomAgent), enabled)
-        self.draw_text("Random", (white_random_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, white_random_radio_pos[1]), enabled)
+        self._draw_text_with_position("Random", Color.WHITE, (white_random_radio_pos[0] + radio_text_x_offset, white_random_radio_pos[1]))
         self.draw_radio_button(white_gain_radio_pos, isinstance(white_agent, GainAgent), enabled)
-        self.draw_text("Gain", (white_gain_radio_pos[0] + Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN, white_gain_radio_pos[1]), enabled)
+        self._draw_text_with_position("Gain", Color.WHITE, (white_gain_radio_pos[0] + radio_text_x_offset, white_gain_radio_pos[1]))
+        # --- 修正ここまで ---
 
     def draw_turn_message(self, game):
         """手番表示を描画する"""
@@ -385,6 +410,7 @@ class GameGUI:
             return # ゲームオーバー時は表示しない
         message = f"{'黒' if game.turn == -1 else '白'}の番です"
         text_surface = self.font.render(message, True, Color.WHITE)
+        # 手番表示のY座標を計算
         turn_message_center_y = self._calculate_turn_message_center_y()
         text_rect = text_surface.get_rect(center=(self.screen_width // 2, turn_message_center_y))
         self.screen.blit(text_surface, text_rect)
