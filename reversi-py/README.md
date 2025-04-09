@@ -1,6 +1,6 @@
 # Reversi (リバーシ) - Python & Pygame
 
-![Reversi Screenshot](screenshot.png)
+![Reversi Screenshot](scrennshots/000.png)
 
 ## 概要
 
