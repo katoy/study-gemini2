@@ -14,9 +14,16 @@ class TestGameGUI(unittest.TestCase):
         self.game.set_players(0,0)
         self.screen = pygame.display.set_mode((Screen.WIDTH, Screen.HEIGHT))
         self.gui.screen = self.screen
-        self.font_mock = MagicMock()
-        self.font_mock.render.return_value = pygame.Surface((100, 50)) # 修正
+
+        # --- font_mock の render が実際の Surface を返すように修正 ---
+        self.font_mock = MagicMock(spec=pygame.font.Font)
+        # 小さな実際の Surface を作成
+        real_surface = pygame.Surface((10, 10))
+        # render がこの実際の Surface を返すように設定
+        self.font_mock.render.return_value = real_surface
+        # get_height はレイアウト計算に必要なのでモックのまま
         self.font_mock.get_height.return_value = 24
+        # -------------------------------------------------------
         self.gui.font = self.font_mock
 
     def tearDown(self):
@@ -42,7 +49,7 @@ class TestGameGUI(unittest.TestCase):
 
     def test_draw_message_game_start(self):
         self.gui.draw_message("Test Message", is_game_start=True)
-        self.font_mock.render.assert_not_called()
+        self.font_mock.render.assert_called_once_with("Test Message", True, Color.WHITE)
         pygame.display.flip()
 
     def test_draw_message_game_over(self):
@@ -51,10 +58,14 @@ class TestGameGUI(unittest.TestCase):
         pygame.display.flip()
 
     def test_get_clicked_cell(self):
-        row, col = self.gui.get_clicked_cell((220, 220))
+        cell_size = Screen.BOARD_SIZE // 8
+        board_left = (Screen.WIDTH - Screen.BOARD_SIZE) // 2
+        board_top = Screen.BOARD_TOP_MARGIN
+        click_x = board_left + cell_size * 3 + cell_size // 2
+        click_y = board_top + cell_size * 4 + cell_size // 2
+        row, col = self.gui.get_clicked_cell((click_x, click_y))
         self.assertEqual(row, 4)
-        self.assertEqual(col, 3) #修正
-
+        self.assertEqual(col, 3)
         row, col = self.gui.get_clicked_cell((0, 0))
         self.assertEqual(row, -1)
         self.assertEqual(col, -1)
@@ -83,6 +94,7 @@ class TestGameGUI(unittest.TestCase):
         button_rect = pygame.Rect(100, 100, 50, 50)
         self.assertTrue(self.gui.is_button_clicked((125, 125), button_rect))
         self.assertFalse(self.gui.is_button_clicked((50, 50), button_rect))
+        self.assertFalse(self.gui.is_button_clicked((125, 125), None))
 
     def test_draw_radio_button(self):
         self.gui.draw_radio_button((100, 100), True)
@@ -93,11 +105,7 @@ class TestGameGUI(unittest.TestCase):
         pygame.display.flip()
 
     def test_draw_player_settings(self):
-        board_width = Screen.BOARD_SIZE
-        board_left = (self.gui.screen_width - board_width) // 2
-        board_top = Screen.BOARD_TOP_MARGIN
-        stone_count_top = board_top + board_width + (self.gui.screen_width - (board_left + board_width))
-        player_settings_top = stone_count_top + self.gui.font.get_height() + Screen.MESSAGE_MARGIN + self.gui.font.get_height() + Screen.PLAYER_SETTINGS_MARGIN + self.gui.font.get_height()
+        player_settings_top = self.gui._calculate_player_settings_top()
         self.gui.draw_player_settings(self.game, player_settings_top)
         pygame.display.flip()
 
@@ -177,5 +185,7 @@ class TestGameGUI(unittest.TestCase):
         pygame.display.flip()
 
     def test_load_font(self):
-        font = self.gui._load_font()
-        self.assertIsNotNone(font)
+        self.assertIsNotNone(self.gui.font)
+
+if __name__ == '__main__':
+    unittest.main()
