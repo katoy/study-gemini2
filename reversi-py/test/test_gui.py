@@ -2,7 +2,8 @@
 import unittest
 import pygame
 from unittest.mock import MagicMock, patch
-from gui import GameGUI, Color, Screen
+from gui import GameGUI
+from config.theme import Color, Screen
 from game import Game
 
 class TestGameGUI(unittest.TestCase):
