@@ -2,7 +2,7 @@
 import pygame
 from game import Game
 from gui import GameGUI, Color, Screen  # Screen クラスをインポート
-from agent import HumanAgent, RandomAgent, GainAgent, FirstAgent
+from agents import HumanAgent, RandomAgent, GainAgent, FirstAgent
 
 def main():
     game = Game()

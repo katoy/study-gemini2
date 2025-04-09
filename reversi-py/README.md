@@ -75,7 +75,7 @@
 テストを実行するには、以下のコマンドを使用します。
 
 ```bash
-python3 -m unittest discover -s test -p "test_*.py"
+python3 -m unittest discover -t . -p "test*.py" test
 ```
 
 ## テストカバレッジの計測
@@ -90,7 +90,7 @@ pip install coverage
 カバレッジ計測付きでテストを実行します。
 
 ```bash
-python3 -m coverage run -m unittest discover -s test -p "test_*.py"
+python3 -m coverage run -m unittest discover -t . -p "test*.py" test
 ```
 
 テキスト形式のカバレッジレポートを生成します。
