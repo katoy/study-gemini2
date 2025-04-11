@@ -2,7 +2,8 @@
 import pygame
 import os
 # 必要なエージェントクラスをインポート
-from agents import RandomAgent, GainAgent, FirstAgent # HumanAgent は game.py で None として扱われるため、直接インポートは不要
+from agents import RandomAgent, GainAgent, FirstAgent, MonteCarloTreeSearchAgent
+
 # --- config.theme からインポート ---
 from config.theme import Color, Screen
 # ---------------------------------
@@ -366,18 +367,19 @@ class GameGUI:
         black_first_radio_pos = (black_player_label_pos[0], black_human_radio_pos[1] + radio_y_spacing)
         black_random_radio_pos = (black_player_label_pos[0], black_first_radio_pos[1] + radio_y_spacing)
         black_gain_radio_pos = (black_player_label_pos[0], black_random_radio_pos[1] + radio_y_spacing)
+        black_mcts_radio_pos = (black_player_label_pos[0], black_gain_radio_pos[1] + radio_y_spacing)
 
         # 白プレイヤー設定のラジオボタンとテキストの位置
         white_human_radio_pos = (white_player_label_pos[0], white_player_label_pos[1] + radio_y_offset)
         white_first_radio_pos = (white_player_label_pos[0], white_human_radio_pos[1] + radio_y_spacing)
         white_random_radio_pos = (white_player_label_pos[0], white_first_radio_pos[1] + radio_y_spacing)
         white_gain_radio_pos = (white_player_label_pos[0], white_random_radio_pos[1] + radio_y_spacing)
+        white_mcts_radio_pos = (white_player_label_pos[0], white_gain_radio_pos[1] + radio_y_spacing)
 
         # 現在選択されているエージェントを取得
         black_agent = game.agents[-1]
         white_agent = game.agents[1]
 
-        # --- 修正箇所 ---
         # ラベル描画 (常に白で描画)
         self._draw_text_with_position("黒プレイヤー", Color.WHITE, black_player_label_pos)
         self._draw_text_with_position("白プレイヤー", Color.WHITE, white_player_label_pos)
@@ -392,6 +394,8 @@ class GameGUI:
         self._draw_text_with_position("Random", Color.WHITE, (black_random_radio_pos[0] + radio_text_x_offset, black_random_radio_pos[1]))
         self.draw_radio_button(black_gain_radio_pos, isinstance(black_agent, GainAgent), enabled)
         self._draw_text_with_position("Gain", Color.WHITE, (black_gain_radio_pos[0] + radio_text_x_offset, black_gain_radio_pos[1]))
+        self.draw_radio_button(black_mcts_radio_pos, isinstance(black_agent, MonteCarloTreeSearchAgent), enabled)
+        self._draw_text_with_position("MCTS", Color.WHITE, (black_mcts_radio_pos[0] + radio_text_x_offset, black_mcts_radio_pos[1]))
 
         # ラジオボタンとテキストを描画 (白) (テキストは常に白で描画)
         self.draw_radio_button(white_human_radio_pos, white_agent is None, enabled)
@@ -402,7 +406,8 @@ class GameGUI:
         self._draw_text_with_position("Random", Color.WHITE, (white_random_radio_pos[0] + radio_text_x_offset, white_random_radio_pos[1]))
         self.draw_radio_button(white_gain_radio_pos, isinstance(white_agent, GainAgent), enabled)
         self._draw_text_with_position("Gain", Color.WHITE, (white_gain_radio_pos[0] + radio_text_x_offset, white_gain_radio_pos[1]))
-        # --- 修正ここまで ---
+        self.draw_radio_button(white_mcts_radio_pos, isinstance(white_agent, MonteCarloTreeSearchAgent), enabled) # MCTS追加
+        self._draw_text_with_position("MCTS", Color.WHITE, (white_mcts_radio_pos[0] + radio_text_x_offset, white_mcts_radio_pos[1])) # MCTS追加
 
     def draw_turn_message(self, game):
         """手番表示を描画する"""

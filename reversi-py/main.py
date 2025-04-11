@@ -7,7 +7,7 @@ from gui import GameGUI
 from config.theme import Screen, Color
 # ------------------------------------------
 # HumanAgent は game.py で 0 として扱われるため、ここでのインポートは必須ではない
-from agents import RandomAgent, GainAgent, FirstAgent
+# from agents import RandomAgent, GainAgent, FirstAgent
 
 def main():
     game = Game()
@@ -52,24 +52,34 @@ def main():
                         # -------------------------------------------------
                         black_player_label_pos = (board_left, player_settings_top)
                         white_player_label_pos = (gui.screen_width // 2, player_settings_top)
+
+                        # 黒プレイヤー
                         black_human_radio_pos = (black_player_label_pos[0], black_player_label_pos[1] + radio_y_offset)
                         black_first_radio_pos = (black_player_label_pos[0], black_human_radio_pos[1] + radio_y_spacing)
                         black_random_radio_pos = (black_player_label_pos[0], black_first_radio_pos[1] + radio_y_spacing)
                         black_gain_radio_pos = (black_player_label_pos[0], black_random_radio_pos[1] + radio_y_spacing)
+                        black_mcts_radio_pos = (black_player_label_pos[0], black_gain_radio_pos[1] + radio_y_spacing)
+
+                        # 白プレイヤー
                         white_human_radio_pos = (white_player_label_pos[0], white_player_label_pos[1] + radio_y_offset)
                         white_first_radio_pos = (white_player_label_pos[0], white_human_radio_pos[1] + radio_y_spacing)
                         white_random_radio_pos = (white_player_label_pos[0], white_first_radio_pos[1] + radio_y_spacing)
                         white_gain_radio_pos = (white_player_label_pos[0], white_random_radio_pos[1] + radio_y_spacing)
+                        white_mcts_radio_pos = (white_player_label_pos[0], white_gain_radio_pos[1] + radio_y_spacing)
 
                         # 各ラジオボタンの Rect を作成して判定
                         if gui.is_button_clicked(event.pos, pygame.Rect(black_human_radio_pos, (radio_button_size, radio_button_size))): black_player_type = 0
                         elif gui.is_button_clicked(event.pos, pygame.Rect(black_first_radio_pos, (radio_button_size, radio_button_size))): black_player_type = 1
                         elif gui.is_button_clicked(event.pos, pygame.Rect(black_random_radio_pos, (radio_button_size, radio_button_size))): black_player_type = 2
                         elif gui.is_button_clicked(event.pos, pygame.Rect(black_gain_radio_pos, (radio_button_size, radio_button_size))): black_player_type = 3
+                        elif gui.is_button_clicked(event.pos, pygame.Rect(black_mcts_radio_pos, (radio_button_size, radio_button_size))): black_player_type = 4
+
                         if gui.is_button_clicked(event.pos, pygame.Rect(white_human_radio_pos, (radio_button_size, radio_button_size))): white_player_type = 0
                         elif gui.is_button_clicked(event.pos, pygame.Rect(white_first_radio_pos, (radio_button_size, radio_button_size))): white_player_type = 1
                         elif gui.is_button_clicked(event.pos, pygame.Rect(white_random_radio_pos, (radio_button_size, radio_button_size))): white_player_type = 2
                         elif gui.is_button_clicked(event.pos, pygame.Rect(white_gain_radio_pos, (radio_button_size, radio_button_size))): white_player_type = 3
+                        elif gui.is_button_clicked(event.pos, pygame.Rect(white_mcts_radio_pos, (radio_button_size, radio_button_size))): white_player_type = 4
+
                         game.set_players(black_player_type, white_player_type)
 
                 elif game.game_over:
@@ -171,9 +181,7 @@ def main():
                         # -------------------------------------------------
                         if game.place_stone(move[0], move[1]):
                             game.set_message("") # 石を置いたらメッセージをクリア
-                            # --- Color を直接インポートしたのでそのまま使える ---
                             gui.draw_flip_animation(game, flipped_stones, Color.WHITE if game.turn == 1 else Color.BLACK)
-                            # -------------------------------------------------
                             game.switch_turn()
                             game.check_game_over()
 
