@@ -83,7 +83,10 @@ class Game:
             return GainAgent()
         elif agent_type == 4: # MCTSエージェントを追加
             # 必要に応じてパラメータを調整可能にする (例: GUIから設定)
-            return MonteCarloTreeSearchAgent(iterations=100, time_limit_ms=1000)
+            return MonteCarloTreeSearchAgent(
+                iterations=50000,
+                time_limit_ms=4000,
+                exploration_weight=1.41)
         else:
             return None
 
