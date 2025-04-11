@@ -1,0 +1,150 @@
+@startuml
+' skinparam monochrome true
+skinparam classAttributeIconSize 0
+
+package "Reversi" {
+    class Game {
+        - board: Board
+        - turn: int
+        - game_over: bool
+        - board_size: int
+        ' - history: list ' 削除 (game.py に存在しない)
+        ' - history_index: int ' 削除 (game.py に存在しない)
+        - players: list[int] ' 型ヒントを追記 (任意)
+        - agents: dict[int, Agent] ' 型ヒントを追記 (任意)
+        - message: str
+        + __init__(board_size: int)
+        + reset()
+        + switch_turn()
+        + check_game_over()
+        + get_winner(): int
+        + place_stone(row: int, col: int): bool
+        ' + get_flipped_stones(row: int, col: int, turn: int): list ' 削除 (Boardクラスに移動)
+        + get_valid_moves(): list
+        + get_board(): list[list[int]] ' 型ヒントを追記 (任意)
+        + get_board_size(): int
+        + set_players(player1_type: int, player2_type: int)
+        + create_agent(agent_type: int): Agent
+        + set_message(message: str)
+        + get_message(): str
+        ' + replay(index: int): bool ' 削除 (game.py に存在しない)
+        ' + history_top() ' 削除 (game.py に存在しない)
+        ' + history_last() ' 削除 (game.py に存在しない)
+        ' + get_current_history() ' 削除 (game.py に存在しない)
+    }
+
+    class Board {
+        - board_size: int
+        - board: list[list[int]] ' 型ヒントを追記 (任意)
+        + __init__(board_size: int)
+        + reset() ' 追加 (board.py に存在する)
+        + is_valid_move(row: int, col: int, turn: int): bool
+        + get_valid_moves(turn: int): list
+        + place_stone(row: int, col: int, turn: int): list ' 戻り値を修正 (反転した石のリスト)
+        + count_stones(): tuple[int, int] ' 型ヒントを追記 (任意)
+        + get_board(): list[list[int]] ' 型ヒントを追記 (任意)
+        + get_flipped_stones(row: int, col: int, turn: int): list
+    }
+
+    abstract class Agent {
+        + {abstract} play(game: Game): tuple[int, int] ' 戻り値の型ヒントを追記 (任意)
+    }
+
+    class FirstAgent {
+        + play(game: Game): tuple[int, int] ' 戻り値の型ヒントを追記 (任意)
+    }
+
+    class RandomAgent {
+        + play(game: Game): tuple[int, int] ' 戻り値の型ヒントを追記 (任意)
+    }
+
+    class HumanAgent {
+        + play(game: Game): tuple[int, int] | None ' 戻り値の型ヒントを修正 (Noneを返す場合がある)
+    }
+
+    class GainAgent {
+        + play(game: Game): tuple[int, int] ' 戻り値の型ヒントを追記 (任意)
+    }
+
+    class GameGUI {
+        - screen_width: int
+        - screen_height: int
+        - screen: pygame.Surface
+        - cell_size: int
+        - font: pygame.font.Font
+        + __init__(screen_width: int, screen_height: int)
+        - _load_font(): pygame.font.Font
+        - _calculate_board_rect(): pygame.Rect
+        - _draw_board_background(board_rect: pygame.Rect)
+        - _draw_board_grid(board_rect: pygame.Rect)
+        - _draw_stones(board: list, board_rect: pygame.Rect)
+        - _draw_stone(board_rect: pygame.Rect, row: int, col: int, color: tuple)
+        + draw_board(game: Game)
+        - _draw_stone_count(game: Game, board_rect: pygame.Rect)
+        - _draw_text_with_position(text: str, color: tuple, pos: tuple, is_right_aligned: bool)
+        + draw_valid_moves(game: Game)
+        + draw_message(message: str, is_game_start: bool, is_game_over: bool)
+        - _get_message_y_position(is_game_start: bool, is_game_over: bool): int
+        - _get_message_y_position_in_game(): int
+        + get_clicked_cell(pos: tuple): tuple[int, int] | None ' 戻り値の型ヒントを修正
+        + draw_stone_animation(game: Game, row: int, col: int, color: tuple)
+        + draw_flip_animation(game: Game, flipped_stones: list, color: tuple)
+        + draw_start_button(): pygame.Rect
+        + draw_restart_button(game_over: bool): pygame.Rect
+        + draw_reset_button(game_over: bool): pygame.Rect
+        - _calculate_button_rect(is_start_button: bool, game_over: bool, is_reset_button: bool): pygame.Rect
+        - _draw_button(button_rect: pygame.Rect, text: str): pygame.Rect
+        - _draw_button_border(button_rect: pygame.Rect)
+        + is_button_clicked(pos: tuple, button_rect: pygame.Rect): bool
+        + draw_radio_button(pos: tuple, selected: bool, enabled: bool)
+        + draw_text(text: str, pos: tuple, enabled: bool)
+        + draw_player_settings(game: Game, player_settings_top: int, enabled: bool)
+        + draw_turn_message(game: Game)
+    }
+
+    class Color {
+        + BLACK: tuple
+        + WHITE: tuple
+        + GREEN: tuple
+        + GRAY: tuple
+        + BOARD: tuple
+        + BACKGROUND: tuple
+        + BUTTON: tuple
+        + BUTTON_TEXT: tuple
+        + DISABLED_TEXT: tuple
+        + DARK_BLUE: tuple
+        + LIGHT_BLUE: tuple
+    }
+
+    class Screen {
+        + WIDTH: int
+        + HEIGHT: int
+        + BOARD_SIZE: int
+        + BOARD_TOP_MARGIN: int
+        + BUTTON_MARGIN: int
+        + BUTTON_VERTICAL_MARGIN: int
+        + PLAYER_SETTINGS_MARGIN: int
+        + MESSAGE_MARGIN: int
+        + TURN_MESSAGE_MARGIN: int
+        + TURN_MESSAGE_TOP_MARGIN: int
+        + TURN_MESSAGE_TOP_MARGIN_GAME_START: int
+        + GAME_START_MESSAGE_TOP_MARGIN: int
+        + RADIO_BUTTON_SIZE: int
+        + RADIO_BUTTON_MARGIN: int
+        + BUTTON_BORDER_WIDTH: int
+        + CELL_SIZE: int
+        + RADIO_BUTTON_INNER_CIRCLE_RATIO: float
+    }
+
+    Game "1" *-- "1" Board : has ' 関係を has (集約) に変更
+    Game "1" *-- "*" Agent : has ' 関係を has (集約) に変更
+    GameGUI "1" ..> "1" Game : uses ' 関係を uses (依存) に変更 (点線矢印)
+    GameGUI "1" ..> "1" Color : uses ' 関係を uses (依存) に変更
+    GameGUI "1" ..> "1" Screen : uses ' 関係を uses (依存) に変更
+    Agent <|-- FirstAgent
+    Agent <|-- RandomAgent
+    Agent <|-- HumanAgent
+    Agent <|-- GainAgent
+}
+
+@enduml
