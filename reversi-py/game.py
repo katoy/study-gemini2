@@ -1,6 +1,8 @@
 # game.py
 from board import Board
-from agents import RandomAgent, GainAgent, FirstAgent  # Agentクラスをインポート
+# Agentクラスをインポート
+from agents import RandomAgent, GainAgent, FirstAgent, MonteCarloTreeSearchAgent
+
 
 class Game:
     def __init__(self, board_size=8):
@@ -72,13 +74,16 @@ class Game:
 
     def create_agent(self, agent_type):
         if agent_type == 0:
-            return None
+            return None # Human
         elif agent_type == 1:
             return FirstAgent()
         elif agent_type == 2:
             return RandomAgent()
         elif agent_type == 3:
             return GainAgent()
+        elif agent_type == 4: # MCTSエージェントを追加
+            # 必要に応じてパラメータを調整可能にする (例: GUIから設定)
+            return MonteCarloTreeSearchAgent(iterations=100, time_limit_ms=1000)
         else:
             return None
 
