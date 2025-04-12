@@ -5,31 +5,29 @@ from game import Game
 from gui import GameGUI
 # --- config.theme から Screen, Color をインポート ---
 from config.theme import Screen, Color
-# ------------------------------------------
-# HumanAgent は game.py で 0 として扱われるため、ここでのインポートは必須ではない
-# from agents import RandomAgent, GainAgent, FirstAgent
+# --- config.agents から get_agent_options をインポート ---
+from config.agents import get_agent_options
+# -------------------------------------------------------
 
 def main():
     game = Game()
-    gui = GameGUI() # GameGUI の初期化は変更なし
+    gui = GameGUI()
     clock = pygame.time.Clock()
-    black_player_type = 0
-    white_player_type = 0
+    black_player_type = 0 # デフォルトは人間 (ID: 0)
+    white_player_type = 0 # デフォルトは人間 (ID: 0)
     game.set_players(black_player_type, white_player_type)
     game_started = False
     running = True
-    # --- Screen を直接インポートしたのでそのまま使える ---
     radio_button_size = Screen.RADIO_BUTTON_SIZE
-    # -------------------------------------------------
+
+    # --- エージェントオプションを取得 ---
+    agent_options = get_agent_options()
+    # -------------------------------
 
     while running:
-        # --- Screen を直接インポートしたのでそのまま使える ---
-        board_width = Screen.BOARD_SIZE
-        board_height = Screen.BOARD_SIZE
-        board_left = (gui.screen_width - board_width) // 2
-        board_top = Screen.BOARD_TOP_MARGIN
+        board_rect = gui._calculate_board_rect() # 盤面描画領域を計算
+        board_left = board_rect.left
         player_settings_top = gui._calculate_player_settings_top()
-        # -------------------------------------------------
         start_button_rect = None
         restart_button_rect = None
         reset_button_rect = None
@@ -45,42 +43,36 @@ def main():
                         game_started = True
                         game.set_message("")
                     else:
-                        # ラジオボタンのクリック判定
-                        # --- Screen を直接インポートしたのでそのまま使える ---
+                        # --- ラジオボタンのクリック判定 (動的化) ---
                         radio_y_offset = Screen.RADIO_Y_OFFSET
                         radio_y_spacing = Screen.RADIO_Y_SPACING
-                        # -------------------------------------------------
-                        black_player_label_pos = (board_left, player_settings_top)
-                        white_player_label_pos = (gui.screen_width // 2, player_settings_top)
+                        white_player_label_x = gui.screen_width // 2 + Screen.RADIO_BUTTON_MARGIN
 
-                        # 黒プレイヤー
-                        black_human_radio_pos = (black_player_label_pos[0], black_player_label_pos[1] + radio_y_offset)
-                        black_first_radio_pos = (black_player_label_pos[0], black_human_radio_pos[1] + radio_y_spacing)
-                        black_random_radio_pos = (black_player_label_pos[0], black_first_radio_pos[1] + radio_y_spacing)
-                        black_gain_radio_pos = (black_player_label_pos[0], black_random_radio_pos[1] + radio_y_spacing)
-                        black_mcts_radio_pos = (black_player_label_pos[0], black_gain_radio_pos[1] + radio_y_spacing)
+                        clicked_on_radio = False # ラジオボタンがクリックされたかどうかのフラグ
 
-                        # 白プレイヤー
-                        white_human_radio_pos = (white_player_label_pos[0], white_player_label_pos[1] + radio_y_offset)
-                        white_first_radio_pos = (white_player_label_pos[0], white_human_radio_pos[1] + radio_y_spacing)
-                        white_random_radio_pos = (white_player_label_pos[0], white_first_radio_pos[1] + radio_y_spacing)
-                        white_gain_radio_pos = (white_player_label_pos[0], white_random_radio_pos[1] + radio_y_spacing)
-                        white_mcts_radio_pos = (white_player_label_pos[0], white_gain_radio_pos[1] + radio_y_spacing)
+                        for i, (agent_id, _) in enumerate(agent_options):
+                            # 黒プレイヤーのラジオボタン領域計算
+                            black_radio_y = player_settings_top + radio_y_offset + i * radio_y_spacing
+                            black_radio_rect = pygame.Rect(board_left, black_radio_y, radio_button_size, radio_button_size)
 
-                        # 各ラジオボタンの Rect を作成して判定
-                        if gui.is_button_clicked(event.pos, pygame.Rect(black_human_radio_pos, (radio_button_size, radio_button_size))): black_player_type = 0
-                        elif gui.is_button_clicked(event.pos, pygame.Rect(black_first_radio_pos, (radio_button_size, radio_button_size))): black_player_type = 1
-                        elif gui.is_button_clicked(event.pos, pygame.Rect(black_random_radio_pos, (radio_button_size, radio_button_size))): black_player_type = 2
-                        elif gui.is_button_clicked(event.pos, pygame.Rect(black_gain_radio_pos, (radio_button_size, radio_button_size))): black_player_type = 3
-                        elif gui.is_button_clicked(event.pos, pygame.Rect(black_mcts_radio_pos, (radio_button_size, radio_button_size))): black_player_type = 4
+                            # 白プレイヤーのラジオボタン領域計算
+                            white_radio_y = player_settings_top + radio_y_offset + i * radio_y_spacing
+                            white_radio_rect = pygame.Rect(white_player_label_x, white_radio_y, radio_button_size, radio_button_size)
 
-                        if gui.is_button_clicked(event.pos, pygame.Rect(white_human_radio_pos, (radio_button_size, radio_button_size))): white_player_type = 0
-                        elif gui.is_button_clicked(event.pos, pygame.Rect(white_first_radio_pos, (radio_button_size, radio_button_size))): white_player_type = 1
-                        elif gui.is_button_clicked(event.pos, pygame.Rect(white_random_radio_pos, (radio_button_size, radio_button_size))): white_player_type = 2
-                        elif gui.is_button_clicked(event.pos, pygame.Rect(white_gain_radio_pos, (radio_button_size, radio_button_size))): white_player_type = 3
-                        elif gui.is_button_clicked(event.pos, pygame.Rect(white_mcts_radio_pos, (radio_button_size, radio_button_size))): white_player_type = 4
+                            # クリック判定
+                            if black_radio_rect.collidepoint(event.pos):
+                                black_player_type = agent_id
+                                clicked_on_radio = True
+                                break # どちらかをクリックしたらループ終了
+                            elif white_radio_rect.collidepoint(event.pos):
+                                white_player_type = agent_id
+                                clicked_on_radio = True
+                                break # どちらかをクリックしたらループ終了
 
-                        game.set_players(black_player_type, white_player_type)
+                        # ラジオボタンがクリックされた場合、プレイヤー設定を更新
+                        if clicked_on_radio:
+                            game.set_players(black_player_type, white_player_type)
+                        # --- ラジオボタン判定ここまで ---
 
                 elif game.game_over:
                     # ゲームオーバー時のボタンクリック判定
@@ -119,10 +111,8 @@ def main():
                             flipped_stones = game.get_flipped_stones(row, col, game.turn)
                             if game.place_stone(row, col):
                                 game.set_message("") # 石を置いたらメッセージをクリア
-                                # --- Color を直接インポートしたのでそのまま使える ---
                                 gui.draw_stone_animation(game, row, col, Color.WHITE if game.turn == 1 else Color.BLACK)
                                 gui.draw_flip_animation(game, flipped_stones, Color.WHITE if game.turn == 1 else Color.BLACK)
-                                # -------------------------------------------------
                                 game.switch_turn()
                                 game.check_game_over()
             elif event.type == pygame.KEYDOWN:
@@ -130,9 +120,7 @@ def main():
                 pass
 
         # --- 描画処理 ---
-        # --- Color を直接インポートしたのでそのまま使える ---
         gui.screen.fill(Color.BACKGROUND)
-        # -------------------------------------------------
 
         if not game_started:
             # ゲーム開始前の画面描画
@@ -176,9 +164,7 @@ def main():
                     move = agent.play(game)
                     if move:
                         flipped_stones = game.get_flipped_stones(move[0], move[1], game.turn)
-                        # --- Color を直接インポートしたのでそのまま使える ---
                         gui.draw_stone_animation(game, move[0], move[1], Color.WHITE if game.turn == 1 else Color.BLACK)
-                        # -------------------------------------------------
                         if game.place_stone(move[0], move[1]):
                             game.set_message("") # 石を置いたらメッセージをクリア
                             gui.draw_flip_animation(game, flipped_stones, Color.WHITE if game.turn == 1 else Color.BLACK)

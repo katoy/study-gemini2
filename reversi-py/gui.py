@@ -1,12 +1,10 @@
 # gui.py
 import pygame
 import os
-# 必要なエージェントクラスをインポート
-from agents import RandomAgent, GainAgent, FirstAgent, MonteCarloTreeSearchAgent
-
+# --- config.agents からヘルパー関数をインポート ---
+from config.agents import get_agent_options, get_agent_class
 # --- config.theme からインポート ---
 from config.theme import Color, Screen
-# ---------------------------------
 
 class GameGUI:
     def __init__(self, screen_width=Screen.WIDTH, screen_height=Screen.HEIGHT):
@@ -17,6 +15,8 @@ class GameGUI:
         pygame.display.set_caption("Reversi")
         self.cell_size = Screen.CELL_SIZE # Screen.CELL_SIZE を使用
         self.font = self._load_font()
+        # --- エージェントオプションをキャッシュ ---
+        self.agent_options = get_agent_options()
 
     # --- ヘルパーメソッド ---
     def _calculate_turn_message_center_y(self):
@@ -36,9 +36,11 @@ class GameGUI:
     def _calculate_player_settings_height(self):
         """プレイヤー設定UIの高さを計算する"""
         font_height = self.font.get_height()
+        num_options = len(self.agent_options) # self.agent_options を使う
+        if num_options == 0:
+            return font_height # ラベル分のみ
         # ラベル高さ + オフセット + (ラジオボタン数-1)*間隔 + ラジオボタンサイズ
-        # ラジオボタンは4種類 (人間, First, Random, Gain) なので間隔は3つ
-        return font_height + Screen.RADIO_Y_OFFSET + Screen.RADIO_Y_SPACING * 3 + Screen.RADIO_BUTTON_SIZE
+        return font_height + Screen.RADIO_Y_OFFSET + Screen.RADIO_Y_SPACING * (num_options - 1) + Screen.RADIO_BUTTON_SIZE
 
     def _calculate_player_settings_top(self):
         """プレイヤー設定UIの上端Y座標を計算する"""
@@ -75,8 +77,6 @@ class GameGUI:
             "C:\Windows\Fonts\meiryo.ttc", # Windows (メイリオ)
             "C:\Windows\Fonts\msgothic.ttc", # Windows (MSゴシック)
         ]
-        # Windowsパスのバックスラッシュをエスケープ
-        font_paths = [p.replace('\\', '\\\\') for p in font_paths]
 
         for font_path in font_paths:
             if os.path.exists(font_path):
@@ -348,66 +348,61 @@ class GameGUI:
         self.screen.blit(text_surface, text_rect)
 
     def draw_player_settings(self, game, player_settings_top, enabled=False):
-        """プレイヤー選択のラジオボタンUIを描画する"""
+        """プレイヤー選択のラジオボタンUIを描画する (動的生成)"""
         board_rect = self._calculate_board_rect()
-        left_margin = board_rect.left # 盤面の左端に合わせる
+        left_margin = board_rect.left
+        white_player_label_x = self.screen_width // 2 + Screen.RADIO_BUTTON_MARGIN
 
-        # 各要素の基準位置
-        black_player_label_pos = (left_margin, player_settings_top)
-        # 白プレイヤーのラベルは画面幅の中央から少し右に配置するか、黒プレイヤーの右に配置する
-        # ここでは画面中央を基準にする
-        white_player_label_pos = (self.screen_width // 2 + Screen.RADIO_BUTTON_MARGIN, player_settings_top) # 少し右にずらす
+        # ラベル描画
+        self._draw_text_with_position("黒プレイヤー", Color.WHITE, (left_margin, player_settings_top))
+        self._draw_text_with_position("白プレイヤー", Color.WHITE, (white_player_label_x, player_settings_top))
 
         # ラジオボタンの垂直位置オフセットと間隔
         radio_y_offset = Screen.RADIO_Y_OFFSET
         radio_y_spacing = Screen.RADIO_Y_SPACING
-
-        # 黒プレイヤー設定のラジオボタンとテキストの位置
-        black_human_radio_pos = (black_player_label_pos[0], black_player_label_pos[1] + radio_y_offset)
-        black_first_radio_pos = (black_player_label_pos[0], black_human_radio_pos[1] + radio_y_spacing)
-        black_random_radio_pos = (black_player_label_pos[0], black_first_radio_pos[1] + radio_y_spacing)
-        black_gain_radio_pos = (black_player_label_pos[0], black_random_radio_pos[1] + radio_y_spacing)
-        black_mcts_radio_pos = (black_player_label_pos[0], black_gain_radio_pos[1] + radio_y_spacing)
-
-        # 白プレイヤー設定のラジオボタンとテキストの位置
-        white_human_radio_pos = (white_player_label_pos[0], white_player_label_pos[1] + radio_y_offset)
-        white_first_radio_pos = (white_player_label_pos[0], white_human_radio_pos[1] + radio_y_spacing)
-        white_random_radio_pos = (white_player_label_pos[0], white_first_radio_pos[1] + radio_y_spacing)
-        white_gain_radio_pos = (white_player_label_pos[0], white_random_radio_pos[1] + radio_y_spacing)
-        white_mcts_radio_pos = (white_player_label_pos[0], white_gain_radio_pos[1] + radio_y_spacing)
+        radio_text_x_offset = Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN
 
         # 現在選択されているエージェントを取得
         black_agent = game.agents[-1]
         white_agent = game.agents[1]
 
-        # ラベル描画 (常に白で描画)
-        self._draw_text_with_position("黒プレイヤー", Color.WHITE, black_player_label_pos)
-        self._draw_text_with_position("白プレイヤー", Color.WHITE, white_player_label_pos)
+        # 黒プレイヤーのラジオボタンを描画
+        for i, (agent_id, display_name) in enumerate(self.agent_options):
+            radio_y = player_settings_top + radio_y_offset + i * radio_y_spacing
+            radio_pos = (left_margin, radio_y)
+            text_pos = (left_margin + radio_text_x_offset, radio_y)
 
-        # ラジオボタンとテキストを描画 (黒) (テキストは常に白で描画)
-        radio_text_x_offset = Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN
-        self.draw_radio_button(black_human_radio_pos, black_agent is None, enabled)
-        self._draw_text_with_position("人間", Color.WHITE, (black_human_radio_pos[0] + radio_text_x_offset, black_human_radio_pos[1]))
-        self.draw_radio_button(black_first_radio_pos, isinstance(black_agent, FirstAgent), enabled)
-        self._draw_text_with_position("First", Color.WHITE, (black_first_radio_pos[0] + radio_text_x_offset, black_first_radio_pos[1]))
-        self.draw_radio_button(black_random_radio_pos, isinstance(black_agent, RandomAgent), enabled)
-        self._draw_text_with_position("Random", Color.WHITE, (black_random_radio_pos[0] + radio_text_x_offset, black_random_radio_pos[1]))
-        self.draw_radio_button(black_gain_radio_pos, isinstance(black_agent, GainAgent), enabled)
-        self._draw_text_with_position("Gain", Color.WHITE, (black_gain_radio_pos[0] + radio_text_x_offset, black_gain_radio_pos[1]))
-        self.draw_radio_button(black_mcts_radio_pos, isinstance(black_agent, MonteCarloTreeSearchAgent), enabled)
-        self._draw_text_with_position("MCTS", Color.WHITE, (black_mcts_radio_pos[0] + radio_text_x_offset, black_mcts_radio_pos[1]))
+            # 選択状態の判定
+            is_selected = False
+            if agent_id == 0: # 人間
+                is_selected = (black_agent is None)
+            else: # AIエージェント
+                agent_class = get_agent_class(agent_id)
+                if agent_class and black_agent:
+                    is_selected = isinstance(black_agent, agent_class)
 
-        # ラジオボタンとテキストを描画 (白) (テキストは常に白で描画)
-        self.draw_radio_button(white_human_radio_pos, white_agent is None, enabled)
-        self._draw_text_with_position("人間", Color.WHITE, (white_human_radio_pos[0] + radio_text_x_offset, white_human_radio_pos[1]))
-        self.draw_radio_button(white_first_radio_pos, isinstance(white_agent, FirstAgent), enabled)
-        self._draw_text_with_position("First", Color.WHITE, (white_first_radio_pos[0] + radio_text_x_offset, white_first_radio_pos[1]))
-        self.draw_radio_button(white_random_radio_pos, isinstance(white_agent, RandomAgent), enabled)
-        self._draw_text_with_position("Random", Color.WHITE, (white_random_radio_pos[0] + radio_text_x_offset, white_random_radio_pos[1]))
-        self.draw_radio_button(white_gain_radio_pos, isinstance(white_agent, GainAgent), enabled)
-        self._draw_text_with_position("Gain", Color.WHITE, (white_gain_radio_pos[0] + radio_text_x_offset, white_gain_radio_pos[1]))
-        self.draw_radio_button(white_mcts_radio_pos, isinstance(white_agent, MonteCarloTreeSearchAgent), enabled) # MCTS追加
-        self._draw_text_with_position("MCTS", Color.WHITE, (white_mcts_radio_pos[0] + radio_text_x_offset, white_mcts_radio_pos[1])) # MCTS追加
+            self.draw_radio_button(radio_pos, is_selected, enabled)
+            # テキストは常に有効な色で描画 (enabled フラグはボタン自体に適用)
+            self._draw_text_with_position(display_name, Color.WHITE, text_pos)
+
+        # 白プレイヤーのラジオボタンを描画
+        for i, (agent_id, display_name) in enumerate(self.agent_options):
+            radio_y = player_settings_top + radio_y_offset + i * radio_y_spacing
+            radio_pos = (white_player_label_x, radio_y)
+            text_pos = (white_player_label_x + radio_text_x_offset, radio_y)
+
+            # 選択状態の判定
+            is_selected = False
+            if agent_id == 0: # 人間
+                is_selected = (white_agent is None)
+            else: # AIエージェント
+                agent_class = get_agent_class(agent_id)
+                if agent_class and white_agent:
+                    is_selected = isinstance(white_agent, agent_class)
+
+            self.draw_radio_button(radio_pos, is_selected, enabled)
+            # テキストは常に有効な色で描画
+            self._draw_text_with_position(display_name, Color.WHITE, text_pos)
 
     def draw_turn_message(self, game):
         """手番表示を描画する"""
