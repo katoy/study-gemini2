@@ -1,127 +1,118 @@
-# tests/test_config_agents.py
+# config/agents.py
+"""
+エージェントの種類、クラス、表示名、パラメータなどの情報を一元管理するモジュール。
+"""
 
-import unittest
-import sys
-import os
-import inspect  # クラスかどうかを判定するために使用
+# 利用可能なエージェントクラスをインポート
+# このファイルの場所に応じてインポートパスを調整する必要がある場合があります。
+# 例: プロジェクトルートに agents.py がある場合
+from agents import FirstAgent, RandomAgent, GainAgent, MonteCarloTreeSearchAgent
+# 例: agents.py が config と同じ階層にある場合
+# from ..agents import FirstAgent, RandomAgent, GainAgent, MonteCarloTreeSearchAgent
 
-# テスト対象のモジュールをインポートするためにパスを追加
-# このテストファイルがプロジェクトルートの 'tests' ディレクトリにあると仮定
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-# config.agents をインポート
-try:
-    from config.agents import AGENT_REGISTRY
-    # AGENT_REGISTRY がインポートできない場合はテストをスキップするなどの処理も可能
-    config_agents_imported = True
-except ImportError as e:
-    print(f"テストスキップ: config.agents のインポートに失敗しました: {e}")
-    config_agents_imported = False
-    AGENT_REGISTRY = [] # ダミーを設定してテストがエラーにならないようにする
-
-# agents モジュールもインポートしてクラスの存在を確認 (存在すれば)
-try:
-    from agents import FirstAgent, RandomAgent, GainAgent, MonteCarloTreeSearchAgent
-    agents_imported = True
-except ImportError:
-    agents_imported = False
-    # agents モジュールがない場合、クラスの型チェックは限定的になる
-
-@unittest.skipUnless(config_agents_imported, "config.agents モジュールが見つからないため、テストをスキップします。")
-class TestConfigAgents(unittest.TestCase):
-
-    def test_agent_registry_is_list(self):
-        """AGENT_REGISTRY がリストであることをテスト"""
-        self.assertIsInstance(AGENT_REGISTRY, list, "AGENT_REGISTRY はリストである必要があります。")
-        self.assertGreater(len(AGENT_REGISTRY), 0, "AGENT_REGISTRY は空であってはいけません。")
-
-    def test_registry_elements_are_dicts(self):
-        """AGENT_REGISTRY の各要素が辞書であることをテスト"""
-        for item in AGENT_REGISTRY:
-            self.assertIsInstance(item, dict, f"AGENT_REGISTRY の要素は辞書である必要があります: {item}")
-
-    def test_dict_keys_exist(self):
-        """各辞書が必要なキー ('key', 'name', 'class') を持っていることをテスト"""
-        required_keys = {'key', 'name', 'class'}
-        for item in AGENT_REGISTRY:
-            self.assertTrue(required_keys.issubset(item.keys()),
-                            f"辞書に必要なキー {required_keys} が含まれていません: {item}")
-
-    def test_key_is_string_and_unique(self):
-        """'key' が文字列であり、かつリスト内で一意であることをテスト"""
-        keys = set()
-        for item in AGENT_REGISTRY:
-            key = item.get('key')
-            self.assertIsInstance(key, str, f"'key' は文字列である必要があります: {item}")
-            self.assertTrue(key, f"'key' は空文字列であってはいけません: {item}") # 空文字列でないことも確認
-            self.assertNotIn(key, keys, f"'key' は一意である必要があります: 重複 '{key}'")
-            keys.add(key)
-
-    def test_name_is_string(self):
-        """'name' が文字列であることをテスト"""
-        for item in AGENT_REGISTRY:
-            name = item.get('name')
-            self.assertIsInstance(name, str, f"'name' は文字列である必要があります: {item}")
-            self.assertTrue(name, f"'name' は空文字列であってはいけません: {item}") # 空文字列でないことも確認
-
-    def test_class_is_type_or_none(self):
-        """'class' がクラスオブジェクト (type) または None であることをテスト"""
-        for item in AGENT_REGISTRY:
-            agent_class = item.get('class')
-            # inspect.isclass() はクラスオブジェクトかどうかを判定する
-            is_class = inspect.isclass(agent_class)
-            is_none = agent_class is None
-            self.assertTrue(is_class or is_none,
-                            f"'class' はクラスオブジェクトまたは None である必要があります: {item}, type={type(agent_class)}")
-
-    def test_human_agent_class_is_none(self):
-        """'key' が 'human' の場合、'class' が None であることをテスト"""
-        human_agent_found = False
-        for item in AGENT_REGISTRY:
-            if item.get('key') == 'human':
-                self.assertIsNone(item.get('class'), f"'human' エージェントの 'class' は None である必要があります: {item}")
-                human_agent_found = True
-        self.assertTrue(human_agent_found, "'human' エージェントが AGENT_REGISTRY に見つかりません。")
-
-    def test_non_human_agent_class_is_not_none_and_is_class(self):
-        """'key' が 'human' 以外の場合、'class' が None でなく、かつクラスオブジェクトであることをテスト"""
-        for item in AGENT_REGISTRY:
-            if item.get('key') != 'human':
-                agent_class = item.get('class')
-                self.assertIsNotNone(agent_class, f"'{item.get('key')}' エージェントの 'class' は None であってはいけません: {item}")
-                self.assertTrue(inspect.isclass(agent_class),
-                                f"'{item.get('key')}' エージェントの 'class' はクラスオブジェクトである必要があります: {item}")
-
-    @unittest.skipUnless(agents_imported, "agents モジュールが見つからないため、クラスの存在確認テストをスキップします。")
-    def test_registered_classes_match_imports(self):
-        """AGENT_REGISTRY に登録されているクラスがインポートされたクラスと一致するかテスト"""
-        # config/agents.py でインポートしているクラスを期待値として設定
-        expected_classes = {
-            'first': FirstAgent,
-            'random': RandomAgent,
-            'gain': GainAgent,
-            'mcts': MonteCarloTreeSearchAgent,
-            # 新しいエージェントを追加したらここにも追加
+# エージェント定義リスト
+# 各要素は辞書形式:
+#   'id': エージェントを一意に識別する整数ID (0は人間プレイヤー用に予約)
+#   'class': 対応するエージェントクラス (人間プレイヤーの場合は None)
+#   'display_name': GUIなどで表示される名前
+#   'params': エージェントクラスの初期化時に渡すパラメータ (オプション)
+AGENT_DEFINITIONS = [
+    {
+        'id': 0,
+        'class': None,
+        'display_name': '人間',
+        'params': {}
+    },
+    {
+        'id': 1,
+        'class': FirstAgent,
+        'display_name': 'First',
+        'params': {}
+    },
+    {
+        'id': 2,
+        'class': RandomAgent,
+        'display_name': 'Random',
+        'params': {}
+    },
+    {
+        'id': 3,
+        'class': GainAgent,
+        'display_name': 'Gain',
+        'params': {}
+    },
+    {
+        'id': 4,
+        'class': MonteCarloTreeSearchAgent,
+        'display_name': 'MCTS',
+        'params': {
+            'iterations': 50000,
+            'time_limit_ms': 4000,
+            'exploration_weight': 1.41
         }
-        registered_agent_keys = set()
-        for item in AGENT_REGISTRY:
-            key = item.get('key')
-            agent_class = item.get('class')
-            if key != 'human':
-                registered_agent_keys.add(key)
-                self.assertIn(key, expected_classes, f"AGENT_REGISTRY に登録されているキー '{key}' が予期されるキーのリストにありません。")
-                # is 比較で同じクラスオブジェクトかを厳密にチェック
-                self.assertIs(agent_class, expected_classes[key],
-                    f"キー '{key}' に登録されているクラス ({agent_class.__name__ if agent_class else 'None'}) が期待されるクラス ({expected_classes[key].__name__}) と一致しません。")
+        # 必要に応じて他のMCTSパラメータも追加可能
+    },
+    # --- 新しいエージェントを追加する場合は、ここに辞書を追加 ---
+    # 例:
+    # {
+    #     'id': 5,
+    #     'class': YourNewAgent, # 適切にインポートしてください
+    #     'display_name': 'NewAgent',
+    #     'params': {'some_param': 'value'}
+    # },
+]
 
-        # 期待されるすべてのキーが登録されているかも確認
-        self.assertEqual(registered_agent_keys, set(expected_classes.keys()),
-            "AGENT_REGISTRY に登録されているエージェントのキーが、期待されるキーのセットと一致しません。")
+# --- ヘルパー関数 ---
 
+def get_agent_options():
+    """
+    GUIのラジオボタンなどで使用するためのエージェント選択肢リストを返す。
+    Returns:
+        list[tuple[int, str]]: (id, display_name) のタプルのリスト
+    """
+    return [(agent['id'], agent['display_name']) for agent in AGENT_DEFINITIONS]
 
-if __name__ == '__main__':
-    # テストを実行
-    # コマンドラインから実行する場合: python -m unittest tests/test_config_agents.py
-    unittest.main(argv=['first-arg-is-ignored'], exit=False) # Jupyter等で実行する場合
+def get_agent_class(agent_id):
+    """
+    指定されたIDに対応するエージェントクラスを返す。
+    Args:
+        agent_id (int): エージェントID
+    Returns:
+        type | None: 対応するエージェントクラス、または人間プレイヤーの場合は None。
+                     IDが見つからない場合も None を返す。
+    """
+    for agent in AGENT_DEFINITIONS:
+        if agent['id'] == agent_id:
+            return agent['class']
+    print(f"警告: 指定されたエージェントID {agent_id} が見つかりません。") # デバッグ用
+    return None # IDが見つからない場合
+
+def get_agent_params(agent_id):
+    """
+    指定されたIDに対応するエージェントの初期化パラメータを返す。
+    Args:
+        agent_id (int): エージェントID
+    Returns:
+        dict: 初期化パラメータの辞書。IDが見つからない場合は空の辞書を返す。
+    """
+    for agent in AGENT_DEFINITIONS:
+        if agent['id'] == agent_id:
+            # params キーが存在しない場合に備えて get を使う
+            return agent.get('params', {})
+    print(f"警告: 指定されたエージェントID {agent_id} のパラメータが見つかりません。") # デバッグ用
+    return {} # IDが見つからない場合
+
+def get_agent_definition(agent_id):
+    """
+    指定されたIDに対応するエージェントの完全な定義辞書を返す。
+    Args:
+        agent_id (int): エージェントID
+    Returns:
+        dict | None: 対応するエージェントの定義辞書。IDが見つからない場合は None を返す。
+    """
+    for agent in AGENT_DEFINITIONS:
+        if agent['id'] == agent_id:
+            return agent
+    print(f"警告: 指定されたエージェントID {agent_id} の定義が見つかりません。") # デバッグ用
+    return None # IDが見つからない場合
+
