@@ -7,6 +7,8 @@
 # このファイルの場所に応じてインポートパスを調整する必要がある場合があります。
 # 例: プロジェクトルートに agents.py がある場合
 from agents import FirstAgent, RandomAgent, GainAgent, MonteCarloTreeSearchAgent
+from agents.api_agent import ApiAgent
+
 # 例: agents.py が config と同じ階層にある場合
 # from ..agents import FirstAgent, RandomAgent, GainAgent, MonteCarloTreeSearchAgent
 
@@ -51,6 +53,14 @@ AGENT_DEFINITIONS = [
             'exploration_weight': 1.41
         }
         # 必要に応じて他のMCTSパラメータも追加可能
+    },
+    {
+        'id': 5, # 新しいID (既存と重複しないように)
+        'class': ApiAgent,
+        'display_name': 'API (Random)',
+        'params': {
+            'api_url': 'http://127.0.0.1:5001/play' # デフォルトのAPIサーバーURL
+        }
     },
     # --- 新しいエージェントを追加する場合は、ここに辞書を追加 ---
     # 例:

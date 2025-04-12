@@ -76,7 +76,7 @@
 テストを実行するには、以下のコマンドを使用します。
 
 ```bash
-python3 -m unittest discover -t . -p "test*.py" test
+python -m unittest discover -s tests -t .
 ```
 
 ## テストカバレッジの計測
@@ -91,7 +91,7 @@ pip install coverage
 カバレッジ計測付きでテストを実行します。
 
 ```bash
-python3 -m coverage run -m unittest discover -t . -p "test*.py" test
+python3 -m coverage run -m unittest discover -s tests -t .ß
 ```
 
 テキスト形式のカバレッジレポートを生成します。
@@ -133,7 +133,7 @@ reversi-py/
 ├── main.py             # メインプログラム (ゲームの実行)
 ├── scrennshots/        # スクリーンショット画像
 │   └── 000.png
-├── test/
+├── tests/
 │   ├── agents/         # エージェントのテスト
 │   │   ├── __init__.py
 │   │   └── test_mcts_agent.py # MCTSエージェントのテスト (他のテストもここへ)
