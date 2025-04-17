@@ -1,0 +1,56 @@
+# Git specific files and directories
+.git/
+.gitignore
+
+# Docker specific files (should not be part of the context)
+.dockerignore
+Dockerfile
+docker-compose.yml # If you have one
+
+# Python virtual environment folders
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Distribution / packaging (usually built inside the container)
+build/
+dist/
+*.egg-info/
+wheels/
+*.egg
+
+# IDE/Editor specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Test artifacts and code (usually not needed in production image)
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+
+# Log files
+*.log
+
+# Secrets or local configuration files
+.env
+*.local
+
+# Documentation (often not needed in the final image)
+*.md
+docs/
+

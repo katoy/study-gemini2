@@ -1,0 +1,49 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+wheels/
+*.egg
+
+# Virtual environment folders
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# IDE/Editor specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Log files
+*.log
+
+# Pygame specific (if any generated, usually not needed for simple projects)
+# Add any Pygame specific build or temporary files here if they arise
+
+# Secrets or configuration files that should not be committed
+# Example: config.ini, .env file if it contains sensitive data and is not listed above
+# *.ini
+# .env
+
