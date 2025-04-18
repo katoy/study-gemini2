@@ -1,0 +1,13 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+*.egg-info/
+.dockerignore
+Dockerfile
+README.md
+# その他、ビルドや実行に不要なファイルやディレクトリ

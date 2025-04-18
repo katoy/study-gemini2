@@ -117,35 +117,108 @@ python3 -m coverage erase
 ## ファイル構成
 
 ```
-reversi-py/
-├── agents/             # AIエージェント関連のモジュール
-│   ├── __init__.py
-│   ├── base_agent.py   # エージェントの基底クラス
-│   ├── first_agent.py  # 最初の有効な手を選択するエージェント
-│   ├── random_agent.py # ランダムに有効な手を選択するエージェント
-│   ├── gain_agent.py   # 獲得数が最大になる手を選択するエージェント
-│   └── mcts_agent.py   # モンテカルロ木探索エージェント
-├── board.py            # ボードのロジック (石の配置、合法手の判定など)
-├── config/             # 設定ファイル
-│   └── theme.py        # 色や画面サイズなどのテーマ設定
-├── game.py             # ゲームのロジック (ターン管理、ゲームオーバー判定など)
-├── gui.py              # GUIのロジック (描画、アニメーション、ボタンなど)
-├── main.py             # メインプログラム (ゲームの実行)
-├── scrennshots/        # スクリーンショット画像
-│   └── 000.png
-├── tests/
-│   ├── agents/         # エージェントのテスト
-│   │   ├── __init__.py
-│   │   └── test_mcts_agent.py # MCTSエージェントのテスト (他のテストもここへ)
-│   ├── __init__.py     # testディレクトリをパッケージとして認識させるため
-│   ├── test_board.py   # ボードのテスト
-│   ├── test_game.py    # ゲームのテスト
-│   └── test_gui.py     # GUIのテスト
-├── .gitignore          # Git管理対象外ファイルの設定
-├── LICENSE             # ライセンスファイル (存在する場合)
-└── README.md           # このファイル
+.
+├── agents/                 # AIエージェント関連のモジュール
+│   ├── __init__.py         # agentsディレクトリをパッケージとして認識させるため
+│   ├── api_agent.py        # APIサーバーを利用するエージェント (推測)
+│   ├── base_agent.py       # エージェントの基底クラス
+│   ├── first_agent.py      # 最初の有効な手を選択するエージェント
+│   ├── gain_agent.py       # 獲得数が最大になる手を選択するエージェント
+│   ├── mcts_agent.py       # モンテカルロ木探索エージェント
+│   └── random_agent.py     # ランダムに有効な手を選択するエージェント
+├── board.py                # ボードの状態管理とロジック (石の配置、合法手の判定など)
+├── config/                 # 設定ファイル
+│   ├── agents.py           # 使用するエージェントの設定など (推測)
+│   └── theme.py            # GUIの色や画面サイズなどのテーマ設定
+├── Dockerfile              # Dockerイメージをビルドするための設定ファイル
+├── fonts/                  # GUIで使用するフォントファイル
+│   ├── NotoSansJP-Regular.ttf
+│   └── NotoSansJP-VariableFont_wght.ttf
+├── game.py                 # ゲーム全体の進行管理 (ターン管理、ゲームオーバー判定、履歴管理など)
+├── gui.py                  # Pygameを使用したGUIの描画とイベント処理
+├── images/                 # GUIで使用する画像ファイル (石、背景など)
+│   ├── black.jpg
+│   ├── black.png
+│   ├── hintB.jpg
+│   ├── hintW.jpg
+│   ├── void.jpg
+│   └── white.jpg
+├── LICENSE                 # プロジェクトのライセンス情報
+├── main.py                 # アプリケーションのエントリーポイント (ゲームの初期化と実行)
+├── README.md               # このファイル (プロジェクトの説明書)
+├── requirements.txt        # プロジェクトの依存ライブラリリスト
+├── reversi.pu              # PlantUMLなどで記述された設計図など (推測)
+├── server/                 # APIサーバー関連のモジュール (推測)
+│   └── api_server.py       # AIの手を返すAPIサーバーの実装 (推測)
+├── startpoint.sh           # Dockerコンテナ起動時のエントリーポイントスクリプト (推測)
+└── tests/                  # ユニットテストコード
+    ├── __init__.py         # testsディレクトリをパッケージとして認識させるため
+    ├── agents/             # エージェントのテスト
+    │   ├── __init__.py     # agentsテストディレクトリをパッケージとして認識させるため
+    │   ├── test_api_agent.py
+    │   ├── test_base_agent.py
+    │   ├── test_first_agent.py
+    │   ├── test_gain_agent.py
+    │   ├── test_mcts_agent.py
+    │   └── test_random_agent.py
+    ├── config/             # 設定関連のテスト
+    │   └── test_agents.py
+    ├── server/             # サーバー関連のテスト (タイポ修正: serverß -> server)
+    │   └── test_api_server.py
+    ├── test_board.py       # ボードロジックのテスト
+    ├── test_game.py        # ゲームロジックのテスト
+    ├── test_gui.py         # GUI関連のテスト (存在する場合)
+    └── test_main.py        # mainモジュールのテスト (存在する場合)
 
 ```
+
+## Docker を使用した実行 (VNC 接続)
+
+Docker がインストールされていれば、以下の手順でコンテナを起動し、VNC クライアントから GUI を操作できます。
+
+1.  **Docker イメージのビルド:**
+
+    プロジェクトのルートディレクトリで以下のコマンドを実行し、Docker イメージをビルドします。
+
+    ```bash
+    docker build -t reversi-py .
+    ```
+
+2.  **Docker コンテナの起動:**
+
+    ビルドしたイメージを使ってコンテナを起動します。ここでは、ホストマシンの `5901` ポートをコンテナの VNC サーバーポート (`5901`) に接続します。
+
+    ```bash
+    docker run -d -p 5901:5901 --name reversi-container reversi-py
+    ```
+
+    *   `-d`: バックグラウンドでコンテナを実行します。
+    *   `-p 5901:5901`: ホストのポート 5901 をコンテナのポート 5901 にマッピングします。コンテナ側の VNC ポートが異なる場合は、`:` の右側を適宜変更してください。
+    *   `--name reversi-container`: コンテナに `reversi-container` という名前を付けます。
+    *   `reversi-py`: 使用する Docker イメージ名です。
+
+3.  **VNC クライアントでの接続:**
+
+    お使いの VNC クライアント (例: RealVNC Viewer, TightVNC Viewer, macOS の画面共有など) を起動し、以下の情報で接続します。
+
+    *   **接続先アドレス:** `localhost:5901` または `127.0.0.1:5901`
+    *   **パスワード:** (もし Dockerfile や startpoint.sh で VNC パスワードが設定されている場合は、そのパスワードを入力してください。設定されていない場合は不要な場合があります。)
+
+    接続に成功すると、コンテナ内で実行されている Reversi ゲームの GUI が表示されます。
+
+4.  **コンテナの停止と削除:**
+
+    ゲームを終了したら、以下のコマンドでコンテナを停止・削除できます。
+
+    ```bash
+    # コンテナの停止
+    docker stop reversi-container
+
+    # コンテナの削除
+    docker rm reversi-container
+    ```
+
+---
 
 ## ライセンス
 
