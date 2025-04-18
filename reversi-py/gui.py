@@ -1,6 +1,7 @@
 # gui.py
 import pygame
 import os
+from pathlib import Path
 # --- config.agents からヘルパー関数をインポート ---
 from config.agents import get_agent_options, get_agent_class
 # --- config.theme からインポート ---
@@ -66,26 +67,35 @@ class GameGUI:
             # メッセージの中心Y = 手番表示中心Y - フォント高さ - マージン
             return turn_message_center_y - font_height - Screen.MESSAGE_ABOVE_TURN_MARGIN
 
-    def _load_font(self):
-        """利用可能な日本語フォントをロードする"""
-        font_paths = [
-            "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",  # macOS
-            "/System/Library/Fonts/ヒラギノ丸ゴ ProN W4.ttc",  # macOS
-            "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",  # Ubuntu
-            "/usr/share/fonts/truetype/fonts-japanese-mincho.ttf",  # Ubuntu
-            "C:\Windows\Fonts\YuGothM.ttc", # Windows (游ゴシック Medium)
-            "C:\Windows\Fonts\meiryo.ttc", # Windows (メイリオ)
-            "C:\Windows\Fonts\msgothic.ttc", # Windows (MSゴシック)
-        ]
 
-        for font_path in font_paths:
-            if os.path.exists(font_path):
-                try:
-                    return pygame.font.Font(font_path, 24)
-                except Exception as e:
-                    print(f"フォントの読み込みに失敗しました ({font_path}): {e}")
-        print("日本語フォントが見つかりませんでした。デフォルトフォントを使用します。")
-        return pygame.font.Font(None, 24) # デフォルトフォント
+    def _load_font(self):
+        """同梱された日本語フォントをロードする"""
+        # このファイルの場所を基準にフォントファイルへの相対パスを構築
+        script_dir = Path(__file__).parent # gui.py があるディレクトリ
+        font_dir = script_dir / "fonts"    # fonts ディレクトリ
+        font_filename = "NotoSansJP-Regular.ttf" # 使用するフォントファイル名
+        font_path = font_dir / font_filename
+
+        font_size = 24
+
+        if font_path.exists():
+            try:
+                return pygame.font.Font(str(font_path), font_size) # pathlib オブジェクトを文字列に変換
+            except Exception as e:
+                print(f"同梱フォントの読み込みに失敗しました ({font_path}): {e}")
+        else:
+            print(f"同梱フォントファイルが見つかりません: {font_path}")
+
+        # 同梱フォントが読み込めなかった場合のフォールバック
+        print("デフォルトフォント（英語）を使用します。")
+        try:
+            # 日本語は表示できないが、エラーにはなりにくいシステムフォントを試す
+            return pygame.font.SysFont('sans', font_size)
+        except Exception:
+            # それも失敗した場合の最終手段
+            print("システムフォントも利用できません。pygame デフォルトフォントを使用します。")
+            return pygame.font.Font(None, font_size)
+
 
     def _calculate_board_rect(self):
         """盤面の描画領域(Rect)を計算する"""
