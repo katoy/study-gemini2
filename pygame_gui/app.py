@@ -12,12 +12,10 @@ from layout_constants import (
     MAIN_BUTTON_WIDTH,
     MAIN_BUTTON_HEIGHT,
     MAIN_BUTTON_TEXT,
-    # 終了ボタン用の定数をインポート (NEW)
     QUIT_BUTTON_WIDTH,
     QUIT_BUTTON_HEIGHT,
     QUIT_BUTTON_TEXT,
     QUIT_BUTTON_MARGIN,
-    # ---
     POPUP_WINDOW_WIDTH,
     POPUP_WINDOW_HEIGHT,
     POPUP_WINDOW_TITLE
@@ -33,6 +31,7 @@ class PygameApp:
     """
     PygameとPygame GUIを使ったアプリケーションクラス。
     ボタンクリックでPopupWindowを開く機能と終了機能を持つ。
+    ポップアップ表示中はメインボタンを無効化する（モーダル）。
     """
     def __init__(self, width=WINDOW_WIDTH, height=WINDOW_HEIGHT):
         """
@@ -48,7 +47,7 @@ class PygameApp:
         self.background = None
         self.manager = None
         self.open_popup_button = None
-        self.quit_button = None # 終了ボタン用の属性を追加 (NEW)
+        self.quit_button = None
         self.clock = None
 
         self.is_running = False
@@ -85,13 +84,11 @@ class PygameApp:
             object_id='#open_popup_button'
         )
 
-        # --- 終了ボタン (NEW) ---
-        # 右下に配置するためのRectを作成
+        # --- 終了ボタン ---
         quit_button_rect = pygame.Rect(
-            (0, 0), # 初期位置 (anchorsで調整される)
-            (QUIT_BUTTON_WIDTH, QUIT_BUTTON_HEIGHT) # サイズ
+            (0, 0),
+            (QUIT_BUTTON_WIDTH, QUIT_BUTTON_HEIGHT)
         )
-        # anchorsを使って右下に配置
         quit_button_rect.bottomright = (-QUIT_BUTTON_MARGIN, -QUIT_BUTTON_MARGIN)
 
         self.quit_button = pygame_gui.elements.UIButton(
@@ -99,13 +96,11 @@ class PygameApp:
             text=QUIT_BUTTON_TEXT,
             manager=self.manager,
             object_id='#quit_button',
-            # anchorsを指定してウィンドウの右下を基準にする
             anchors={'left': 'right',
                      'right': 'right',
                      'top': 'bottom',
                      'bottom': 'bottom'}
         )
-        # ---
 
     def _setup_game_loop(self):
         """
@@ -116,8 +111,17 @@ class PygameApp:
 
     def _create_popup_window(self):
         """
-        新しいPopupWindowを作成して表示します。
+        新しいPopupWindowを作成して表示し、必要であればメインボタンを無効化します。
         """
+        # --- モーダル化: 最初のポップアップ表示時にボタンを無効化 ---
+        if not self.active_popups: # まだアクティブなポップアップがない場合
+            print("Disabling main buttons...")
+            if self.open_popup_button:
+                self.open_popup_button.disable()
+            if self.quit_button:
+                self.quit_button.disable()
+        # ---
+
         popup_x = (self.width - POPUP_WINDOW_WIDTH) // 2
         popup_y = (self.height - POPUP_WINDOW_HEIGHT) // 3
         popup_rect = pygame.Rect(popup_x, popup_y, POPUP_WINDOW_WIDTH, POPUP_WINDOW_HEIGHT)
@@ -127,31 +131,27 @@ class PygameApp:
 
     def _process_events(self):
         """
-        Pygameのイベントを処理します。
+        Pygameのイベントを処理します。ポップアップが閉じられた際にボタンを再有効化します。
         """
+        popup_closed_this_frame = False # このフレームでポップアップが閉じたかどうかのフラグ
+
         for event in pygame.event.get():
-            # アプリケーション終了イベント (ウィンドウのXボタン)
             if event.type == pygame.QUIT:
                 self.is_running = False
-                # ループを抜けるので以降の処理は不要
-                return # ★ returnを追加して即座に抜けるのが安全
+                return
 
-            # UIManagerにイベントを渡す
             self.manager.process_events(event)
 
-            # --- ボタンクリックイベントの処理 ---
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
-                # ポップアップを開くボタンが押された場合
-                if event.ui_element == self.open_popup_button:
+                # ポップアップを開くボタン (有効な場合のみ反応)
+                if event.ui_element == self.open_popup_button and self.open_popup_button.is_enabled:
                     self._create_popup_window()
-                # 終了ボタンが押された場合 (NEW)
-                elif event.ui_element == self.quit_button:
+                # 終了ボタン (有効な場合のみ反応)
+                elif event.ui_element == self.quit_button and self.quit_button.is_enabled:
                     print("Quit button pressed. Exiting application...")
                     self.is_running = False
-                    # ループを抜けるので以降の処理は不要
-                    return # ★ returnを追加
+                    return
 
-            # --- ウィンドウクローズイベントの処理 ---
             if event.type == pygame_gui.UI_WINDOW_CLOSE:
                 closed_window_element = event.ui_element
                 popup_to_remove = None
@@ -161,15 +161,30 @@ class PygameApp:
                         break
                 if popup_to_remove:
                     popup_to_remove.kill()
+                    # kill()を呼んだだけではリストから消えないので、
+                    # 後続のリスト更新処理で実際に消えることを確認するためにフラグを立てる
+                    popup_closed_this_frame = True
 
-        # killされたポップアップをリストから削除 (ループの最後に移動)
+        # killされたポップアップをリストから削除
+        initial_popup_count = len(self.active_popups)
         self.active_popups = [popup for popup in self.active_popups if popup.is_alive]
+        # フラグが立っており、かつ実際にリストの要素数が減った場合のみ「閉じた」と判定
+        popup_closed_this_frame = popup_closed_this_frame and (len(self.active_popups) < initial_popup_count)
+
+        # --- モーダル化: 全てのポップアップが閉じられたらボタンを有効化 ---
+        # このフレームでポップアップが閉じられ、かつアクティブなポップアップがもうない場合
+        if popup_closed_this_frame and not self.active_popups:
+            print("Enabling main buttons...")
+            if self.open_popup_button:
+                self.open_popup_button.enable()
+            if self.quit_button:
+                self.quit_button.enable()
+        # ---
 
     def _update(self, time_delta):
         """
         ゲームの状態とGUI要素を更新します。
         """
-        # is_runningがFalseになったら更新処理はスキップしても良い
         if not self.is_running:
             return
         self.manager.update(time_delta)
@@ -178,7 +193,6 @@ class PygameApp:
         """
         画面に要素を描画します。
         """
-        # is_runningがFalseになったら描画処理はスキップしても良い
         if not self.is_running:
              return
         self.window_surface.blit(self.background, (0, 0))
@@ -192,11 +206,9 @@ class PygameApp:
         while self.is_running:
             time_delta = self.clock.tick(FPS) / 1000.0
             self._process_events()
-            # is_runningがFalseになった場合、update/renderはスキップされる
             self._update(time_delta)
             self._render()
 
-        # is_runningがFalseになるとループを抜け、ここに来る
         print("Exiting Pygame...")
         pygame.quit()
 
