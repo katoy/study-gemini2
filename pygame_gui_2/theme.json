@@ -1,0 +1,55 @@
+{
+    "defaults": {
+        "colours": {
+            "normal_bg": "#f0f0f0",
+            "hovered_bg": "#e0e0e0",
+            "disabled_bg": "#d0d0d0",
+            "selected_bg": "#c0c0c0",
+            "active_bg": "#b0b0b0",
+            "normal_text": "#000000",
+            "hovered_text": "#101010",
+            "disabled_text": "#808080",
+            "selected_text": "#000000",
+            "active_text": "#000000",
+            "normal_border": "#a0a0a0",
+            "hovered_border": "#b0b0b0",
+            "disabled_border": "#909090",
+            "selected_border": "#808080",
+            "active_border": "#707070"
+        },
+        "font": {
+            "name": "notosansjp",
+            "size": "16",
+            "regular_path": "fonts/NotoSansJP-Regular.ttf"
+        }
+    },
+    "label": {
+        "font": {
+            "name": "notosansjp",
+            "size": "16",
+            "regular_path": "fonts/NotoSansJP-Regular.ttf"
+        }
+    },
+    "button": {
+        "font": {
+            "name": "notosansjp",
+            "size": "16",
+            "regular_path": "fonts/NotoSansJP-Regular.ttf"
+        }
+    },
+    "window": {
+        "font": {
+            "name": "notosansjp",
+            "size": "16",
+            "regular_path": "fonts/NotoSansJP-Regular.ttf"
+        }
+    },
+    "text_entry_line": {
+        "font": {
+            "name": "notosansjp",
+            "size": "16",
+            "regular_path": "fonts/NotoSansJP-Regular.ttf"
+        }
+    }
+
+}
