@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# main.py (分割後・終了ボタン追加)
+# main.py (LayoutConfig を別ファイル化)
 
 # --- ライブラリのインポート ---
 import pygame           # Pygame 本体
@@ -11,15 +11,10 @@ import sys              # resource_path 関数で PyInstaller 対応などに使
 
 # --- 他のファイルからインポート ---
 from settings_dialog import SettingsDialog # 作成したダイアログクラスをインポート
+from config import LayoutConfig # ★★★ config.py から LayoutConfig をインポート ★★★
 
-# --- 定数定義 ---
-WINDOW_WIDTH = 600      # メインウィンドウの幅
-WINDOW_HEIGHT = 400     # メインウィンドウの高さ
-DIALOG_WIDTH = 400      # 設定ダイアログの幅 (ダイアログ生成時に使用)
-DIALOG_HEIGHT = 300     # 設定ダイアログの高さ (ダイアログ生成時に使用)
-BUTTON_WIDTH = 150      # ボタンの幅
-BUTTON_HEIGHT = 50      # ボタンの高さ
-BUTTON_MARGIN = 10      # ボタン間の垂直マージン
+# --- レイアウト設定クラス ---
+# ★★★ ここにあった LayoutConfig クラス定義を削除 ★★★
 
 # --- ヘルパー関数 (フォントパス解決用) ---
 def resource_path(relative_path: str) -> str:
@@ -36,15 +31,20 @@ def resource_path(relative_path: str) -> str:
 
 # --- メイン処理関数 ---
 def main():
+    # レイアウト設定のインスタンスを作成 (インポートしたクラスを使用)
+    layout = LayoutConfig()
+
     # 1. Pygame の初期化
     pygame.init()
     pygame.display.set_caption('モーダルダイアログ サンプル')
-    window_surface = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-    background = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
+    # LayoutConfig の値を使用
+    window_surface = pygame.display.set_mode((layout.WINDOW_WIDTH, layout.WINDOW_HEIGHT))
+    background = pygame.Surface((layout.WINDOW_WIDTH, layout.WINDOW_HEIGHT))
     background.fill(pygame.Color('#DDDDDD'))
 
     # 2. UIManager の初期化
-    manager = UIManager((WINDOW_WIDTH, WINDOW_HEIGHT), starting_language='ja')
+    # LayoutConfig の値を使用
+    manager = UIManager((layout.WINDOW_WIDTH, layout.WINDOW_HEIGHT), starting_language='ja')
 
     # 3. カスタム日本語フォントの読み込みと設定
     font_path = resource_path(os.path.join('fonts', 'NotoSansJP-Regular.ttf'))
@@ -52,22 +52,23 @@ def main():
         print(f"警告: フォントファイルが見つかりません: {font_path}")
     else:
         manager.add_font_paths('noto_sans_jp', regular_path=font_path)
+        # LayoutConfig の値を使用
         manager.preload_fonts([
-            {'name': 'noto_sans_jp', 'point_size': 14, 'style': 'regular'},
-            {'name': 'noto_sans_jp', 'point_size': 18, 'style': 'regular'}
+            {'name': 'noto_sans_jp', 'point_size': layout.FONT_SIZE_NORMAL, 'style': 'regular'},
+            {'name': 'noto_sans_jp', 'point_size': layout.FONT_SIZE_LARGE, 'style': 'regular'}
         ])
         print(f"フォント '{os.path.basename(font_path)}' をロードしました。")
 
     # 4. メインウィンドウに表示する UI 要素の作成
-    # ボタンを中央に縦に並べるための開始Y座標を計算
-    total_button_height = BUTTON_HEIGHT * 2 + BUTTON_MARGIN
-    start_y = (WINDOW_HEIGHT - total_button_height) // 2
-    button_x = (WINDOW_WIDTH - BUTTON_WIDTH) // 2
+    # ボタンを中央に縦に並べるための開始Y座標を計算 (LayoutConfig の値を使用)
+    total_button_height = layout.BUTTON_HEIGHT * 2 + layout.BUTTON_MARGIN
+    start_y = (layout.WINDOW_HEIGHT - total_button_height) // 2
+    button_x = (layout.WINDOW_WIDTH - layout.BUTTON_WIDTH) // 2
 
-    # 「設定」ボタン
+    # 「設定」ボタン (LayoutConfig の値を使用)
     settings_button_rect = pygame.Rect(
         (button_x, start_y),
-        (BUTTON_WIDTH, BUTTON_HEIGHT)
+        (layout.BUTTON_WIDTH, layout.BUTTON_HEIGHT)
     )
     settings_button = UIButton(
         relative_rect=settings_button_rect,
@@ -76,10 +77,10 @@ def main():
         object_id='#settings_button'
     )
 
-    # 「終了」ボタン (設定ボタンの下に配置)
+    # 「終了」ボタン (設定ボタンの下に配置, LayoutConfig の値を使用)
     quit_button_rect = pygame.Rect(
-        (button_x, settings_button_rect.bottom + BUTTON_MARGIN),
-        (BUTTON_WIDTH, BUTTON_HEIGHT)
+        (button_x, settings_button_rect.bottom + layout.BUTTON_MARGIN),
+        (layout.BUTTON_WIDTH, layout.BUTTON_HEIGHT)
     )
     quit_button = UIButton(
         relative_rect=quit_button_rect,
@@ -109,9 +110,11 @@ def main():
                 # 「設定」ボタンが押され、かつダイアログが表示されていない場合
                 if event.ui_element == settings_button and active_dialog is None:
                     print("設定ボタンが押されました。ダイアログを開きます。")
+                    # LayoutConfig の値を使用
                     dialog_rect = pygame.Rect(
-                        ((WINDOW_WIDTH - DIALOG_WIDTH) // 2, (WINDOW_HEIGHT - DIALOG_HEIGHT) // 2),
-                        (DIALOG_WIDTH, DIALOG_HEIGHT)
+                        ((layout.WINDOW_WIDTH - layout.DIALOG_WIDTH) // 2,
+                         (layout.WINDOW_HEIGHT - layout.DIALOG_HEIGHT) // 2),
+                        (layout.DIALOG_WIDTH, layout.DIALOG_HEIGHT)
                     )
                     # インポートした SettingsDialog クラスを使用
                     active_dialog = SettingsDialog(manager, dialog_rect)
