@@ -14,22 +14,17 @@ class SettingsDialog(UIWindow):
     # --- レイアウト定数 (config に移動したため削除) ---
 
     def __init__(self, manager: UIManager, rect: pygame.Rect, config: LayoutConfig):
-        # (モーダルブロッカー作成部分は変更なし)
-        modal_rect = pygame.Rect((0, 0), manager.window_resolution)
-        self._modal_blocker = UIPanel(
-            relative_rect=modal_rect,
-            starting_height=0,
-            manager=manager,
-            container=manager.get_root_container(),
-            object_id='@modal_blocker'
-        )
-        # (super().__init__ 部分は変更なし)
+        # UIWindow を通常通り初期化
         super().__init__(
-            rect,
-            manager,
+            rect=rect,
+            manager=manager,
             window_display_title=i18n.t('settings.title'),
             object_id='settings_dialog'
         )
+        # このウィンドウが開いている間、他の UI 要素へのクリックをブロック
+        # （True にするとウィンドウを前面に上げつつ、背後の要素をクリック不可にする）
+        self.set_blocking(True)  # :contentReference[oaicite:0]{index=0}
+
         self.config = config
 
         # (container_width, current_y の計算は変更なし)
@@ -53,7 +48,6 @@ class SettingsDialog(UIWindow):
     def kill(self):
         # (変更なし)
         super().kill()
-        self._modal_blocker.kill()
 
     def _create_info_label(self):
         self.info_label = UILabel(
