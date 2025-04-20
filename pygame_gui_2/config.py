@@ -35,3 +35,8 @@ class LayoutConfig:
 
     # --- main.py 用の計算済みレイアウト値 ---
     BUTTON_Y = WINDOW_HEIGHT - BUTTON_HEIGHT - MARGIN * 2
+
+# --- User Settings Defaults ---
+DEFAULT_SETTINGS_FILENAME = "user_settings.json"
+DEFAULT_USER_NAME = "User"
+DEFAULT_OPTION_KEY = "#settings.option_a"
