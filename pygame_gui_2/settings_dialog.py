@@ -51,12 +51,11 @@ class SettingsDialog(UIWindow):
 
     def _create_info_label(self):
         self.info_label = UILabel(
-                 # ↓↓↓ relative_rect の指定を修正 ↓↓↓
-                 relative_rect=pygame.Rect(
+                # ↓↓↓ relative_rect の指定を修正 ↓↓↓
+                relative_rect=pygame.Rect(
                     (self.config.MARGIN, self.current_y),
                     (self.container_width, self.config.DIALOG_LABEL_HEIGHT)
-                 ),
-                 # ↑↑↑ ----------------------------- ↑↑↑
+                ),
             text=i18n.t('settings.info_label'),
             manager=self.ui_manager,
             container=self,

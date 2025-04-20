@@ -78,7 +78,7 @@ def create_ui_elements(manager: UIManager, config: LayoutConfig) -> tuple[UIButt
     settings_button = UIButton(
         relative_rect=pygame.Rect(
             (config.WINDOW_WIDTH // 2 - config.BUTTON_WIDTH - config.MARGIN,
-             config.BUTTON_Y),
+            config.BUTTON_Y),
             (config.BUTTON_WIDTH, config.BUTTON_HEIGHT)
         ),
         # pygame_gui の翻訳形式を使用
@@ -90,7 +90,7 @@ def create_ui_elements(manager: UIManager, config: LayoutConfig) -> tuple[UIButt
     quit_button = UIButton(
         relative_rect=pygame.Rect(
             (config.WINDOW_WIDTH // 2 + config.MARGIN,
-             config.BUTTON_Y),
+            config.BUTTON_Y),
             (config.BUTTON_WIDTH, config.BUTTON_HEIGHT)
         ),
         # pygame_gui の翻訳形式を使用
