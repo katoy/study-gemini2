@@ -2,12 +2,7 @@
 import json
 import os
 import sys
-
-# 設定ファイルのデフォルト名
-DEFAULT_SETTINGS_FILENAME = "user_settings.json"
-# デフォルト値
-DEFAULT_USER_NAME = "User"
-DEFAULT_OPTION_KEY = "#settings.option_a" # settings.ja.json のキーに合わせる
+from config import DEFAULT_SETTINGS_FILENAME, DEFAULT_USER_NAME, DEFAULT_OPTION_KEY
 
 class UserSettings:
     """
