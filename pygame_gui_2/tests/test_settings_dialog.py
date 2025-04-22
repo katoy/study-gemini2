@@ -5,7 +5,7 @@ import sys
 import pygame
 import pygame_gui
 import i18n
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock, call, ANY # ANY をインポート
 
 # テスト対象のモジュールをインポートするためにパスを追加
 # このテストファイルが tests/ ディレクトリにあることを想定
@@ -16,36 +16,32 @@ sys.path.insert(0, project_root)
 # テスト対象のモジュールと定数をインポート
 from settings_dialog import SettingsDialog, SETTINGS_UPDATED
 from config import LayoutConfig
-from user_settings import DEFAULT_USER_NAME, DEFAULT_OPTION_KEY # デフォルト値比較用
-
-# --- resource_path 関数の定義 (テスト用) ---
-# main.py にあるものと同様の機能を提供
-def resource_path(relative_path: str) -> str:
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS # type: ignore[attr-defined]
-    except AttributeError:
-        # 開発環境では、このテストファイルがあるディレクトリの親 (プロジェクトルート) を基準にする
-        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        # base_path = os.path.abspath(".") # もしカレントディレクトリ基準ならこちら
-    return os.path.join(base_path, relative_path)
+# resource_path を main からインポート
+try:
+    from main import resource_path
+except ImportError:
+    # main が見つからない場合のフォールバック (テスト実行環境によっては必要)
+    def resource_path(relative_path: str) -> str:
+        try:
+            base_path = sys._MEIPASS # type: ignore[attr-defined]
+        except AttributeError:
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return os.path.join(base_path, relative_path)
 
 class TestSettingsDialog(unittest.TestCase):
     """
     settings_dialog.py の SettingsDialog クラスをテストするクラス。
+    pygame と pygame_gui を実際に初期化して使用します。
     """
 
     @classmethod
     def setUpClass(cls):
         """テストクラス全体のセットアップ (一度だけ実行)"""
-        # Pygame をヘッドレスモードで初期化
-        os.environ['SDL_VIDEODRIVER'] = 'dummy'
+        print("Initializing Pygame for SettingsDialog testing...")
+        os.environ['SDL_VIDEODRIVER'] = 'dummy' # ヘッドレスモード
         pygame.init()
-        # ダミーの画面を作成 (UIManager に必要)
-        cls.screen = pygame.display.set_mode((100, 100))
-
-        # i18n 初期化 (テストには翻訳ファイルが必要)
+        pygame.display.set_mode((1, 1)) # 最小限の画面
+        print("Initializing i18n for SettingsDialog testing...")
         try:
             translations_path = resource_path('data/translations')
             if not os.path.exists(translations_path):
@@ -56,31 +52,40 @@ class TestSettingsDialog(unittest.TestCase):
             i18n.set('fallback', 'en') # フォールバックも設定
             # 必要なキーが存在するか簡単なチェック
             i18n.t('settings.title')
+            i18n.t('settings.user_name_label') # settings_dialog.py で使われるキー
+            i18n.t('settings.option_label')    # settings_dialog.py で使われるキー
+            i18n.t('settings.ok_button')
+            i18n.t('settings.cancel_button')
             i18n.t('settings.option_a')
+            i18n.t('settings.option_b')
+            i18n.t('settings.option_c')
+            print("i18n initialized successfully for SettingsDialog.")
         except Exception as e:
-            print(f"\nWarning: i18n initialization failed during test setup: {e}")
+            print(f"\nWarning: i18n initialization failed in test_settings_dialog: {e}")
             print("Please ensure 'data/translations/ja.json' exists and is valid.")
             # i18n が失敗してもテストを続行するが、一部テストが失敗する可能性あり
-            # 必要に応じて i18n.t をモックするなどの対策が必要
             pass
 
 
     @classmethod
     def tearDownClass(cls):
         """テストクラス全体のクリーンアップ (一度だけ実行)"""
+        print("Quitting Pygame after SettingsDialog testing...")
         pygame.quit()
 
     def setUp(self):
         """各テストメソッドの前に実行されるセットアップ"""
+        print(f"\n--- Setting up for {self.id()} ---")
         self.config = LayoutConfig()
         # UIManager を作成 (テーマは必須ではないが、エラー回避のため指定)
-        # テスト用に最小限のテーマを用意するか、デフォルトを使う
         try:
             theme_path = resource_path('theme.json')
             if not os.path.exists(theme_path):
-                theme_path = None # 存在しなければ None
-        except Exception:
-            theme_path = None
+                print("Warning: theme.json not found, using default theme.")
+                theme_path = pygame_gui.PackageResource(package='pygame_gui.data', resource='default_theme.json')
+        except Exception as e:
+             print(f"Warning: Error finding theme.json: {e}. Using default theme.")
+             theme_path = pygame_gui.PackageResource(package='pygame_gui.data', resource='default_theme.json')
 
         self.manager = pygame_gui.UIManager(
             (self.config.WINDOW_WIDTH, self.config.WINDOW_HEIGHT),
@@ -105,17 +110,18 @@ class TestSettingsDialog(unittest.TestCase):
         )
         # イベントキューをクリア
         pygame.event.clear()
+        print("Setup complete.")
 
     def tearDown(self):
         """各テストメソッドの後に実行されるクリーンアップ"""
+        print(f"--- Tearing down {self.id()} ---")
         self.dialog.kill() # ダイアログを閉じる
         self.manager.clear_and_reset() # マネージャーをリセット
         pygame.event.clear() # イベントキューをクリア
+        print("Teardown complete.")
 
     def test_initialization_ui_elements_exist(self):
         """ダイアログ初期化時にUI要素が作成されるかテスト"""
-        # self.assertIsInstance(self.dialog, pygame_gui.windows.UIWindow)
-        # self.assertTrue(self.dialog.blocking) # モーダルであること
         self.assertEqual(self.dialog.window_display_title, i18n.t('settings.title'))
 
         # 各UI要素が作成されているか確認
@@ -162,6 +168,7 @@ class TestSettingsDialog(unittest.TestCase):
         expected_fallback_key = dialog_fallback.radio_buttons[0].user_data['translation_key']
         self.assertEqual(dialog_fallback.selected_option_key, expected_fallback_key)
 
+
         selected_buttons = [btn for btn in dialog_fallback.radio_buttons if btn.is_selected]
         self.assertEqual(len(selected_buttons), 1)
         self.assertEqual(selected_buttons[0].user_data['translation_key'], expected_fallback_key)
@@ -204,12 +211,10 @@ class TestSettingsDialog(unittest.TestCase):
         self.assertTrue(option_c_button.is_selected)
         self.assertFalse(option_a_button.is_selected) # Option A は非選択に戻る
 
-
     @patch('pygame.event.post') # pygame.event.post をモック
-    @patch.object(SettingsDialog, 'kill') # dialog.kill をモック
-    def test_process_event_ok_button_click(self, mock_kill, mock_post):
+    def test_process_event_ok_button_click(self, mock_post):
         """OKボタンクリック時にイベント発行とkillが呼ばれるかテスト"""
-        # ユーザー名とオプションを変更
+        # Arrange: ユーザー名とオプションを変更
         new_name = "変更後ユーザー"
         self.dialog.text_entry.set_text(new_name)
         # Option C を選択状態にする (手動で)
@@ -223,37 +228,51 @@ class TestSettingsDialog(unittest.TestCase):
         event = pygame.event.Event(pygame_gui.UI_BUTTON_PRESSED,
                                     {'ui_element': self.dialog.ok_button})
 
-        # イベント処理を実行
-        consumed = self.dialog.process_event(event)
-        self.assertTrue(consumed) # イベントは消費されるはず
+        # Act: with 文でインスタンスの kill をモック
+        with patch.object(self.dialog, 'kill') as mock_instance_kill:
+            consumed = self.dialog.process_event(event)
 
-        # pygame.event.post が期待通り呼ばれたか確認
-        self.assertEqual(mock_post.call_count, 1)
-        posted_event = mock_post.call_args[0][0] # 最初の引数 (イベントオブジェクト) を取得
-        self.assertEqual(posted_event.type, SETTINGS_UPDATED)
-        self.assertEqual(posted_event.user_name, new_name)
-        self.assertEqual(posted_event.selected_option_key, "#settings.option_c")
+            # Assert
+            self.assertTrue(consumed) # イベントは消費されるはず
 
-        # dialog.kill が呼ばれたか確認
-        mock_kill.assert_called_once()
+            # pygame.event.post が期待通り呼ばれたか確認
+            self.assertEqual(mock_post.call_count, 1)
+            posted_event = mock_post.call_args[0][0] # 最初の引数 (イベントオブジェクト) を取得
+            self.assertEqual(posted_event.type, SETTINGS_UPDATED) # type は SETTINGS_UPDATED
+
+            # 実際にポストされる属性のみを検証
+            expected_event_data = {
+                'user_name': new_name,
+                'selected_option_key': "#settings.option_c",
+            }
+            # Event オブジェクトの属性を比較
+            for key, value in expected_event_data.items():
+                 self.assertTrue(hasattr(posted_event, key), f"Event object missing attribute '{key}'")
+                 self.assertEqual(getattr(posted_event, key), value, f"Event attribute '{key}' mismatch")
+
+            # インスタンスの kill が呼ばれたか確認
+            mock_instance_kill.assert_called_once()
 
     @patch('pygame.event.post') # pygame.event.post をモック
-    @patch.object(SettingsDialog, 'kill') # dialog.kill をモック
-    def test_process_event_cancel_button_click(self, mock_kill, mock_post):
+    def test_process_event_cancel_button_click(self, mock_post):
         """キャンセルボタンクリック時にkillが呼ばれ、イベントは発行されないかテスト"""
         # キャンセルボタンクリックイベントをシミュレート
         event = pygame.event.Event(pygame_gui.UI_BUTTON_PRESSED,
                                     {'ui_element': self.dialog.cancel_button})
 
-        # イベント処理を実行
-        consumed = self.dialog.process_event(event)
-        self.assertTrue(consumed) # イベントは消費されるはず
+        # Act: with 文でインスタンスの kill をモック
+        with patch.object(self.dialog, 'kill') as mock_instance_kill:
+            # イベント処理を実行
+            consumed = self.dialog.process_event(event)
 
-        # pygame.event.post が呼ばれていないことを確認
-        mock_post.assert_not_called()
+            # Assert
+            self.assertTrue(consumed) # イベントは消費されるはず
 
-        # dialog.kill が呼ばれたか確認
-        mock_kill.assert_called_once()
+            # pygame.event.post が呼ばれていないことを確認
+            mock_post.assert_not_called()
+
+            # インスタンスの kill が呼ばれたか確認
+            mock_instance_kill.assert_called_once()
 
     def test_process_event_ignores_other_events(self):
         """関係ないイベントは無視される（消費されない）かテスト"""
@@ -269,7 +288,6 @@ class TestSettingsDialog(unittest.TestCase):
         event_mouse = pygame.event.Event(pygame.MOUSEMOTION, {'pos': (10, 10)})
         consumed_mouse = self.dialog.process_event(event_mouse)
         self.assertFalse(consumed_mouse)
-
 
 if __name__ == '__main__':
     # tests ディレクトリが存在しない場合に作成

@@ -82,26 +82,3 @@ class UserSettings:
             print(f"Error: Failed to save settings to '{self.filepath}': {e}")
         except Exception as e:
             print(f"Error: An unexpected error occurred while saving settings: {e}")
-
-# --- テスト用 ---
-if __name__ == '__main__':
-    print("Testing UserSettings...")
-    settings = UserSettings("test_settings.json") # テスト用に別ファイル名
-
-    print(f"Initial settings: Name='{settings.user_name}', Option='{settings.selected_option_key}'")
-
-    # 設定を変更して保存
-    settings.user_name = "Test User"
-    settings.selected_option_key = "#settings.option_b"
-    settings.save()
-
-    # 再度読み込んで確認
-    settings_reloaded = UserSettings("test_settings.json")
-    print(f"Reloaded settings: Name='{settings_reloaded.user_name}', Option='{settings_reloaded.selected_option_key}'")
-
-    # テスト用ファイルを削除
-    try:
-        os.remove(settings_reloaded.filepath)
-        print("Info: Test settings file removed.")
-    except OSError as e:
-        print(f"Warning: Could not remove test settings file: {e}")
