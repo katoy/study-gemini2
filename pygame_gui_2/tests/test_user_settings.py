@@ -1,286 +1,212 @@
-# tests/test_settings_dialog.py
+# tests/test_user_settings.py
 import unittest
 import os
 import sys
-import pygame
-import pygame_gui
-import i18n
-from unittest.mock import patch, MagicMock, call
+import json
+from unittest.mock import patch, mock_open, MagicMock
 
 # テスト対象のモジュールをインポートするためにパスを追加
-# このテストファイルが tests/ ディレクトリにあることを想定
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.insert(0, project_root)
 
-# テスト対象のモジュールと定数をインポート
-from settings_dialog import SettingsDialog, SETTINGS_UPDATED
-from config import LayoutConfig
-from user_settings import DEFAULT_USER_NAME, DEFAULT_OPTION_KEY # デフォルト値比較用
+# テスト対象のクラスと定数をインポート
+from user_settings import UserSettings, DEFAULT_SETTINGS_FILENAME, DEFAULT_USER_NAME, DEFAULT_OPTION_KEY
 
-# --- resource_path 関数の定義 (テスト用) ---
-# main.py にあるものと同様の機能を提供
-def resource_path(relative_path: str) -> str:
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS # type: ignore[attr-defined]
-    except AttributeError:
-        # 開発環境では、このテストファイルがあるディレクトリの親 (プロジェクトルート) を基準にする
-        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        # base_path = os.path.abspath(".") # もしカレントディレクトリ基準ならこちら
-    return os.path.join(base_path, relative_path)
+# --- テスト用定数 ---
+TEST_FILENAME = "test_settings_for_unittest.json"
+# テスト実行ディレクトリにテスト用ファイルを作成/削除する
+TEST_FILEPATH = os.path.join(project_root, TEST_FILENAME)
 
-class TestSettingsDialog(unittest.TestCase):
+class TestUserSettings(unittest.TestCase):
     """
-    settings_dialog.py の SettingsDialog クラスをテストするクラス。
+    user_settings.py の UserSettings クラスをテストするクラス。
     """
-
-    @classmethod
-    def setUpClass(cls):
-        """テストクラス全体のセットアップ (一度だけ実行)"""
-        # Pygame をヘッドレスモードで初期化
-        os.environ['SDL_VIDEODRIVER'] = 'dummy'
-        pygame.init()
-        # ダミーの画面を作成 (UIManager に必要)
-        cls.screen = pygame.display.set_mode((100, 100))
-
-        # i18n 初期化 (テストには翻訳ファイルが必要)
-        try:
-            translations_path = resource_path('data/translations')
-            if not os.path.exists(translations_path):
-                 raise FileNotFoundError("Translation directory not found for testing.")
-            i18n.set('file_format', 'json')
-            i18n.load_path.append(translations_path)
-            i18n.set('locale', 'ja') # テスト言語を日本語に固定
-            i18n.set('fallback', 'en') # フォールバックも設定
-            # 必要なキーが存在するか簡単なチェック
-            i18n.t('settings.title')
-            i18n.t('settings.option_a')
-        except Exception as e:
-            print(f"\nWarning: i18n initialization failed during test setup: {e}")
-            print("Please ensure 'data/translations/ja.json' exists and is valid.")
-            # i18n が失敗してもテストを続行するが、一部テストが失敗する可能性あり
-            # 必要に応じて i18n.t をモックするなどの対策が必要
-            pass
-
-
-    @classmethod
-    def tearDownClass(cls):
-        """テストクラス全体のクリーンアップ (一度だけ実行)"""
-        pygame.quit()
 
     def setUp(self):
-        """各テストメソッドの前に実行されるセットアップ"""
-        self.config = LayoutConfig()
-        # UIManager を作成 (テーマは必須ではないが、エラー回避のため指定)
-        # テスト用に最小限のテーマを用意するか、デフォルトを使う
-        try:
-            theme_path = resource_path('theme.json')
-            if not os.path.exists(theme_path):
-                theme_path = None # 存在しなければ None
-        except Exception:
-            theme_path = None
-
-        self.manager = pygame_gui.UIManager(
-            (self.config.WINDOW_WIDTH, self.config.WINDOW_HEIGHT),
-            theme_path=theme_path,
-            starting_language=i18n.get('locale') # UIManager にも言語設定
-        )
-        self.rect = pygame.Rect(
-            (self.config.WINDOW_WIDTH // 2 - self.config.DIALOG_WIDTH // 2,
-             self.config.WINDOW_HEIGHT // 2 - self.config.DIALOG_HEIGHT // 2),
-            (self.config.DIALOG_WIDTH, self.config.DIALOG_HEIGHT)
-        )
-        self.initial_name = "テストユーザー"
-        self.initial_option = "#settings.option_b" # Option B を初期選択
-
-        # SettingsDialog インスタンスを作成
-        self.dialog = SettingsDialog(
-            manager=self.manager,
-            rect=self.rect,
-            config=self.config,
-            initial_user_name=self.initial_name,
-            initial_selected_option_key=self.initial_option
-        )
-        # イベントキューをクリア
-        pygame.event.clear()
+        """各テストメソッドの前に実行: テスト用ファイルを削除"""
+        if os.path.exists(TEST_FILEPATH):
+            os.remove(TEST_FILEPATH)
+        # UserSettings インスタンスは各テストメソッド内で必要に応じて作成
 
     def tearDown(self):
-        """各テストメソッドの後に実行されるクリーンアップ"""
-        self.dialog.kill() # ダイアログを閉じる
-        self.manager.clear_and_reset() # マネージャーをリセット
-        pygame.event.clear() # イベントキューをクリア
+        """各テストメソッドの後に実行: テスト用ファイルを削除"""
+        if os.path.exists(TEST_FILEPATH):
+            os.remove(TEST_FILEPATH)
 
-    def test_initialization_ui_elements_exist(self):
-        """ダイアログ初期化時にUI要素が作成されるかテスト"""
-        # self.assertIsInstance(self.dialog, pygame_gui.windows.UIWindow) # 変更前
-        self.assertIsInstance(self.dialog, pygame_gui.elements.UIWindow) # 正しいパスに変更
-        # self.assertTrue(self.dialog.blocking) # モーダルであること
-        self.assertEqual(self.dialog.window_display_title, i18n.t('settings.title'))
+    # --- _get_settings_path のテスト ---
 
-        # 各UI要素が作成されているか確認
-        self.assertIsInstance(self.dialog.info_label, pygame_gui.elements.UILabel)
-        self.assertIsInstance(self.dialog.text_entry_label, pygame_gui.elements.UILabel)
-        self.assertIsInstance(self.dialog.text_entry, pygame_gui.elements.UITextEntryLine)
-        self.assertIsInstance(self.dialog.radio_label, pygame_gui.elements.UILabel)
-        self.assertIsInstance(self.dialog.radio_panel, pygame_gui.elements.UIPanel)
-        self.assertIsInstance(self.dialog.ok_button, pygame_gui.elements.UIButton)
-        self.assertIsInstance(self.dialog.cancel_button, pygame_gui.elements.UIButton)
+    @patch('user_settings.sys')
+    def test_get_settings_path_dev_environment(self, mock_sys):
+        """開発環境での設定ファイルパス取得をテスト"""
+        # sys.frozen が False (または存在しない) 場合をシミュレート
+        mock_sys.frozen = False
+        # __file__ が user_settings.py のパスを指すように設定
+        # このテストファイルは tests/ にあるので、親ディレクトリがプロジェクトルート
+        expected_path = os.path.join(project_root, DEFAULT_SETTINGS_FILENAME)
 
-        # ラジオボタンが期待通り作成されているか (数と型)
-        self.assertIsInstance(self.dialog.radio_buttons, list)
-        self.assertEqual(len(self.dialog.radio_buttons), 3) # オプションは3つのはず
-        for btn in self.dialog.radio_buttons:
-            self.assertIsInstance(btn, pygame_gui.elements.UIButton)
-            self.assertIn('translation_key', btn.user_data)
+        settings = UserSettings() # デフォルトファイル名で初期化
+        actual_path = settings._get_settings_path(DEFAULT_SETTINGS_FILENAME)
 
-    def test_initialization_initial_values(self):
-        """ダイアログ初期化時に初期値が正しく設定されるかテスト"""
-        # テキスト入力の初期値
-        self.assertEqual(self.dialog.text_entry.get_text(), self.initial_name)
+        self.assertEqual(actual_path, expected_path)
 
-        # ラジオボタンの初期選択
-        self.assertEqual(self.dialog.selected_option_key, self.initial_option)
-        selected_buttons = [btn for btn in self.dialog.radio_buttons if btn.is_selected]
-        unselected_buttons = [btn for btn in self.dialog.radio_buttons if not btn.is_selected]
+    @patch('user_settings.sys')
+    def test_get_settings_path_frozen_environment(self, mock_sys):
+        """PyInstaller バンドル環境での設定ファイルパス取得をテスト"""
+        # sys.frozen が True で、sys.executable が実行ファイルのパスを指す場合
+        mock_sys.frozen = True
+        mock_executable_path = '/path/to/frozen/executable'
+        mock_sys.executable = mock_executable_path
+        expected_path = os.path.join(os.path.dirname(mock_executable_path), DEFAULT_SETTINGS_FILENAME)
 
-        self.assertEqual(len(selected_buttons), 1) # 1つだけ選択されている
-        self.assertEqual(selected_buttons[0].user_data['translation_key'], self.initial_option)
-        self.assertEqual(len(unselected_buttons), len(self.dialog.radio_buttons) - 1)
+        settings = UserSettings() # デフォルトファイル名で初期化
+        actual_path = settings._get_settings_path(DEFAULT_SETTINGS_FILENAME)
 
-    def test_initialization_default_option_fallback(self):
-        """初期選択キーが存在しない場合に最初のオプションが選択されるかテスト"""
-        invalid_initial_option = "#settings.option_invalid"
-        dialog_fallback = SettingsDialog(
-            manager=self.manager,
-            rect=self.rect,
-            config=self.config,
-            initial_user_name=self.initial_name,
-            initial_selected_option_key=invalid_initial_option
-        )
-        # 最初のオプションキーが選択されているはず
-        expected_fallback_key = dialog_fallback.radio_buttons[0].user_data['translation_key']
-        self.assertEqual(dialog_fallback.selected_option_key, expected_fallback_key)
+        self.assertEqual(actual_path, expected_path)
 
-        selected_buttons = [btn for btn in dialog_fallback.radio_buttons if btn.is_selected]
-        self.assertEqual(len(selected_buttons), 1)
-        self.assertEqual(selected_buttons[0].user_data['translation_key'], expected_fallback_key)
-        dialog_fallback.kill() # クリーンアップ
+    # --- 初期化 (__init__ と load) のテスト ---
 
-    def test_process_event_radio_button_selection(self):
-        """ラジオボタンクリック時に選択状態とキーが更新されるかテスト"""
-        # 初期状態は Option B が選択されているはず
-        self.assertEqual(self.dialog.selected_option_key, "#settings.option_b")
+    @patch('user_settings.os.path.exists', return_value=False)
+    @patch('builtins.print') # print 出力をキャプチャ
+    def test_initialization_file_not_found_uses_defaults(self, mock_print, mock_exists):
+        """初期化時にファイルが存在しない場合、デフォルト値が使用されるかテスト"""
+        settings = UserSettings(filename=TEST_FILENAME)
 
-        # Option A (最初のボタン) をクリックするイベントをシミュレート
-        option_a_button = self.dialog.radio_buttons[0]
-        self.assertFalse(option_a_button.is_selected) #最初は選択されていない
-        event = pygame.event.Event(pygame_gui.UI_BUTTON_PRESSED,
-                                    {'ui_element': option_a_button})
+        # デフォルト値が設定されているか確認
+        self.assertEqual(settings.user_name, DEFAULT_USER_NAME)
+        self.assertEqual(settings.selected_option_key, DEFAULT_OPTION_KEY)
+        # ファイルパスが正しく設定されているか確認 (開発環境を想定)
+        self.assertEqual(settings.filepath, os.path.join(project_root, TEST_FILENAME))
+        # ファイルが存在しない旨のログが出力されるか確認
+        mock_print.assert_any_call(f"Info: Settings file not found at '{settings.filepath}'. Using default settings.")
+        mock_exists.assert_called_once_with(settings.filepath)
 
-        # イベント処理を実行
-        consumed = self.dialog.process_event(event)
-        self.assertTrue(consumed) # イベントは消費されるはず
+    @patch('user_settings.os.path.exists', return_value=True)
+    @patch('builtins.open', new_callable=mock_open, read_data='{"user_name": "Loaded User", "selected_option_key": "#settings.option_c"}')
+    @patch('builtins.print')
+    def test_initialization_loads_from_existing_file(self, mock_print, mock_file, mock_exists):
+        """初期化時に存在するファイルから正しく読み込めるかテスト"""
+        settings = UserSettings(filename=TEST_FILENAME)
 
-        # 状態の確認
-        self.assertEqual(self.dialog.selected_option_key, "#settings.option_a")
-        self.assertTrue(option_a_button.is_selected)
-        # 他のボタンが非選択になっているか確認
-        for i, btn in enumerate(self.dialog.radio_buttons):
-            if i == 0:
-                self.assertTrue(btn.is_selected)
-            else:
-                self.assertFalse(btn.is_selected)
+        # ファイルから読み込んだ値が設定されているか確認
+        self.assertEqual(settings.user_name, "Loaded User")
+        self.assertEqual(settings.selected_option_key, "#settings.option_c")
+        # ファイルパスが正しく設定されているか確認
+        self.assertEqual(settings.filepath, os.path.join(project_root, TEST_FILENAME))
+        # 読み込み成功のログが出力されるか確認
+        mock_print.assert_any_call(f"Info: Settings loaded from '{settings.filepath}'")
+        mock_exists.assert_called_once_with(settings.filepath)
+        mock_file.assert_called_once_with(settings.filepath, 'r', encoding='utf-8')
 
-        # 次に Option C (最後のボタン) をクリック
-        option_c_button = self.dialog.radio_buttons[2]
-        event_c = pygame.event.Event(pygame_gui.UI_BUTTON_PRESSED,
-                                      {'ui_element': option_c_button})
-        consumed_c = self.dialog.process_event(event_c)
-        self.assertTrue(consumed_c)
+    # --- load メソッドのテスト ---
 
-        # 状態の確認
-        self.assertEqual(self.dialog.selected_option_key, "#settings.option_c")
-        self.assertTrue(option_c_button.is_selected)
-        self.assertFalse(option_a_button.is_selected) # Option A は非選択に戻る
+    @patch('user_settings.os.path.exists', return_value=True)
+    @patch('builtins.open', new_callable=mock_open, read_data='this is not valid json')
+    @patch('builtins.print')
+    def test_load_invalid_json_uses_defaults(self, mock_print, mock_file, mock_exists):
+        """不正なJSONファイルを読み込んだ場合、デフォルト値が使用されるかテスト"""
+        settings = UserSettings(filename=TEST_FILENAME) # 初期化時に load が呼ばれる
 
+        # デフォルト値に戻っているか確認
+        self.assertEqual(settings.user_name, DEFAULT_USER_NAME)
+        self.assertEqual(settings.selected_option_key, DEFAULT_OPTION_KEY)
+        # エラーログが出力されるか確認
+        mock_print.assert_any_call(f"Error: Failed to decode JSON from '{settings.filepath}'. Using default settings.")
+        mock_exists.assert_called_once_with(settings.filepath)
+        mock_file.assert_called_once_with(settings.filepath, 'r', encoding='utf-8')
 
-    @patch('pygame.event.post') # pygame.event.post をモック
-    @patch.object(SettingsDialog, 'kill') # dialog.kill をモック
-    def test_process_event_ok_button_click(self, mock_kill, mock_post):
-        """OKボタンクリック時にイベント発行とkillが呼ばれるかテスト"""
-        # ユーザー名とオプションを変更
-        new_name = "変更後ユーザー"
-        self.dialog.text_entry.set_text(new_name)
-        # Option C を選択状態にする (手動で)
-        option_c_button = self.dialog.radio_buttons[2]
-        option_c_button.select()
-        self.dialog.selected_option_key = option_c_button.user_data['translation_key']
-        for i, btn in enumerate(self.dialog.radio_buttons):
-            if i != 2: btn.unselect()
+    @patch('user_settings.os.path.exists', return_value=True)
+    @patch('builtins.open', side_effect=IOError("Permission denied"))
+    @patch('builtins.print')
+    def test_load_io_error_uses_defaults(self, mock_print, mock_open_error, mock_exists):
+        """ファイル読み込み中にIOErrorが発生した場合、デフォルト値が使用されるかテスト"""
+        settings = UserSettings(filename=TEST_FILENAME) # 初期化時に load が呼ばれる
 
-        # OKボタンクリックイベントをシミュレート
-        event = pygame.event.Event(pygame_gui.UI_BUTTON_PRESSED,
-                                    {'ui_element': self.dialog.ok_button})
+        # デフォルト値に戻っているか確認
+        self.assertEqual(settings.user_name, DEFAULT_USER_NAME)
+        self.assertEqual(settings.selected_option_key, DEFAULT_OPTION_KEY)
+        # エラーログが出力されるか確認
+        mock_print.assert_any_call(f"Error: Failed to load settings from '{settings.filepath}': Permission denied. Using default settings.")
+        mock_exists.assert_called_once_with(settings.filepath)
+        mock_open_error.assert_called_once_with(settings.filepath, 'r', encoding='utf-8')
 
-        # イベント処理を実行
-        consumed = self.dialog.process_event(event)
-        self.assertTrue(consumed) # イベントは消費されるはず
+    @patch('user_settings.os.path.exists', return_value=True)
+    @patch('builtins.open', new_callable=mock_open, read_data='{"user_name": "Partial User"}') # キーが一部欠けている
+    @patch('builtins.print')
+    def test_load_missing_keys_uses_defaults_for_missing(self, mock_print, mock_file, mock_exists):
+        """JSONファイルにキーが欠けている場合、欠けているキーはデフォルト値で補完されるかテスト"""
+        settings = UserSettings(filename=TEST_FILENAME)
 
-        # pygame.event.post が期待通り呼ばれたか確認
-        self.assertEqual(mock_post.call_count, 1)
-        posted_event = mock_post.call_args[0][0] # 最初の引数 (イベントオブジェクト) を取得
-        self.assertEqual(posted_event.type, SETTINGS_UPDATED)
-        self.assertEqual(posted_event.user_name, new_name)
-        self.assertEqual(posted_event.selected_option_key, "#settings.option_c")
+        # 存在するキーは読み込まれ、欠けているキーはデフォルト値になるか確認
+        self.assertEqual(settings.user_name, "Partial User")
+        self.assertEqual(settings.selected_option_key, DEFAULT_OPTION_KEY) # デフォルト値
+        # 読み込み成功のログが出力されるか確認
+        mock_print.assert_any_call(f"Info: Settings loaded from '{settings.filepath}'")
+        mock_exists.assert_called_once_with(settings.filepath)
+        mock_file.assert_called_once_with(settings.filepath, 'r', encoding='utf-8')
 
-        # dialog.kill が呼ばれたか確認
-        mock_kill.assert_called_once()
+    # --- save メソッドのテスト ---
 
-    @patch('pygame.event.post') # pygame.event.post をモック
-    @patch.object(SettingsDialog, 'kill') # dialog.kill をモック
-    def test_process_event_cancel_button_click(self, mock_kill, mock_post):
-        """キャンセルボタンクリック時にkillが呼ばれ、イベントは発行されないかテスト"""
-        # キャンセルボタンクリックイベントをシミュレート
-        event = pygame.event.Event(pygame_gui.UI_BUTTON_PRESSED,
-                                    {'ui_element': self.dialog.cancel_button})
+    @patch('builtins.print')
+    def test_save_writes_correct_data(self, mock_print):
+        """設定を正しくファイルに保存できるかテスト"""
+        settings = UserSettings(filename=TEST_FILENAME)
+        new_name = "Saved User"
+        new_option = "#settings.option_b"
 
-        # イベント処理を実行
-        consumed = self.dialog.process_event(event)
-        self.assertTrue(consumed) # イベントは消費されるはず
+        # 設定を変更
+        settings.user_name = new_name
+        settings.selected_option_key = new_option
 
-        # pygame.event.post が呼ばれていないことを確認
-        mock_post.assert_not_called()
+        # 保存実行
+        settings.save()
 
-        # dialog.kill が呼ばれたか確認
-        mock_kill.assert_called_once()
+        # 保存成功のログが出力されるか確認
+        mock_print.assert_any_call(f"Info: Settings saved to '{settings.filepath}'")
 
-    def test_process_event_ignores_other_events(self):
-        """関係ないイベントは無視される（消費されない）かテスト"""
-        # 関係ないボタン (例えばメイン画面のボタン) のイベントをシミュレート
-        other_button = pygame_gui.elements.UIButton(pygame.Rect(0,0,50,50), "Other", self.manager)
-        event = pygame.event.Event(pygame_gui.UI_BUTTON_PRESSED,
-                                    {'ui_element': other_button})
+        # ファイルが実際に作成され、内容が正しいか確認
+        self.assertTrue(os.path.exists(TEST_FILEPATH))
+        with open(TEST_FILEPATH, 'r', encoding='utf-8') as f:
+            saved_data = json.load(f)
+        self.assertEqual(saved_data['user_name'], new_name)
+        self.assertEqual(saved_data['selected_option_key'], new_option)
 
-        consumed = self.dialog.process_event(event)
-        self.assertFalse(consumed) # ダイアログはこのイベントを消費しない
+    @patch('builtins.open', side_effect=IOError("Disk full"))
+    @patch('builtins.print')
+    def test_save_io_error_logs_error(self, mock_print, mock_open_error):
+        """ファイル保存中にIOErrorが発生した場合、エラーログが出力されるかテスト"""
+        settings = UserSettings(filename=TEST_FILENAME)
+        settings.user_name = "Cannot Save"
 
-        # マウス移動イベントなども無視されるはず
-        event_mouse = pygame.event.Event(pygame.MOUSEMOTION, {'pos': (10, 10)})
-        consumed_mouse = self.dialog.process_event(event_mouse)
-        self.assertFalse(consumed_mouse)
+        # 保存実行
+        settings.save()
+
+        # エラーログが出力されるか確認
+        mock_print.assert_any_call(f"Error: Failed to save settings to '{settings.filepath}': Disk full")
+        # open が呼ばれたか確認
+        mock_open_error.assert_called_once_with(settings.filepath, 'w', encoding='utf-8')
+
+    @patch('user_settings.json.dump', side_effect=TypeError("Unexpected type"))
+    @patch('builtins.open', new_callable=mock_open) # open は成功するが dump で失敗
+    @patch('builtins.print')
+    def test_save_unexpected_error_logs_error(self, mock_print, mock_file, mock_dump_error):
+        """ファイル保存中に予期せぬエラーが発生した場合、エラーログが出力されるかテスト"""
+        settings = UserSettings(filename=TEST_FILENAME)
+        settings.user_name = "Weird Save"
+
+        # 保存実行
+        settings.save()
+
+        # エラーログが出力されるか確認
+        mock_print.assert_any_call(f"Error: An unexpected error occurred while saving settings: Unexpected type")
+        # open と dump が呼ばれたか確認
+        mock_file.assert_called_once_with(settings.filepath, 'w', encoding='utf-8')
+        mock_dump_error.assert_called_once()
 
 
 if __name__ == '__main__':
-    # tests ディレクトリが存在しない場合に作成
-    if not os.path.exists(os.path.join(project_root, 'tests')):
-        os.makedirs(os.path.join(project_root, 'tests'))
-        print("Created 'tests' directory.")
-
-    # このファイルを tests/test_settings_dialog.py として保存
-    test_file_path = os.path.join(project_root, 'tests', 'test_settings_dialog.py')
-    # 現在のファイルパスと保存先パスが異なる場合（初回実行時など）は保存
+    # このファイルを tests/test_user_settings.py として保存
+    test_file_path = os.path.join(project_root, 'tests', 'test_user_settings.py')
     if os.path.abspath(__file__) != os.path.abspath(test_file_path):
         try:
             with open(__file__, 'r', encoding='utf-8') as f_read:
@@ -291,8 +217,5 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"Error saving test file: {e}")
 
-    # unittest を実行
-    print("\nRunning tests for settings_dialog.py...")
-    # verbosity=2 を追加して詳細なテスト結果を表示
+    print("\nRunning tests for user_settings.py...")
     unittest.main(argv=['first-arg-is-ignored'], exit=False, verbosity=2)
-

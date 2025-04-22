@@ -1,0 +1,17 @@
+[run]
+omit =
+    tests/*
+    venv/*
+    */__main__.py # __main__.py ファイルを除外 (該当する場合)
+
+[report]
+exclude_lines =
+    pragma: no cover
+    # if __name__ == "__main__": を除外
+    if __name__ == .__main__.:
+    # 他の除外ルール (raise NotImplementedError など)
+    raise NotImplementedError
+    # デバッグ用 print 文なども除外可能
+    # print(.*)
+    # i18n 初期化失敗時の警告など、テストでカバーしにくい部分
+    print\(\s*f?"Warning:.*\)
