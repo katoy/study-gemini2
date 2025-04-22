@@ -76,7 +76,7 @@
 テストを実行するには、以下のコマンドを使用します。
 
 ```bash
-python -m unittest discover -s tests -t .
+python3 -m unittest discover -s tests -t .
 ```
 
 ## テストカバレッジの計測
@@ -91,19 +91,21 @@ pip install coverage
 カバレッジ計測付きでテストを実行します。
 
 ```bash
-python3 -m coverage run -m unittest discover -s tests -t .ß
+python3 -m coverage run -m unittest discover -s tests -t .
 ```
 
 テキスト形式のカバレッジレポートを生成します。
 
 ```bash
-python3 -m coverage report -m
+python3 -m coverage erase
+python3 -m coverage run -m unittest discover -s tests -t .
+python3 -m coverage report -m --omit="tests/*"
 ```
 
 HTML形式のカバレッジレポートを生成します。
 
 ```bash
-python3 -m coverage html
+python3 -m coverage html --omit="tests/*"
 ```
 
 HTMLレポートは htmlcov ディレクトリに生成されます。htmlcov/index.html をブラウザで開いて確認してください。

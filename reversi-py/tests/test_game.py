@@ -11,10 +11,10 @@ sys.path.append(parent_dir)
 
 from game import Game
 from board import Board
-# config.agents から ID 定義やクラスを参照するためにインポート
-# from config import agents as agents_config # ID を直接使うので不要かも
-# agents モジュールからクラスをインポート (isinstance チェック用)
-from agents import FirstAgent, RandomAgent, GainAgent, MonteCarloTreeSearchAgent
+from agents.first_agent import FirstAgent
+from agents.random_agent import RandomAgent
+from agents.gain_agent import GainAgent
+from agents.mcts_agent import MonteCarloTreeSearchAgent
 
 class TestGame(unittest.TestCase):
     def setUp(self):

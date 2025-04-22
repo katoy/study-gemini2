@@ -14,8 +14,8 @@ from gui import GameGUI
 
 from config.theme import Color, Screen
 from game import Game
-# テスト対象のモジュールが依存するクラスをインポート (isinstance チェック用)
-from agents import FirstAgent, RandomAgent
+from agents.first_agent import FirstAgent
+from agents.random_agent import RandomAgent
 
 class TestGameGUI(unittest.TestCase):
 
