@@ -45,10 +45,10 @@ class GameGUI:
 
     def _calculate_player_settings_top(self):
         """プレイヤー設定UIの上端Y座標を計算する"""
-        # リスタート/リセットボタンの下端を基準にする
-        # is_start=False, game_over=False, is_reset=False でリスタートボタンのRectを取得
-        # (ゲーム開始前でもリスタート/リセットボタンと同じ高さ・幅のボタンがあると仮定して計算)
-        button_rect = self._calculate_button_rect(False, False, False)
+        # リスタート/リセット/終了ボタンの下端を基準にする
+        # is_start=False, game_over=False, is_reset=False, is_quit=False でリスタートボタンのRectを取得
+        # (ゲーム開始前でもリスタート/リセット/終了ボタンと同じ高さ・幅のボタンがあると仮定して計算)
+        button_rect = self._calculate_button_rect(False, False, False, False) # リスタートボタンのRectを取得
         button_bottom = button_rect.bottom # ボタンの下端
         return button_bottom + Screen.BUTTON_BOTTOM_MARGIN # ボタンの下端 + マージン
 
@@ -72,7 +72,10 @@ class GameGUI:
         """同梱された日本語フォントをロードする"""
         # このファイルの場所を基準にフォントファイルへの相対パスを構築
         script_dir = Path(__file__).parent # gui.py があるディレクトリ
-        font_dir = script_dir / "fonts"    # fonts ディレクトリ
+        # --- fonts ディレクトリを正しく参照するように修正 ---
+        # プロジェクトルートからの相対パスではなく、gui.pyからの相対パスを使う
+        font_dir = script_dir / "fonts"    # gui.py と同じ階層にある fonts ディレクトリ
+        # -------------------------------------------------
         font_filename = "NotoSansJP-Regular.ttf" # 使用するフォントファイル名
         font_path = font_dir / font_filename
 
@@ -210,6 +213,7 @@ class GameGUI:
             self.draw_message(game.get_message())
             self.draw_restart_button()
             self.draw_reset_button()
+            self.draw_quit_button() # 終了ボタンも描画
             player_settings_top = self._calculate_player_settings_top()
             self.draw_player_settings(game, player_settings_top, False) # ゲーム中は設定無効
             # アニメーション中の石を描画
@@ -251,6 +255,7 @@ class GameGUI:
             self.draw_message(game.get_message())
             self.draw_restart_button()
             self.draw_reset_button()
+            self.draw_quit_button() # 終了ボタンも描画
             player_settings_top = self._calculate_player_settings_top()
             self.draw_player_settings(game, player_settings_top, False) # ゲーム中は設定無効
 
@@ -282,38 +287,82 @@ class GameGUI:
 
     def draw_restart_button(self, game_over=False):
         """リスタートボタンを描画する"""
-        button_rect = self._calculate_button_rect(False, game_over) # is_start_button=False
+        # is_quit_button=False (デフォルト) を明示的に渡す (必須ではないが可読性のため)
+        button_rect = self._calculate_button_rect(False, game_over, is_reset_button=False, is_quit_button=False)
         return self._draw_button(button_rect, "リスタート")
 
     def draw_reset_button(self, game_over=False):
         """リセットボタンを描画する"""
-        button_rect = self._calculate_button_rect(False, game_over, is_reset_button=True) # is_start_button=False
+        button_rect = self._calculate_button_rect(False, game_over, is_reset_button=True, is_quit_button=False)
         return self._draw_button(button_rect, "リセット")
 
-    def _calculate_button_rect(self, is_start_button, game_over=False, is_reset_button=False):
+    # --- 追加: 終了ボタンを描画するメソッド ---
+    def draw_quit_button(self, game_over=False):
+        """終了ボタンを描画する"""
+        button_rect = self._calculate_button_rect(False, game_over, is_reset_button=False, is_quit_button=True)
+        return self._draw_button(button_rect, "終了")
+    # ---------------------------------------
+
+    # --- 修正: ボタンの位置計算ロジック ---
+    def _calculate_button_rect(self, is_start_button, game_over=False, is_reset_button=False, is_quit_button=False): # is_quit_button 引数を追加
         """ボタンの描画領域(Rect)を計算する"""
-        text = "ゲーム開始" if is_start_button else ("リセット" if is_reset_button else "リスタート")
+        if is_start_button:
+            text = "ゲーム開始"
+        elif is_reset_button:
+            text = "リセット"
+        elif is_quit_button: # 終了ボタンのテキスト
+            text = "終了"
+        else: # リスタートボタン
+            text = "リスタート"
+
         text_surface = self.font.render(text, True, Color.BUTTON_TEXT)
-        button_width = text_surface.get_width() + Screen.BUTTON_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
+        # ボタン幅はテキストに応じて可変にする場合 (今回は固定幅とする)
+        # button_width = text_surface.get_width() + Screen.BUTTON_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
+        # 固定幅にする (例: "リスタート" の幅を基準にする)
+        base_text_surface = self.font.render("リスタート", True, Color.BUTTON_TEXT)
+        button_width = base_text_surface.get_width() + Screen.BUTTON_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
         button_height = self._calculate_button_height()
 
         if is_start_button:
             # ゲーム開始ボタンは画面中央付近
             button_x = (self.screen_width - button_width) // 2
-            # 垂直方向も中央に配置
-            button_y = (self.screen_height - button_height) // 2
-        else: # リスタート・リセットボタン
-            # 2つのボタンを横に並べる
-            total_button_width = button_width * 2 + Screen.BUTTON_MARGIN
+            # 垂直方向も中央に配置 (調整が必要な場合あり)
+            # button_y = (self.screen_height - button_height) // 2
+            # プレイヤー設定の上に配置する場合
+            player_settings_top = self._calculate_player_settings_top()
+            player_settings_height = self._calculate_player_settings_height()
+            # ゲーム開始ボタンのY座標をプレイヤー設定UIの上に配置するように調整
+            # (プレイヤー設定UIの計算がボタン位置に依存しないように注意)
+            # 仮のボタンY座標でプレイヤー設定Topを計算し、そこから逆算する
+            # 1. ダミーのボタンYを計算 (手番表示の下)
+            turn_message_center_y_dummy = self._calculate_turn_message_center_y()
+            font_height_dummy = self.font.get_height()
+            button_y_dummy = turn_message_center_y_dummy + font_height_dummy // 2 + Screen.TURN_MESSAGE_BOTTOM_MARGIN
+            # 2. ダミーのボタンRectを作成
+            button_rect_dummy = pygame.Rect(0, button_y_dummy, button_width, button_height)
+            # 3. ダミーのボタンRectを使ってプレイヤー設定Topを計算
+            player_settings_top_calc = button_rect_dummy.bottom + Screen.BUTTON_BOTTOM_MARGIN
+            # 4. 実際のボタンYを計算
+            button_y = player_settings_top_calc - button_height - Screen.BUTTON_BOTTOM_MARGIN
+
+        else: # リスタート・リセット・終了ボタン
+            # 3つのボタンを横に並べる
+            total_button_width = button_width * 3 + Screen.BUTTON_MARGIN * 2 # 3つ分の幅と間のマージン2つ
             start_x = (self.screen_width - total_button_width) // 2
             # 手番表示の下に配置
             turn_message_center_y = self._calculate_turn_message_center_y()
             font_height = self.font.get_height()
             button_y = turn_message_center_y + font_height // 2 + Screen.TURN_MESSAGE_BOTTOM_MARGIN
-            # リセットボタンは右側
-            button_x = start_x + button_width + Screen.BUTTON_MARGIN if is_reset_button else start_x
+
+            if is_reset_button: # 中央 (リセット)
+                button_x = start_x + button_width + Screen.BUTTON_MARGIN
+            elif is_quit_button: # 右 (終了)
+                button_x = start_x + (button_width + Screen.BUTTON_MARGIN) * 2
+            else: # 左 (リスタート)
+                button_x = start_x
 
         return pygame.Rect(button_x, button_y, button_width, button_height)
+    # -----------------------------------
 
     def _draw_button(self, button_rect, text):
         """指定された領域にボタンを描画する"""
@@ -334,6 +383,7 @@ class GameGUI:
 
     def is_button_clicked(self, pos, button_rect):
         """指定された座標がボタンの領域内にあるか判定する"""
+        # button_rect が None でないことも確認
         return button_rect is not None and button_rect.collidepoint(pos)
 
     def draw_radio_button(self, pos, selected, enabled=True):

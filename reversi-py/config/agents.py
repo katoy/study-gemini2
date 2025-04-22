@@ -4,13 +4,17 @@
 """
 
 # 利用可能なエージェントクラスをインポート
-# このファイルの場所に応じてインポートパスを調整する必要がある場合があります。
-# 例: プロジェクトルートに agents.py がある場合
-from agents import FirstAgent, RandomAgent, GainAgent, MonteCarloTreeSearchAgent
-from agents.api_agent import ApiAgent
+# --- 変更: 各モジュールから直接インポート ---
+# from agents import FirstAgent, RandomAgent, GainAgent, MonteCarloTreeSearchAgent # 削除
+# from agents.api_agent import ApiAgent # 削除
 
-# 例: agents.py が config と同じ階層にある場合
-# from ..agents import FirstAgent, RandomAgent, GainAgent, MonteCarloTreeSearchAgent
+from agents.base_agent import Agent # 必要に応じて (現在は使われていないが念のため)
+from agents.first_agent import FirstAgent
+from agents.random_agent import RandomAgent
+from agents.gain_agent import GainAgent
+from agents.mcts_agent import MonteCarloTreeSearchAgent
+from agents.api_agent import ApiAgent
+# -----------------------------------------
 
 # エージェント定義リスト
 # 各要素は辞書形式:
@@ -59,13 +63,15 @@ AGENT_DEFINITIONS = [
         'class': ApiAgent,
         'display_name': 'API (Random)',
         'params': {
-            'api_url': 'http://127.0.0.1:5001/play' # デフォルトのAPIサーバーURL
+            'api_url': 'http://127.0.0.1:5001/play', # デフォルトのAPIサーバーURL
+            # timeout は ApiAgent のデフォルト値を使うか、必要ならここで指定
+            # 'timeout': 10
         }
     },
     # --- 新しいエージェントを追加する場合は、ここに辞書を追加 ---
     # 例:
     # {
-    #     'id': 5,
+    #     'id': 6, # ID修正
     #     'class': YourNewAgent, # 適切にインポートしてください
     #     'display_name': 'NewAgent',
     #     'params': {'some_param': 'value'}
@@ -125,4 +131,3 @@ def get_agent_definition(agent_id):
             return agent
     print(f"警告: 指定されたエージェントID {agent_id} の定義が見つかりません。") # デバッグ用
     return None # IDが見つからない場合
-

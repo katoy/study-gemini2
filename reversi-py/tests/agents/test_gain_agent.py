@@ -13,64 +13,108 @@ class TestGainAgent(unittest.TestCase):
     def test_play_returns_best_move4(self):
         """
         特定の盤面で、GainAgentが最も獲得数の多い有効な手を返すことをテストする。
+        (最大獲得数の手が1つのケース)
         """
         agent = GainAgent()
         board = Board()
-        # テスト用の盤面を設定
+        # テスト用の盤面を設定 (黒番で (1,3) が gain=2 で最大) # コメント修正
         board.board = [
             [0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, -1, 1, 0, 0, 0], # 黒(-1), 白(1)
-            [0, 0, 0, 1, 1, 0, 0, 0], # 白(1), 白(1)
+            [0, 0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 1,-1, 0, 0, 0],
+            [0, 0, 0,-1, 1, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0],
         ]
         game = Game()
-        game.board = board  # 作成した盤面を Game オブジェクトに設定
-        game.turn = -1      # 手番を黒(-1)に設定
+        game.board = board
+        game.turn = -1 # 黒番
 
-        # GainAgent に手を選択させる
         move = agent.play(game)
-
-        # この盤面での有効な手を取得
         valid_moves = game.get_valid_moves()
 
-        # --- テストコード内で最大獲得数と候補手を計算 ---
         max_gain_in_test = -1
         move_gains_in_test = []
-        if valid_moves: # 有効な手がある場合のみ計算
+        if valid_moves:
             for vm in valid_moves:
-                # GainAgent と同じ方法で gain を計算 (get_flipped_stones を使用)
                 flipped_stones = game.board.get_flipped_stones(vm[0], vm[1], game.turn)
                 gain = len(flipped_stones)
                 move_gains_in_test.append((vm, gain))
                 if gain > max_gain_in_test:
                     max_gain_in_test = gain
-
-            # 最大獲得数を持つ手のリストをテストコード内で作成
             expected_best_moves = [m for m, g in move_gains_in_test if g == max_gain_in_test]
         else:
             expected_best_moves = []
-        # ---------------------------------------------
 
-        # アサーション
         if not valid_moves:
             self.assertIsNone(move, "No valid moves, agent should return None")
         else:
-            # 1. 返された手が有効な手か確認
-            self.assertIn(move, valid_moves,
-                          f"GainAgent returned {move}, which is not a valid move: {valid_moves}")
+            self.assertIn(move, valid_moves)
+            self.assertTrue(expected_best_moves)
+            self.assertIn(move, expected_best_moves)
+            # このケースでは最大獲得数の手は1つのはず
+            self.assertEqual(len(expected_best_moves), 1, f"Expected only one best move, but found: {expected_best_moves}")
+            # --- 修正: 期待値を (1, 3) に変更 ---
+            self.assertEqual(move, (1, 3), f"Expected (1, 3) as the best move, but got {move}") # 具体的な手も確認
+            # ------------------------------------
 
-            # 2. 返された手が最大獲得数の手のいずれかであることを確認
-            self.assertTrue(expected_best_moves, "Calculation in test failed to find best moves.") # テスト自体の計算確認
+    # --- 追加: 最大獲得数の手が複数ある場合のテスト ---
+    def test_play_returns_one_of_best_moves_when_multiple(self):
+        """
+        最大獲得数の手が複数ある場合に、そのいずれかを返すことをテストする。
+        """
+        agent = GainAgent()
+        board = Board()
+        # テスト用の盤面を設定 (黒番で gain=1 の手が複数ある) # コメント修正
+        board.board = [
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 1,-1, 1, 0, 0, 0],
+            [0, 0, 0, 1, 1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0],
+        ]
+        game = Game()
+        game.board = board
+        game.turn = -1 # 黒番
+
+        move = agent.play(game)
+        valid_moves = game.get_valid_moves()
+
+        max_gain_in_test = -1
+        move_gains_in_test = []
+        if valid_moves:
+            for vm in valid_moves:
+                flipped_stones = game.board.get_flipped_stones(vm[0], vm[1], game.turn)
+                gain = len(flipped_stones)
+                move_gains_in_test.append((vm, gain))
+                if gain > max_gain_in_test:
+                    max_gain_in_test = gain
+            expected_best_moves = [m for m, g in move_gains_in_test if g == max_gain_in_test]
+        else:
+            expected_best_moves = []
+
+        if not valid_moves:
+            self.assertIsNone(move, "No valid moves, agent should return None")
+        else:
+            self.assertIn(move, valid_moves)
+            self.assertTrue(expected_best_moves)
+            # このケースでは最大獲得数の手は複数あるはず
+            self.assertGreater(len(expected_best_moves), 1, f"Expected multiple best moves, but found only: {expected_best_moves}")
+            # --- 修正: 期待される候補リストを実際の最善手リストに変更 ---
+            # 盤面と is_valid_move の結果に基づき、Gain=1 の手が最善手となる
+            expected_candidates = [(1, 3), (3, 1), (3, 5), (5, 3), (5, 5)]
+            # -----------------------------------------------------
+            self.assertListEqual(sorted(expected_best_moves), sorted(expected_candidates), f"Calculated best moves {expected_best_moves} do not match expected {expected_candidates}")
+            # 返された手が候補のいずれかであることを確認
             self.assertIn(move, expected_best_moves,
-                          f"GainAgent returned {move} (gain={len(game.board.get_flipped_stones(move[0], move[1], game.turn))}), "
-                          f"which is not among the moves with max gain ({max_gain_in_test}): {expected_best_moves}")
+                          f"GainAgent returned {move}, which is not among the best moves: {expected_best_moves}")
+    # -------------------------------------------------
 
-    # --- 他のテストケースが必要であればここに追加 ---
-    # 例: 白番のテスト、獲得数が異なる場合のテスト、有効な手がない場合のテストなど
     def test_play_returns_none_when_no_valid_moves(self):
         """有効な手がない場合にNoneを返すことをテストする"""
         agent = GainAgent()
