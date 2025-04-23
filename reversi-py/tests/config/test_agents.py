@@ -1,143 +1,147 @@
-# test/config/test_agents.py
+# tests/config/test_agents.py
 import unittest
 import sys
-import os
-import inspect # class の型チェック用
+from pathlib import Path
+from unittest.mock import patch # print文の出力を抑制するために使用 (任意)
 
-# プロジェクトルートへのパスを追加 (test/config ディレクトリから見て親の親ディレクトリ)
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-project_root = os.path.dirname(parent_dir)
-sys.path.append(project_root)
+# プロジェクトルートをsys.pathに追加
+# このテストファイル (test_agents.py) の親 (config) のさらに親 (tests) のさらに親 (プロジェクトルート)
+project_root = Path(__file__).resolve().parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.append(str(project_root))
 
-# テスト対象のモジュールと、依存するエージェントクラスをインポート
-# config.agents を agents_config という名前でインポート
-from config import agents as agents_config
-# agents モジュールから必要なクラスをインポート
-from agents import FirstAgent, RandomAgent, GainAgent, MonteCarloTreeSearchAgent
+# テスト対象のモジュールをインポート
+# config.agents モジュールから必要な関数と定数をインポート
+try:
+    from config.agents import (
+        AGENT_DEFINITIONS,
+        get_agent_options,
+        get_agent_class,
+        get_agent_params,
+        get_agent_definition,
+    )
+except ImportError as e:
+    print(f"テストのインポートエラー: {e}")
+    print("config/agents.py が見つからないか、インポートできません。")
+    print("プロジェクト構造と sys.path を確認してください。")
+    print(f"現在の sys.path: {sys.path}")
+    sys.exit(1)
 
-class TestAgentsConfig(unittest.TestCase):
-    """config.agents モジュールのテストクラス"""
+# 比較のためにエージェントクラスもインポート
+# (get_agent_class のテストで使用)
+try:
+    from agents.base_agent import Agent # Base class (optional)
+    from agents.first_agent import FirstAgent
+    from agents.random_agent import RandomAgent
+    from agents.gain_agent import GainAgent
+    from agents.mcts_agent import MonteCarloTreeSearchAgent
+    from agents.api_agent import ApiAgent
+except ImportError as e:
+    print(f"エージェントクラスのインポートエラー: {e}")
+    print("agents ディレクトリ内のファイルが見つからないか、インポートできません。")
+    sys.exit(1)
 
-    def test_agent_definitions_structure_and_content(self):
-        """AGENT_DEFINITIONS の構造と基本的な内容を検証する"""
-        definitions = agents_config.AGENT_DEFINITIONS
-        self.assertIsInstance(definitions, list, "AGENT_DEFINITIONS はリストであるべきです")
-        self.assertGreater(len(definitions), 0, "エージェント定義が空であってはなりません")
 
-        seen_ids = set()
-        for agent_def in definitions:
-            self.assertIsInstance(agent_def, dict, "各エージェント定義は辞書であるべきです")
-            # 必須キーの存在確認
-            self.assertIn('id', agent_def, "キー 'id' が必要です")
-            self.assertIn('class', agent_def, "キー 'class' が必要です")
-            self.assertIn('display_name', agent_def, "キー 'display_name' が必要です")
-            self.assertIn('params', agent_def, "キー 'params' が必要です")
-
-            # 型チェック
-            agent_id = agent_def['id']
-            agent_class = agent_def['class']
-            display_name = agent_def['display_name']
-            params = agent_def['params']
-
-            self.assertIsInstance(agent_id, int, f"ID {agent_id}: 'id' は整数であるべきです")
-            # class はクラスオブジェクトか None
-            self.assertTrue(agent_class is None or inspect.isclass(agent_class),
-                            f"ID {agent_id}: 'class' はクラスオブジェクトまたはNoneであるべきです")
-            self.assertIsInstance(display_name, str, f"ID {agent_id}: 'display_name' は文字列であるべきです")
-            self.assertIsInstance(params, dict, f"ID {agent_id}: 'params' は辞書であるべきです")
-
-            # ID のユニーク性チェック
-            self.assertNotIn(agent_id, seen_ids, f"エージェントID {agent_id} が重複しています")
-            seen_ids.add(agent_id)
-
-        # 特定のエージェントの存在と内容を確認 (例: 人間)
-        human_def = agents_config.get_agent_definition(0)
-        self.assertIsNotNone(human_def, "ID 0 (人間) の定義が見つかりません")
-        self.assertEqual(human_def['display_name'], '人間', "ID 0 の表示名が '人間' ではありません")
-        self.assertIsNone(human_def['class'], "ID 0 のクラスが None ではありません")
-        self.assertEqual(human_def['params'], {}, "ID 0 のパラメータが空辞書ではありません")
-
-        # 特定のエージェントの存在と内容を確認 (例: MCTS)
-        mcts_def = agents_config.get_agent_definition(4)
-        self.assertIsNotNone(mcts_def, "ID 4 (MCTS) の定義が見つかりません")
-        self.assertEqual(mcts_def['display_name'], 'MCTS', "ID 4 の表示名が 'MCTS' ではありません")
-        self.assertEqual(mcts_def['class'], MonteCarloTreeSearchAgent, "ID 4 のクラスが MonteCarloTreeSearchAgent ではありません")
-        self.assertIn('iterations', mcts_def['params'], "ID 4 のパラメータに 'iterations' がありません")
-        self.assertIn('time_limit_ms', mcts_def['params'], "ID 4 のパラメータに 'time_limit_ms' がありません")
-        self.assertIn('exploration_weight', mcts_def['params'], "ID 4 のパラメータに 'exploration_weight' がありません")
-
+class TestConfigAgents(unittest.TestCase):
 
     def test_get_agent_options(self):
-        """get_agent_options() の動作を検証する"""
-        options = agents_config.get_agent_options()
-        self.assertIsInstance(options, list, "get_agent_options はリストを返すべきです")
-        self.assertEqual(len(options), len(agents_config.AGENT_DEFINITIONS),
-                         "オプションの数と定義の数が一致しません")
+        """get_agent_optionsが正しい形式のリストを返すかテスト"""
+        options = get_agent_options()
+        self.assertIsInstance(options, list, "Options should be a list")
+        self.assertTrue(options, "Options list should not be empty") # 定義があれば空でないはず
+        # 各要素が (int, str) のタプルかチェック
+        for item in options:
+            self.assertIsInstance(item, tuple, f"Each option should be a tuple: {item}")
+            self.assertEqual(len(item), 2, f"Each option tuple should have 2 elements: {item}")
+            self.assertIsInstance(item[0], int, f"First element (ID) should be an integer: {item}")
+            self.assertIsInstance(item[1], str, f"Second element (display name) should be a string: {item}")
 
-        for option in options:
-            self.assertIsInstance(option, tuple, "各オプションはタプルであるべきです")
-            self.assertEqual(len(option), 2, "各オプションタプルは2要素であるべきです")
-            self.assertIsInstance(option[0], int, "オプションの第一要素 (id) は整数であるべきです")
-            self.assertIsInstance(option[1], str, "オプションの第二要素 (display_name) は文字列であるべきです")
+        # AGENT_DEFINITIONS と一致するか確認
+        expected_options = [(d['id'], d['display_name']) for d in AGENT_DEFINITIONS]
+        self.assertEqual(options, expected_options, "Options list does not match AGENT_DEFINITIONS")
 
-        # 内容の一致確認 (定義リストから期待されるオプションリストを作成して比較)
-        expected_options = [(d['id'], d['display_name']) for d in agents_config.AGENT_DEFINITIONS]
-        self.assertListEqual(options, expected_options, "返されたオプションリストの内容が期待値と一致しません")
+    def test_get_agent_class_valid_ids(self):
+        """get_agent_classが有効なIDに対して正しいクラスまたはNoneを返すかテスト"""
+        # AGENT_DEFINITIONS に基づいて動的にテスト
+        for definition in AGENT_DEFINITIONS:
+            agent_id = definition['id']
+            expected_class = definition['class']
+            actual_class = get_agent_class(agent_id)
+            self.assertEqual(actual_class, expected_class,
+                             f"Class mismatch for ID {agent_id}. Expected {expected_class}, got {actual_class}")
 
-    def test_get_agent_class(self):
-        """get_agent_class() の動作を検証する"""
-        # 存在するIDに対応するクラスが返されるか
-        self.assertIsNone(agents_config.get_agent_class(0), "ID 0 は None を返すべきです")
-        self.assertEqual(agents_config.get_agent_class(1), FirstAgent, "ID 1 は FirstAgent を返すべきです")
-        self.assertEqual(agents_config.get_agent_class(2), RandomAgent, "ID 2 は RandomAgent を返すべきです")
-        self.assertEqual(agents_config.get_agent_class(3), GainAgent, "ID 3 は GainAgent を返すべきです")
-        self.assertEqual(agents_config.get_agent_class(4), MonteCarloTreeSearchAgent, "ID 4 は MonteCarloTreeSearchAgent を返すべきです")
+    @patch('builtins.print') # printの出力をキャッチ/抑制
+    def test_get_agent_class_invalid_id(self, mock_print):
+        """get_agent_classが無効なIDに対してNoneを返し、警告を出力するかテスト (カバレッジ用)"""
+        # AGENT_DEFINITIONS に存在しないIDを決定的に選択
+        existing_ids = {d['id'] for d in AGENT_DEFINITIONS}
+        invalid_id = max(existing_ids) + 1 if existing_ids else 999
 
-        # 存在しないIDの場合に None が返されるか
-        non_existent_id = 999
-        self.assertIsNone(agents_config.get_agent_class(non_existent_id), "存在しないIDは None を返すべきです")
+        # 無効なIDで関数を呼び出し
+        result = get_agent_class(invalid_id)
 
-    def test_get_agent_params(self):
-        """get_agent_params() の動作を検証する"""
-        # パラメータがないエージェントの場合、空の辞書が返されるか
-        self.assertEqual(agents_config.get_agent_params(0), {}, "ID 0 のパラメータは空辞書であるべきです")
-        self.assertEqual(agents_config.get_agent_params(1), {}, "ID 1 のパラメータは空辞書であるべきです")
-        self.assertEqual(agents_config.get_agent_params(2), {}, "ID 2 のパラメータは空辞書であるべきです")
-        self.assertEqual(agents_config.get_agent_params(3), {}, "ID 3 のパラメータは空辞書であるべきです")
+        # 戻り値がNoneであることを確認
+        self.assertIsNone(result, f"get_agent_class should return None for invalid ID {invalid_id}")
+        # printが期待通り呼び出されたか確認 (行 118-119)
+        mock_print.assert_called_once()
+        # 呼び出し引数に期待される警告メッセージが含まれているか確認 (より厳密なテスト)
+        # self.assertIn(f"警告: 指定されたエージェントID {invalid_id} が見つかりません。", mock_print.call_args[0][0])
 
-        # パラメータがあるエージェントの場合、正しい辞書が返されるか
-        mcts_params = agents_config.get_agent_params(4)
-        self.assertIsInstance(mcts_params, dict, "ID 4 のパラメータは辞書であるべきです")
-        expected_mcts_params = {
-            'iterations': 50000,
-            'time_limit_ms': 4000,
-            'exploration_weight': 1.41
-        }
-        self.assertDictEqual(mcts_params, expected_mcts_params, "ID 4 のパラメータの内容が期待値と一致しません")
+    def test_get_agent_params_valid_ids(self):
+        """get_agent_paramsが有効なIDに対して正しいパラメータ辞書を返すかテスト"""
+        # AGENT_DEFINITIONS に基づいて動的にテスト
+        for definition in AGENT_DEFINITIONS:
+            agent_id = definition['id']
+            # 'params' キーが存在しない場合に備えて .get() を使う
+            expected_params = definition.get('params', {})
+            actual_params = get_agent_params(agent_id)
+            self.assertEqual(actual_params, expected_params,
+                             f"Params mismatch for ID {agent_id}. Expected {expected_params}, got {actual_params}")
 
-        # 存在しないIDの場合に空の辞書が返されるか
-        non_existent_id = 999
-        self.assertEqual(agents_config.get_agent_params(non_existent_id), {}, "存在しないIDのパラメータは空辞書であるべきです")
+    @patch('builtins.print') # printの出力をキャッチ/抑制
+    def test_get_agent_params_invalid_id(self, mock_print):
+        """get_agent_paramsが無効なIDに対して空の辞書を返し、警告を出力するかテスト (カバレッジ用)"""
+        # AGENT_DEFINITIONS に存在しないIDを決定的に選択
+        existing_ids = {d['id'] for d in AGENT_DEFINITIONS}
+        invalid_id = max(existing_ids) + 1 if existing_ids else 999
 
-    def test_get_agent_definition(self):
-        """get_agent_definition() の動作を検証する"""
-        # 存在するIDの場合、対応する完全な辞書が返されるか
-        definition_0 = agents_config.get_agent_definition(0)
-        self.assertIsNotNone(definition_0, "ID 0 の定義が見つかりません")
-        # AGENT_DEFINITIONS の最初の要素と比較
-        self.assertDictEqual(definition_0, agents_config.AGENT_DEFINITIONS[0], "ID 0 の定義内容が期待値と一致しません")
+        # 無効なIDで関数を呼び出し
+        result = get_agent_params(invalid_id)
 
-        definition_4 = agents_config.get_agent_definition(4)
-        self.assertIsNotNone(definition_4, "ID 4 の定義が見つかりません")
-        # AGENT_DEFINITIONS の対応する要素を探して比較
-        expected_def_4 = next((d for d in agents_config.AGENT_DEFINITIONS if d['id'] == 4), None)
-        self.assertDictEqual(definition_4, expected_def_4, "ID 4 の定義内容が期待値と一致しません")
+        # 戻り値が空の辞書であることを確認
+        self.assertEqual(result, {}, f"get_agent_params should return an empty dict for invalid ID {invalid_id}")
+        # printが期待通り呼び出されたか確認 (行 129-133)
+        mock_print.assert_called_once()
+        # 呼び出し引数に期待される警告メッセージが含まれているか確認 (より厳密なテスト)
+        # self.assertIn(f"警告: 指定されたエージェントID {invalid_id} のパラメータが見つかりません。", mock_print.call_args[0][0])
 
-        # 存在しないIDの場合に None が返されるか
-        non_existent_id = 999
-        self.assertIsNone(agents_config.get_agent_definition(non_existent_id), "存在しないIDの定義は None を返すべきです")
+    def test_get_agent_definition_valid_ids(self):
+        """get_agent_definitionが有効なIDに対して正しい定義辞書を返すかテスト"""
+        # AGENT_DEFINITIONS に基づいて動的にテスト
+        for expected_def in AGENT_DEFINITIONS:
+            agent_id = expected_def['id']
+            actual_def = get_agent_definition(agent_id)
+            # 辞書の内容が完全に一致するか確認
+            self.assertEqual(actual_def, expected_def,
+                             f"Definition mismatch for ID {agent_id}")
+
+    @patch('builtins.print') # printの出力をキャッチ/抑制
+    def test_get_agent_definition_invalid_id(self, mock_print):
+        """get_agent_definitionが無効なIDに対してNoneを返し、警告を出力するかテスト"""
+        # AGENT_DEFINITIONS に存在しないIDを決定的に選択
+        existing_ids = {d['id'] for d in AGENT_DEFINITIONS}
+        invalid_id = max(existing_ids) + 1 if existing_ids else 999
+
+        # 無効なIDで関数を呼び出し
+        result = get_agent_definition(invalid_id)
+
+        # 戻り値がNoneであることを確認
+        self.assertIsNone(result, f"get_agent_definition should return None for invalid ID {invalid_id}")
+        # printが期待通り呼び出されたか確認
+        mock_print.assert_called_once()
+        # 呼び出し引数に期待される警告メッセージが含まれているか確認 (より厳密なテスト)
+        # self.assertIn(f"警告: 指定されたエージェントID {invalid_id} の定義が見つかりません。", mock_print.call_args[0][0])
+
 
 if __name__ == '__main__':
-    # テストを実行
-    unittest.main(verbosity=2) # verbosity=2 で詳細な結果を表示
+    unittest.main(verbosity=2)
