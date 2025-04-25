@@ -474,3 +474,42 @@ class GameGUI:
         turn_message_center_y = self._calculate_turn_message_center_y()
         text_rect = text_surface.get_rect(center=(self.screen_width // 2, turn_message_center_y))
         self.screen.blit(text_surface, text_rect)
+
+    # gui.py の GameGUI クラス内に追加
+    def get_clicked_radio_button(self, click_pos, player_settings_top):
+        """
+        クリックされた位置がどのプレイヤーのどのラジオボタンに対応するかを返す。
+        Args:
+            click_pos (tuple[int, int]): マウスクリック座標。
+            player_settings_top (int): プレイヤー設定UIの上端Y座標。
+        Returns:
+            tuple[int, int] | tuple[None, None]:
+                クリックされた場合: (player (-1 or 1), agent_id)
+                クリックされなかった場合: (None, None)
+        """
+        # agent_options がロードされているか確認 (通常は __init__ でロードされる)
+        if not hasattr(self, 'agent_options') or not self.agent_options:
+             print("Warning: agent_options not found in GUI. Radio button clicks won't work.")
+             return None, None
+
+        board_rect = self._calculate_board_rect()
+        board_left = board_rect.left
+        white_player_label_x = self.screen_width // 2 + Screen.RADIO_BUTTON_MARGIN
+        radio_y_offset = Screen.RADIO_Y_OFFSET
+        radio_y_spacing = Screen.RADIO_Y_SPACING
+        radio_button_size = Screen.RADIO_BUTTON_SIZE
+
+        for i, (agent_id, _) in enumerate(self.agent_options):
+            radio_y = player_settings_top + radio_y_offset + i * radio_y_spacing
+
+            # 黒プレイヤーのラジオボタンのRectを計算してクリック判定
+            black_radio_rect = pygame.Rect(board_left, radio_y, radio_button_size, radio_button_size)
+            if black_radio_rect.collidepoint(click_pos):
+                return -1, agent_id # 黒プレイヤー、エージェントID
+
+            # 白プレイヤーのラジオボタンのRectを計算してクリック判定
+            white_radio_rect = pygame.Rect(white_player_label_x, radio_y, radio_button_size, radio_button_size)
+            if white_radio_rect.collidepoint(click_pos):
+                return 1, agent_id # 白プレイヤー、エージェントID
+
+        return None, None # どのラジオボタンもクリックされなかった
