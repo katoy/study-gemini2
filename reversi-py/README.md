@@ -80,41 +80,51 @@ python3 -m unittest discover -s tests -t .
 ```
 
 ## テストカバレッジの計測
-テストカバレッジを計測するには、coverage.py を使用します。
+テストカバレッジを計測するには、`coverage.py` ライブラリを使用します。
 
-coverage.py をインストールします。
+1.  **`coverage.py` のインストール:** (まだインストールしていない場合)
+    ```bash
+    pip install coverage
+    ```
 
-```bash
-pip install coverage
-```
+2.  **カバレッジデータの削除 (任意):**
+    以前の計測データ (`.coverage` ファイル) が残っている場合は、以下のコマンドで削除できます。
+    ```bash
+    python3 -m coverage erase
+    ```
 
-カバレッジ計測付きでテストを実行します。
+3.  **カバレッジ計測付きでテストを実行:**
+    以下のコマンドでテストを実行し、その間のコードカバレッジを計測します。
+    ```bash
+    python3 -m coverage run -m unittest discover tests
+    ```
+    *   `coverage run`: カバレッジ計測を開始します。
+    *   `-m unittest discover tests`: `unittest` の `discover` 機能を使って `tests` ディレクトリ内のテストを実行します。
 
-```bash
-python3 -m coverage run -m unittest discover -s tests -t .
-```
+4.  **カバレッジレポートの生成:**
+    計測結果をレポートとして表示します。
 
-テキスト形式のカバレッジレポートを生成します。
+    *   **テキスト形式レポート (コンソール表示):**
+        ```bash
+        python3 -m coverage report -m --omit="tests/*"
+        ```
+        *   `coverage report`: テキスト形式でレポートを表示します。
+        *   `-m`: カバレッジが100%でないファイルの未実行行番号を表示します。
+        *   `--omit="tests/*"`: `tests` ディレクトリ以下のファイル（テストコード自体）をレポートから除外します。
 
-```bash
-python3 -m coverage erase
-python3 -m coverage run -m unittest discover -s tests -t .
-python3 -m coverage report -m --omit="tests/*"
-```
+    *   **HTML形式レポート (詳細表示):**
+        ```bash
+        python3 -m coverage html --omit="tests/*"
+        ```
+        *   `coverage html`: HTML形式で詳細なレポートを生成します。
+        *   レポートは `htmlcov` ディレクトリに生成されます。`htmlcov/index.html` をブラウザで開いて、ファイルごとに行単位のカバレッジ状況を確認できます。
+        *   `--omit="tests/*"`: テストコード自体をレポートから除外します。
 
-HTML形式のカバレッジレポートを生成します。
-
-```bash
-python3 -m coverage html --omit="tests/*"
-```
-
-HTMLレポートは htmlcov ディレクトリに生成されます。htmlcov/index.html をブラウザで開いて確認してください。
-
-カバレッジレポートを削除します。
-
-```bash
-python3 -m coverage erase
-```
+5.  **カバレッジデータの削除:**
+    計測データ (`.coverage` ファイル) が不要になった場合は、以下のコマンドで削除します。
+    ```bash
+    python3 -m coverage erase
+    ```
 
 ## ファイル構成
 
