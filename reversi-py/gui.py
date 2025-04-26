@@ -191,8 +191,8 @@ class GameGUI:
 
     def draw_message(self, message, is_game_start=False, is_game_over=False):
         """画面中央にメッセージを描画する"""
-        text_surface = self.font.render(message, True, Color.WHITE) if message else None
-        if text_surface is not None:
+        if message:
+            text_surface = self.font.render(message, True, Color.WHITE)
             # メッセージの位置を状況に応じて計算
             y_pos = self._get_message_y_position(is_game_start, is_game_over)
             text_rect = text_surface.get_rect(center=(self.screen_width // 2, y_pos))
@@ -472,7 +472,7 @@ class GameGUI:
     def draw_turn_message(self, game):
         """手番表示を描画する"""
         if game.game_over:
-            return # ゲームオーバー時は表示しない
+            return  # ゲームオーバー時は表示しない
         message = f"{'黒' if game.turn == -1 else '白'}の番です"
         text_surface = self.font.render(message, True, Color.WHITE)
         # 手番表示のY座標を計算
@@ -518,3 +518,31 @@ class GameGUI:
                 return 1, agent_id # 白プレイヤー、エージェントID
 
         return None, None # どのラジオボタンもクリックされなかった
+
+    # --- <<< 追加: ボタンクリック判定メソッド >>> ---
+    def is_start_button_clicked(self, pos: tuple[int, int]) -> bool:
+        """スタートボタンがクリックされたか判定"""
+        # start_button は __init__ で生成され、draw_start_button で Rect が更新される
+        # draw_start_button が呼ばれる前にクリックされる可能性があるので、ここで Rect を計算する方が安全
+        start_rect = self._calculate_button_rect(is_start_button=True)
+        # start_button インスタンスの is_clicked を使うのではなく、一時的な Button で判定
+        return Button(start_rect, "", self.font).is_clicked(pos)
+        # または、self.start_button.rect が常に最新であると仮定するなら以下でも可
+        # return self.start_button.is_clicked(pos)
+
+    def is_restart_button_clicked(self, pos: tuple[int, int], game_over: bool) -> bool:
+        """リスタートボタンがクリックされたか判定"""
+        button_rect = self._calculate_button_rect(False, game_over, False, False)
+        # 一時的な Button インスタンスで判定
+        return Button(button_rect, "", self.font).is_clicked(pos)
+
+    def is_reset_button_clicked(self, pos: tuple[int, int], game_over: bool) -> bool:
+        """リセットボタンがクリックされたか判定"""
+        button_rect = self._calculate_button_rect(False, game_over, True, False)
+        return Button(button_rect, "", self.font).is_clicked(pos)
+
+    def is_quit_button_clicked(self, pos: tuple[int, int], game_over: bool) -> bool:
+        """終了ボタンがクリックされたか判定"""
+        button_rect = self._calculate_button_rect(False, game_over, False, True)
+        return Button(button_rect, "", self.font).is_clicked(pos)
+    # ---------------------------------------------

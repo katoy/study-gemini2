@@ -107,10 +107,9 @@ class App:
 
     def _handle_click_before_start(self, mouse_click_pos: tuple[int, int]):
         """ゲーム開始前のクリック処理"""
-        # スタートボタンの領域を取得
-        start_button_rect = self.gui._calculate_button_rect(is_start_button=True)
-        # スタートボタンがクリックされたか判定
-        if self.gui.is_button_clicked(mouse_click_pos, start_button_rect):
+        # --- 修正: gui の is_start_button_clicked を呼び出す ---
+        if self.gui.is_start_button_clicked(mouse_click_pos):
+        # ----------------------------------------------------
             self.game_started = True
             self.game.set_message("") # 開始時にメッセージをクリア
             logging.info("Game started.")
@@ -139,20 +138,14 @@ class App:
 
     def _handle_click_game_over(self, mouse_click_pos: tuple[int, int]):
         """ゲームオーバー時のクリック処理"""
-        # 各ボタンの領域を取得
-        restart_button_rect = self.gui._calculate_button_rect(False, True, False, False)
-        reset_button_rect = self.gui._calculate_button_rect(False, True, True, False)
-        quit_button_rect = self.gui._calculate_button_rect(False, True, False, True)
-
-        # リスタートボタンクリック
-        if self.gui.is_button_clicked(mouse_click_pos, restart_button_rect):
+        # --- 修正: gui の is_*_button_clicked を呼び出す ---
+        if self.gui.is_restart_button_clicked(mouse_click_pos, game_over=True):
             self.game.reset()
             # 現在のプレイヤー設定を引き継いでリセット
             self.game.set_players(self.black_player_id, self.white_player_id)
             self.game_started = True # ゲーム開始状態にする
             logging.info("Game restarted.")
-        # リセットボタンクリック
-        elif self.gui.is_button_clicked(mouse_click_pos, reset_button_rect):
+        elif self.gui.is_reset_button_clicked(mouse_click_pos, game_over=True):
             self.game.reset()
             # プレイヤー設定も初期化 (両者人間)
             self.black_player_id = 0
@@ -160,34 +153,28 @@ class App:
             self.game.set_players(self.black_player_id, self.white_player_id)
             self.game_started = False # ゲーム開始前の状態に戻す
             logging.info("Game reset to initial state.")
-        # 終了ボタンクリック
-        elif self.gui.is_button_clicked(mouse_click_pos, quit_button_rect):
+        elif self.gui.is_quit_button_clicked(mouse_click_pos, game_over=True):
             self.running = False # メインループを終了
+        # ----------------------------------------------------
 
     def _handle_click_in_game(self, mouse_click_pos: tuple[int, int]):
         """ゲーム中のクリック処理"""
-        # 各ボタンの領域を取得
-        restart_button_rect = self.gui._calculate_button_rect(False, False, False, False)
-        reset_button_rect = self.gui._calculate_button_rect(False, False, True, False)
-        quit_button_rect = self.gui._calculate_button_rect(False, False, False, True)
-
-        # リスタートボタンクリック
-        if self.gui.is_button_clicked(mouse_click_pos, restart_button_rect):
+        # --- 修正: gui の is_*_button_clicked を呼び出す ---
+        if self.gui.is_restart_button_clicked(mouse_click_pos, game_over=False):
             self.game.reset()
             self.game.set_players(self.black_player_id, self.white_player_id) # 設定引き継ぎ
             self.game_started = True # ゲームは開始状態のまま
             logging.info("Game restarted.")
-        # リセットボタンクリック
-        elif self.gui.is_button_clicked(mouse_click_pos, reset_button_rect):
+        elif self.gui.is_reset_button_clicked(mouse_click_pos, game_over=False):
             self.game.reset()
             self.black_player_id = 0 # 設定リセット
             self.white_player_id = 0
             self.game.set_players(self.black_player_id, self.white_player_id)
             self.game_started = False # 開始前に戻る
             logging.info("Game reset to initial state.")
-        # 終了ボタンクリック
-        elif self.gui.is_button_clicked(mouse_click_pos, quit_button_rect):
+        elif self.gui.is_quit_button_clicked(mouse_click_pos, game_over=False):
             self.running = False
+        # ----------------------------------------------------
         # プレイヤーが人間の手番の場合、盤面クリックを処理
         elif self.game.agents[self.game.turn] is None:
             self._handle_human_move(mouse_click_pos)
@@ -348,5 +335,5 @@ def main():
     app = App(game_instance, gui_instance)
     app.run()
 
-if __name__ == "__main__":
+if __name__ == "__main__": # pragma: no cover
     main()
