@@ -6,6 +6,9 @@ from pathlib import Path
 from config.agents import get_agent_options, get_agent_class
 # --- config.theme からインポート ---
 from config.theme import Color, Screen
+# <<< 追加: ui_elements から Button をインポート >>>
+from ui_elements import Button
+# ---------------------------------------------
 
 class GameGUI:
     def __init__(self, screen_width=Screen.WIDTH, screen_height=Screen.HEIGHT):
@@ -18,6 +21,14 @@ class GameGUI:
         self.font = self._load_font()
         # --- エージェントオプションをキャッシュ ---
         self.agent_options = get_agent_options()
+
+        # --- ボタンインスタンスの生成 (Start ボタンのみ) ---
+        # Start ボタンの Rect を計算
+        start_rect = self._calculate_button_rect(is_start_button=True)
+        # Start Button インスタンスを生成して保持
+        self.start_button = Button(start_rect, "ゲーム開始", self.font)
+        # 他のボタン (Restart, Reset, Quit) は描画時に都度生成する方針
+        # -------------------------------------------------
 
     # --- ヘルパーメソッド ---
     def _calculate_turn_message_center_y(self):
@@ -106,6 +117,7 @@ class GameGUI:
         board_top = Screen.BOARD_TOP_MARGIN
         return pygame.Rect(board_left, board_top, Screen.BOARD_SIZE, Screen.BOARD_SIZE)
 
+    # --- 描画メソッド ---
     def _draw_board_background(self, board_rect):
         """画面背景と盤面の背景を描画する"""
         self.screen.fill(Color.BACKGROUND)
@@ -196,6 +208,7 @@ class GameGUI:
         row = (pos[1] - board_rect.top) // self.cell_size
         return row, col
 
+    # --- アニメーションメソッド (ボタン描画呼び出しを修正) ---
     def draw_stone_animation(self, game, row, col, color):
         """石が置かれるアニメーションを描画する"""
         board_rect = self._calculate_board_rect()
@@ -211,9 +224,11 @@ class GameGUI:
             self.draw_board(game)
             self.draw_turn_message(game)
             self.draw_message(game.get_message())
-            self.draw_restart_button()
+            # --- ボタン描画メソッド呼び出しを修正 ---
+            self.draw_restart_button() # game_over フラグは不要に
             self.draw_reset_button()
-            self.draw_quit_button() # 終了ボタンも描画
+            self.draw_quit_button()
+            # ------------------------------------
             player_settings_top = self._calculate_player_settings_top()
             self.draw_player_settings(game, player_settings_top, False) # ゲーム中は設定無効
             # アニメーション中の石を描画
@@ -253,9 +268,11 @@ class GameGUI:
             # 他のUI要素も再描画
             self.draw_turn_message(game)
             self.draw_message(game.get_message())
+            # --- ボタン描画メソッド呼び出しを修正 ---
             self.draw_restart_button()
             self.draw_reset_button()
-            self.draw_quit_button() # 終了ボタンも描画
+            self.draw_quit_button()
+            # ------------------------------------
             player_settings_top = self._calculate_player_settings_top()
             self.draw_player_settings(game, player_settings_top, False) # ゲーム中は設定無効
 
@@ -280,30 +297,34 @@ class GameGUI:
             pygame.display.flip() # 画面更新
             pygame.time.delay(20) # アニメーション速度調整
 
+    # --- ボタン描画メソッドの修正 ---
     def draw_start_button(self):
         """ゲーム開始ボタンを描画する"""
-        button_rect = self._calculate_button_rect(True) # is_start_button=True
-        return self._draw_button(button_rect, "ゲーム開始")
+        # __init__ で生成したボタンインスタンスを描画
+        self.start_button.draw(self.screen)
+        # クリック判定用に Rect を返す必要はなくなる
 
     def draw_restart_button(self, game_over=False):
         """リスタートボタンを描画する"""
-        # is_quit_button=False (デフォルト) を明示的に渡す (必須ではないが可読性のため)
-        button_rect = self._calculate_button_rect(False, game_over, is_reset_button=False, is_quit_button=False)
-        return self._draw_button(button_rect, "リスタート")
+        # 描画時に Button インスタンスを生成して描画
+        button_rect = self._calculate_button_rect(False, game_over, False, False)
+        button = Button(button_rect, "リスタート", self.font)
+        button.draw(self.screen)
 
     def draw_reset_button(self, game_over=False):
         """リセットボタンを描画する"""
-        button_rect = self._calculate_button_rect(False, game_over, is_reset_button=True, is_quit_button=False)
-        return self._draw_button(button_rect, "リセット")
+        button_rect = self._calculate_button_rect(False, game_over, True, False)
+        button = Button(button_rect, "リセット", self.font)
+        button.draw(self.screen)
 
-    # --- 追加: 終了ボタンを描画するメソッド ---
     def draw_quit_button(self, game_over=False):
         """終了ボタンを描画する"""
-        button_rect = self._calculate_button_rect(False, game_over, is_reset_button=False, is_quit_button=True)
-        return self._draw_button(button_rect, "終了")
-    # ---------------------------------------
+        button_rect = self._calculate_button_rect(False, game_over, False, True)
+        button = Button(button_rect, "終了", self.font)
+        button.draw(self.screen)
+    # ---------------------------------
 
-    # --- 修正: ボタンの位置計算ロジック ---
+    # --- _calculate_button_rect は変更なし ---
     def _calculate_button_rect(self, is_start_button, game_over=False, is_reset_button=False, is_quit_button=False): # is_quit_button 引数を追加
         """ボタンの描画領域(Rect)を計算する"""
         if is_start_button:
@@ -329,8 +350,8 @@ class GameGUI:
             # 垂直方向も中央に配置 (調整が必要な場合あり)
             # button_y = (self.screen_height - button_height) // 2
             # プレイヤー設定の上に配置する場合
-            player_settings_top = self._calculate_player_settings_top()
-            player_settings_height = self._calculate_player_settings_height()
+            # player_settings_top = self._calculate_player_settings_top() # ここで呼ぶと依存関係が複雑になる可能性
+            # player_settings_height = self._calculate_player_settings_height()
             # ゲーム開始ボタンのY座標をプレイヤー設定UIの上に配置するように調整
             # (プレイヤー設定UIの計算がボタン位置に依存しないように注意)
             # 仮のボタンY座標でプレイヤー設定Topを計算し、そこから逆算する
@@ -362,30 +383,14 @@ class GameGUI:
                 button_x = start_x
 
         return pygame.Rect(button_x, button_y, button_width, button_height)
-    # -----------------------------------
 
-    def _draw_button(self, button_rect, text):
-        """指定された領域にボタンを描画する"""
-        text_surface = self.font.render(text, True, Color.BUTTON_TEXT)
-        text_rect = text_surface.get_rect(center=button_rect.center)
-        # ボタン背景
-        pygame.draw.rect(self.screen, Color.BUTTON, button_rect)
-        # ボタン枠線
-        self._draw_button_border(button_rect)
-        # ボタンテキスト
-        self.screen.blit(text_surface, text_rect)
-        return button_rect # クリック判定用にRectを返す
+    # --- 不要になったメソッドを削除 ---
+    # def _draw_button(self, button_rect, text): ...
+    # def _draw_button_border(self, button_rect): ...
+    # def is_button_clicked(self, pos, button_rect): ...
+    # ---------------------------------
 
-    def _draw_button_border(self, button_rect):
-        """ボタンの枠線を描画する"""
-        # 立体感を出すために少しずらして線を描画しても良いが、シンプルに枠線を描画
-        pygame.draw.rect(self.screen, Color.WHITE, button_rect, Screen.BUTTON_BORDER_WIDTH)
-
-    def is_button_clicked(self, pos, button_rect):
-        """指定された座標がボタンの領域内にあるか判定する"""
-        # button_rect が None でないことも確認
-        return button_rect is not None and button_rect.collidepoint(pos)
-
+    # --- ラジオボタン関連メソッド (変更なし) ---
     def draw_radio_button(self, pos, selected, enabled=True):
         """ラジオボタンを描画する"""
         x, y = pos
