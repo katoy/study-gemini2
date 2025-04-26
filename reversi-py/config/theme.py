@@ -7,6 +7,7 @@ class Color:
     WHITE = (255, 255, 255)
     GREEN = (0, 128, 0)
     GRAY = (128, 128, 128)
+    RED = pygame.Color('red')
     BOARD = (0, 128, 0)
     BACKGROUND = (100, 100, 100)
     BUTTON = (50, 50, 50)
