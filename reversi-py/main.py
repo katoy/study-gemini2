@@ -74,10 +74,11 @@ class App:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.MOUSEBUTTONDOWN:
                 # 左クリック (ボタン番号 1) のみ処理
                 if event.button == 1:
                     mouse_click_pos = event.pos
+                    return mouse_click_pos
         return mouse_click_pos
 
     def _update_state(self, mouse_click_pos: tuple[int, int] | None):
