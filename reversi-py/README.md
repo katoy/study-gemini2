@@ -96,7 +96,7 @@ python3 -m unittest discover -s tests -t .
 3.  **カバレッジ計測付きでテストを実行:**
     以下のコマンドでテストを実行し、その間のコードカバレッジを計測します。
     ```bash
-    python3 -m coverage run -m unittest discover tests
+    python3 -m coverage run -m unittest discover tests -t .
     ```
     *   `coverage run`: カバレッジ計測を開始します。
     *   `-m unittest discover tests`: `unittest` の `discover` 機能を使って `tests` ディレクトリ内のテストを実行します。
@@ -120,11 +120,6 @@ python3 -m unittest discover -s tests -t .
         *   レポートは `htmlcov` ディレクトリに生成されます。`htmlcov/index.html` をブラウザで開いて、ファイルごとに行単位のカバレッジ状況を確認できます。
         *   `--omit="tests/*"`: テストコード自体をレポートから除外します。
 
-5.  **カバレッジデータの削除:**
-    計測データ (`.coverage` ファイル) が不要になった場合は、以下のコマンドで削除します。
-    ```bash
-    python3 -m coverage erase
-    ```
 
 ## ファイル構成
 
