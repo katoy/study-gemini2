@@ -1,0 +1,13 @@
+{
+  "en": {
+    "title":         "Settings",
+    "info_label":    "Please select an option:",
+    "name_label":    "Name:",
+    "options_label": "Options:",
+    "option_a":      "Option A",
+    "option_b":      "Option B",
+    "option_c":      "Option C",
+    "ok_button":     "OK",
+    "cancel_button": "Cancel"
+  }
+}

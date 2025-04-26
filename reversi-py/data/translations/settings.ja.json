@@ -1,0 +1,13 @@
+{
+  "ja": {
+    "title":         "設定",
+    "info_label":    "オプションを選択してください:",
+    "name_label":    "名前:",
+    "options_label": "選択肢:",
+    "option_a":      "オプション A",
+    "option_b":      "オプション B",
+    "option_c":      "オプション C",
+    "ok_button":     "OK",
+    "cancel_button": "キャンセル"
+  }
+}

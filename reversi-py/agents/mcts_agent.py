@@ -101,29 +101,32 @@ class MonteCarloTreeSearchAgent(Agent):
         iteration_count = 0
 
         # 時間制限または繰り返し回数に達するまで探索
-        while elapsed_time_ms < self.time_limit_ms and iteration_count < self.iterations:
-            node = self._select(root)
-            if node is None: # 選択で問題発生 or 探索完了?
-                break
+        try:
+            while elapsed_time_ms < self.time_limit_ms and iteration_count < self.iterations:
+                node = self._select(root)
+                if node is None: # 選択で問題発生 or 探索完了?
+                    break
 
-            winner = self._check_terminal_state(node)
-            if winner is None and not node.is_terminal_node():
-                node = self._expand(node)
-                if node is None: # 展開できなかった場合 (ありえないはずだが念のため)
-                    node = root # ルートに戻るか、親に戻るべきか？ 親に戻るのが自然
-                    if node.parent:
-                         node = node.parent
+                winner = self._check_terminal_state(node)
+                if winner is None and not node.is_terminal_node():
+                    node = self._expand(node)
+                    if node is None: # 展開できなかった場合 (ありえないはずだが念のため)
+                        node = root # ルートに戻るか、親に戻るべきか？ 親に戻るのが自然
+                        if node.parent:
+                             node = node.parent
 
-            # シミュレーション (展開されたノード or 選択された終端ノードから)
-            if node: # nodeがNoneでないことを確認
-                 winner = self._simulate(node)
+                # シミュレーション (展開されたノード or 選択された終端ノードから)
+                if node: # nodeがNoneでないことを確認
+                     winner = self._simulate(node)
 
-            # バックプロパゲーション
-            if node: # nodeがNoneでないことを確認
-                 self._backpropagate(node, winner)
+                # バックプロパゲーション
+                if node: # nodeがNoneでないことを確認
+                     self._backpropagate(node, winner)
 
-            iteration_count += 1
-            elapsed_time_ms = (time.time() - start_time) * 1000
+                iteration_count += 1
+                elapsed_time_ms = (time.time() - start_time) * 1000
+        except Exception as e:
+            print(f"MCTS search interrupted by exception: {e}")
 
         # 探索終了後、最も訪問回数が多い手を選択
         best_move = None
@@ -178,15 +181,28 @@ class MonteCarloTreeSearchAgent(Agent):
 
         # ゲーム終了、勝敗判定
         black_count, white_count = current_board.count_stones()
-        if black_count == white_count:
-            return 0.5 # 引き分け
-        winner = -1 if black_count > white_count else 1
+        if black_count > white_count:
+            winner = -1
+        elif white_count > black_count:
+            winner = 1
+        else:
+            winner = 0
 
         # シミュレーション開始時のプレイヤー視点での結果を返す
-        if winner == original_turn:
-            return 1.0 # 勝ち
-        else:
-            return 0.0 # 負け
+        if original_turn == -1:  # Black's perspective
+            if winner == -1:  # Black wins
+                return 1.0
+            elif winner == 1:  # White wins
+                return 0.0
+            else:  # Draw
+                return 0.5
+        elif original_turn == 1:  # White's perspective
+            if winner == 1:  # White wins
+                return 1.0
+            elif winner == -1:  # Black wins
+                return 0.0
+            else:  # Draw
+                return 0.5
 
     def _backpropagate(self, node, result):
         """結果をルートまで伝播させる"""
