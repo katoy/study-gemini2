@@ -4,6 +4,7 @@ import sys
 import os
 import time
 import random # random をインポート (フォールバック用)
+import copy
 # --- unittest.mock から patch をインポート ---
 from unittest.mock import patch, MagicMock
 import math # UCB1 計算用に math をインポート
@@ -421,3 +422,27 @@ class TestMonteCarloTreeSearchAgent(unittest.TestCase):
         move = agent.play(game)
         valid_moves = game.get_valid_moves()
         self.assertIn(move, valid_moves, "例外発生時、ランダムな有効手が返されるはず")
+
+    def _test_play_makes_a_move_on_the_board(self, agent_class, mock_post):
+        """エージェントが盤面に実際に手を打つことを確認するテスト"""
+        agent = agent_class(iterations=10)
+        game = Game()
+        game.set_players(4, 0)  # 黒を指定されたエージェント、白を人間に設定
+        initial_board = game.board.get_board()
+        valid_moves = game.get_valid_moves()
+
+        move = agent.play(game)
+
+        self.assertIsNotNone(move, f"{agent_class.__name__}は有効な手を返す必要があります")
+        self.assertIn(move, valid_moves, f"{agent_class.__name__}は有効な手を返す必要があります")
+
+        # 盤面が更新されていることを確認
+        updated_board = copy.deepcopy(game.board.board)
+        # 実際に石が置かれているか確認
+        row, col = move
+        game.board.board[row][col] = -1
+        self.assertNotEqual(initial_board, updated_board, f"{agent_class.__name__}は盤面を更新する必要があります")
+
+    def test_play_makes_a_move_on_the_board(self, mock_post):
+        """MCTSエージェントが盤面に実際に手を打つことを確認するテスト"""
+        self._test_play_makes_a_move_on_the_board(MonteCarloTreeSearchAgent, mock_post)
