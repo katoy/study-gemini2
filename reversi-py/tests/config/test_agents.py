@@ -17,9 +17,9 @@ try:
         AGENT_DEFINITIONS,
         get_agent_options,
         get_agent_class,
-        get_agent_params,
         get_agent_definition,
     )
+    from config.agent_config_utils import get_agent_params
 except ImportError as e:
     print(f"テストのインポートエラー: {e}")
     print("config/agents.py が見つからないか、インポートできません。")
