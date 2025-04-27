@@ -102,7 +102,7 @@ class MonteCarloTreeSearchAgent(Agent):
 
         # 時間制限または繰り返し回数に達するまで探索
         try:
-            while elapsed_time_ms < self.time_limit_ms and iteration_count < self.iterations:
+            while elapsed_time_ms < self.time_limit_ms or iteration_count < self.iterations:
                 node = self._select(root)
                 if node is None: # 選択で問題発生 or 探索完了?
                     break
@@ -123,8 +123,8 @@ class MonteCarloTreeSearchAgent(Agent):
                 if node: # nodeがNoneでないことを確認
                      self._backpropagate(node, winner)
 
-                iteration_count += 1
                 elapsed_time_ms = (time.time() - start_time) * 1000
+                iteration_count += 1
         except Exception as e:
             print(f"MCTS search interrupted by exception: {e}")
 
@@ -169,11 +169,15 @@ class MonteCarloTreeSearchAgent(Agent):
             valid_moves = current_board.get_valid_moves(current_turn)
             if not valid_moves:
                 # パス
-                current_turn *= -1
-                valid_moves = current_board.get_valid_moves(current_turn)
-                if not valid_moves:
+                opponent_turn = -current_turn
+                opponent_valid_moves = current_board.get_valid_moves(opponent_turn)
+                if not opponent_valid_moves:
                     # 両者パス -> ゲーム終了
                     break
+                else:
+                    # 相手に有効な手がある場合、手番を交代
+                    current_turn = opponent_turn
+                    valid_moves = opponent_valid_moves
             # ランダムに手を選択
             move = random.choice(valid_moves)
             current_board.place_stone(move[0], move[1], current_turn)
@@ -212,7 +216,11 @@ class MonteCarloTreeSearchAgent(Agent):
             # 親ノードの手番プレイヤーから見た結果に変換して更新
             # (現在のノードの手番プレイヤーが勝ったなら、親は負けたことになる)
             current_node.update(current_result)
-            current_result = 1.0 - current_result # 親視点の結果に反転
+            if current_result == 0.0:
+                current_result = 1.0
+            elif current_result == 1.0:
+                current_result = 0.0
+            # 引き分けの場合、結果は変わらない
             current_node = current_node.parent
 
     def _check_terminal_state(self, node):

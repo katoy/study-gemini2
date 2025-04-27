@@ -2,10 +2,16 @@
 from .base_agent import Agent
 import requests
 import time
-import logging # ロギングを追加
+import logging
+import os  # 環境変数を参照するために追加
 
-# ロガーの設定
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# ロギングの設定
+log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
+numeric_level = getattr(logging, log_level, None)
+if not isinstance(numeric_level, int):
+    print(f"Invalid log level: {log_level}, defaulting to INFO")
+    numeric_level = logging.INFO
+logging.basicConfig(level=numeric_level, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class ApiAgent(Agent):
     # --- 修正: __init__ メソッドで timeout 引数を受け取る ---
@@ -25,11 +31,12 @@ class ApiAgent(Agent):
         self.timeout = timeout # 行 15-18 あたり
         # -----------------------------------------
 
-    def play(self, game):
+    def play(self, game, timeout=None):
         """
         APIサーバーに現在の盤面と手番を送信し、次の手を取得します。
         Args:
             game (Game): 現在のゲーム状態。
+            timeout (int, optional): APIリクエストのタイムアウト時間(秒)。指定しない場合は、__init__で設定された値を使用。
         Returns:
             tuple[int, int] | None: APIから取得した手 (row, col)、またはエラー時は None。
         """
@@ -44,32 +51,46 @@ class ApiAgent(Agent):
 
         try:
             # APIサーバーにPOSTリクエストを送信
-            response = requests.post(self.api_url, json=payload, timeout=self.timeout)
+            # timeout が指定されていればそれを使用し、そうでなければ self.timeout を使用
+            response = requests.post(self.api_url, json=payload, timeout=timeout if timeout is not None else self.timeout)
             response.raise_for_status()  # ステータスコードが200番台以外ならHTTPErrorを送出
 
             # レスポンスをJSONとして解析
             data = response.json()
 
-            # 'move' キーが存在し、その値がリスト形式か確認
-            if 'move' in data and isinstance(data['move'], list):
-                move = data['move']
-                # 手の形式 (長さ2のリストで、要素が整数) と範囲を検証
-                if len(move) == 2 and all(isinstance(x, int) for x in move):
-                    row, col = move
-                    if 0 <= row < board_size and 0 <= col < board_size:
-                        return tuple(move) # タプル形式で返す
-                    else:
-                        logging.warning(f"API returned out-of-bounds move: {move}")
-                        return None
-                else:
-                    logging.warning(f"API returned invalid move format: {move}")
-                    return None
-            elif 'move' in data and data['move'] is None:
+            # レスポンス形式のバリデーション
+            if not isinstance(data, dict):
+                logging.warning(f"API response is not a dictionary: {data}")
+                return None
+
+            if 'move' not in data:
+                logging.warning(f"API response missing 'move' key: {data}")
+                return None
+
+            move = data['move']
+
+            if move is None:
                 # APIが明示的にNoneを返した場合 (パスなど)
                 return None
-            else:
-                logging.warning(f"API response missing 'move' key or invalid format: {data}")
+
+            if not isinstance(move, list):
+                logging.warning(f"API returned invalid move format: {move}")
                 return None
+
+            if len(move) != 2:
+                logging.warning(f"API returned invalid move format: {move}")
+                return None
+
+            if not all(isinstance(x, int) for x in move):
+                logging.warning(f"API returned invalid move format: {move}")
+                return None
+
+            row, col = move
+            if not (0 <= row < board_size and 0 <= col < board_size):
+                logging.warning(f"API returned out-of-bounds move: {move}")
+                return None
+
+            return tuple(move) # タプル形式で返す
 
         except requests.exceptions.Timeout:
             logging.error(f"API request timed out after {self.timeout} seconds.")

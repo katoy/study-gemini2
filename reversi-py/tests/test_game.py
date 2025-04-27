@@ -18,6 +18,7 @@ from agents.mcts_agent import MonteCarloTreeSearchAgent
 # --- config.agents から必要なものをインポート (create_agent のテストで使用) ---
 # AGENT_DEFINITIONS をインポートして FirstAgent の ID を取得
 from config.agents import AGENT_DEFINITIONS, get_agent_class as original_get_agent_class
+from config.agent_config_utils import get_agent_params
 
 class TestGame(unittest.TestCase):
     def setUp(self):

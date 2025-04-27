@@ -28,8 +28,6 @@ class Screen:
     TURN_MESSAGE_TOP_MARGIN = 10 # 石数表示と手番表示の間のマージン
     TURN_MESSAGE_BOTTOM_MARGIN = 15 # 手番表示とボタンの間のマージン
     BUTTON_BOTTOM_MARGIN = 15 # ボタンとプレイヤー設定UIの間のマージン
-    PLAYER_SETTINGS_BOTTOM_MARGIN = 20 # プレイヤー設定UIとメッセージの間のマージン (現在は未使用)
-    MESSAGE_MARGIN = 20 # メッセージと下端 or 他要素とのマージン (現在は未使用)
     MESSAGE_ABOVE_TURN_MARGIN = 10 # メッセージと手番表示の間のマージン (追加)
     # --------------------
     GAME_START_MESSAGE_TOP_MARGIN = 200
