@@ -604,72 +604,9 @@ class GameGUI:
         header_label_white.draw(self.screen)
 
         # 両方がAIの場合はプレイヤ区別用の小さなバッジを表示（ヘッダラベルの右側に表示）
-        if False and game.agents.get(-1) is not None and game.agents.get(1) is not None:
-            # 黒バッジ（ローカライズ対応） — ヘッダの右に表示
-            badge_text_black = _t("ui.ai_black", "AI (Black)")
-            # place badge to the right of header label
-            badge_x_black = header_label_black.rect.right + Screen.BADGE_MARGIN
-            badge_y_black = header_label_black.rect.top + Screen.BADGE_Y_OFFSET
-            label_black = Label((badge_x_black, badge_y_black), badge_text_black, self.font, Color.BUTTON_TEXT)
-            badge_rect_black = label_black.rect.inflate(Screen.BADGE_PADDING_X, Screen.BADGE_PADDING_Y)
-            try:
-                badge_surf = pygame.Surface((badge_rect_black.width, badge_rect_black.height), pygame.SRCALPHA)
-                badge_surf.fill((0, 0, 0, 0))
-                pygame.draw.rect(badge_surf, Color.BADGE_BG, badge_surf.get_rect(), border_radius=6)
-                # render text directly onto badge surface, centered
-                text_surf = self.font.render(badge_text_black, True, Color.BUTTON_TEXT)
-                try:
-                    text_surf = text_surf.convert_alpha()
-                except Exception:
-                    pass
-                try:
-                    if text_surf.get_alpha() is None:
-                        corner = text_surf.get_at((0, 0))
-                        if corner[:3] == (0, 0, 0):
-                            try:
-                                text_surf.set_colorkey((0, 0, 0))
-                            except Exception:
-                                pass
-                except Exception:
-                    pass
-                text_rect = text_surf.get_rect(center=badge_surf.get_rect().center)
-                badge_surf.blit(text_surf, text_rect)
-                self.screen.blit(badge_surf, badge_rect_black.topleft)
-            except Exception:
-                pygame.draw.rect(self.screen, Color.BADGE_BG[:3], badge_rect_black)
-                label_black.draw(self.screen)
-
-            # 白バッジ（ローカライズ対応） — ヘッダの右に表示
-            badge_text_white = _t("ui.ai_white", "AI (White)")
-            badge_x_white = header_label_white.rect.right + Screen.BADGE_MARGIN
-            badge_y_white = header_label_white.rect.top + Screen.BADGE_Y_OFFSET
-            label_white = Label((badge_x_white, badge_y_white), badge_text_white, self.font, Color.BUTTON_TEXT)
-            badge_rect_white = label_white.rect.inflate(Screen.BADGE_PADDING_X, Screen.BADGE_PADDING_Y)
-            try:
-                badge_surf_w = pygame.Surface((badge_rect_white.width, badge_rect_white.height), pygame.SRCALPHA)
-                badge_surf_w.fill((0, 0, 0, 0))
-                pygame.draw.rect(badge_surf_w, Color.BADGE_BG, badge_surf_w.get_rect(), border_radius=6)
-                text_surf_w = self.font.render(badge_text_white, True, Color.BUTTON_TEXT)
-                try:
-                    text_surf_w = text_surf_w.convert_alpha()
-                except Exception:
-                    pass
-                try:
-                    if text_surf_w.get_alpha() is None:
-                        corner = text_surf_w.get_at((0, 0))
-                        if corner[:3] == (0, 0, 0):
-                            try:
-                                text_surf_w.set_colorkey((0, 0, 0))
-                            except Exception:
-                                pass
-                except Exception:
-                    pass
-                text_rect_w = text_surf_w.get_rect(center=badge_surf_w.get_rect().center)
-                badge_surf_w.blit(text_surf_w, text_rect_w)
-                self.screen.blit(badge_surf_w, badge_rect_white.topleft)
-            except Exception:
-                pygame.draw.rect(self.screen, Color.BADGE_BG[:3], badge_rect_white)
-                label_white.draw(self.screen)
+        if game.agents.get(-1) is not None and game.agents.get(1) is not None:
+            self._draw_ai_badge(header_label_black, "ui.ai_black")
+            self._draw_ai_badge(header_label_white, "ui.ai_white")
 
         # ラジオボタンの垂直位置オフセットと間隔
         radio_y_offset = Screen.RADIO_Y_OFFSET
@@ -732,6 +669,39 @@ class GameGUI:
         turn_message_center_y = self._calculate_turn_message_center_y()
         text_rect = text_surface.get_rect(center=(self.screen_width // 2, turn_message_center_y))
         self.screen.blit(text_surface, text_rect)
+
+    def _draw_ai_badge(self, header_label, i18n_key):
+        """AI プレイヤーバッジを描画（黒/白共通）"""
+        badge_text = _t(i18n_key, "AI")
+        badge_x = header_label.rect.right + Screen.BADGE_MARGIN
+        badge_y = header_label.rect.top + Screen.BADGE_Y_OFFSET
+        label = Label((badge_x, badge_y), badge_text, self.font, Color.BUTTON_TEXT)
+        badge_rect = label.rect.inflate(Screen.BADGE_PADDING_X, Screen.BADGE_PADDING_Y)
+        try:
+            badge_surf = pygame.Surface((badge_rect.width, badge_rect.height), pygame.SRCALPHA)
+            badge_surf.fill((0, 0, 0, 0))
+            pygame.draw.rect(badge_surf, Color.BADGE_BG, badge_surf.get_rect(), border_radius=6)
+            text_surf = self.font.render(badge_text, True, Color.BUTTON_TEXT)
+            try:
+                text_surf = text_surf.convert_alpha()
+            except Exception:
+                pass
+            try:
+                if text_surf.get_alpha() is None:
+                    corner = text_surf.get_at((0, 0))
+                    if corner[:3] == (0, 0, 0):
+                        try:
+                            text_surf.set_colorkey((0, 0, 0))
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+            text_rect = text_surf.get_rect(center=badge_surf.get_rect().center)
+            badge_surf.blit(text_surf, text_rect)
+            self.screen.blit(badge_surf, badge_rect.topleft)
+        except Exception:
+            pygame.draw.rect(self.screen, Color.BADGE_BG[:3], badge_rect)
+            label.draw(self.screen)
 
     # gui.py の GameGUI クラス内に追加
     def get_clicked_radio_button(self, click_pos, player_settings_top):

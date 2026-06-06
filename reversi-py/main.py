@@ -206,10 +206,11 @@ class App:
         elif self.gui.is_undo_button_clicked(mouse_click_pos, game_over=False):
             # 1手戻る
             if self.game.history_index >= 0:
-                self.game.replay(self.game.history_index - 1)
+                current_index = self.game.history_index
+                self.game.replay(current_index - 1)
                 # AIが相手ならもう1手戻る (自分が打つ直前の状態に戻す)
-                if self.game.agents[self.game.turn] is not None and self.game.history_index >= 0:
-                    self.game.replay(self.game.history_index - 1)
+                if self.game.agents[self.game.turn] is not None and current_index >= 1:
+                    self.game.replay(current_index - 2)
                 self.game.set_message("") # メッセージをクリア
                 logging.info("Game state undone.") # pragma: no cover
 

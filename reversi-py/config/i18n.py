@@ -63,7 +63,14 @@ class Translator:
         return str(value)
 
 TRANSLATIONS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "translations")
-_translator = Translator(translations_dir=TRANSLATIONS_DIR)
+_translator: Optional[Translator] = None
+
+def _get_translator() -> Translator:
+    """遅延初期化により、モジュール読み込み時の状態汚染を防止"""
+    global _translator
+    if _translator is None:
+        _translator = Translator(translations_dir=TRANSLATIONS_DIR)
+    return _translator
 
 def _t(key: str, default: Optional[str] = None, **kwargs) -> str:
-    return _translator.translate(key, default, **kwargs)
+    return _get_translator().translate(key, default, **kwargs)
