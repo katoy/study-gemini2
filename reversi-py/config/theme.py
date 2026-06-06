@@ -47,7 +47,7 @@ class Screen:
     BUTTON_BORDER_WIDTH = 2  # ボタンの枠線の太さ
     BUTTON_BOTTOM_MARGIN = 10 # ボタンの下マージン
     # サイドの最小余白（ピクセル） — これを小さくすると左右の空白が減る
-    SIDE_PADDING = 20
+    SIDE_PADDING = 8
     # --- バッジの配置・パディング微調整 (Screenに移動) ---
     BADGE_PADDING_X = 10  # バッジ左右の内側パディング
     BADGE_PADDING_Y = 6   # バッジ上下の内側パディング
