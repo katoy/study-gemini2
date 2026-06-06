@@ -36,6 +36,20 @@ class TestMainLoggingThrottle(unittest.TestCase):
         arg = mock_logger.addFilter.call_args[0][0]
         self.assertTrue(hasattr(arg, 'filter'))
 
+    def test_throttling_filter_exception_is_handled(self):
+        # Ensure that if logging.getLogger raises, run() handles it gracefully
+        game_mock = MagicMock()
+        gui_mock = MagicMock()
+        game_mock.set_players = MagicMock()
+        app = App(game_mock, gui_mock)
+
+        with patch('main.logging.getLogger', side_effect=Exception('boom')), \
+             patch('main.pygame.quit'), \
+             patch('main.sys.exit'):
+            app.running = False
+            # Should not raise despite logging.getLogger throwing
+            app.run()
+
 
 if __name__ == '__main__':
     unittest.main()
