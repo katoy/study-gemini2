@@ -6,10 +6,7 @@ import threading
 import queue
 from game import Game
 from gui import GameGUI
-from config.theme import Color
-# --- config.i18n からインポート ---
 from config.i18n import _t
-# -----------------------------
 
 class App:
     """
@@ -307,6 +304,7 @@ class App:
 
     def _render(self):
         """画面を描画する"""
+        from config.theme import Color
         # 背景色で画面をクリア
         self.gui.screen.fill(Color.BACKGROUND)
         # プレイヤー設定UIの上端Y座標を計算 (描画要素の位置決めに使う)
