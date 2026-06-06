@@ -39,11 +39,22 @@ fi
 # 3. Pytest テスト実行
 echo ""
 echo -e "${YELLOW}[3/4] Pytest テスト実行...${NC}"
-if uv run pytest tests/ --cov=. --cov-report=json --cov-config=.coveragerc -q; then
-    echo -e "${GREEN}✅ Tests: OK${NC}"
+if command -v xvfb-run &> /dev/null; then
+    # Xvfb が利用可能な場合（Linux）
+    if xvfb-run -a uv run pytest tests/ --cov=. --cov-report=json --cov-config=.coveragerc -q; then
+        echo -e "${GREEN}✅ Tests: OK${NC}"
+    else
+        echo -e "${RED}❌ Tests: NG${NC}"
+        ERRORS=$((ERRORS + 1))
+    fi
 else
-    echo -e "${RED}❌ Tests: NG${NC}"
-    ERRORS=$((ERRORS + 1))
+    # Xvfb が利用できない場合（macOS など）
+    if SDL_VIDEODRIVER=dummy uv run pytest tests/ --cov=. --cov-report=json --cov-config=.coveragerc -q; then
+        echo -e "${GREEN}✅ Tests: OK${NC}"
+    else
+        echo -e "${RED}❌ Tests: NG${NC}"
+        ERRORS=$((ERRORS + 1))
+    fi
 fi
 
 # 4. カバレッジ 100% チェック
