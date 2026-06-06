@@ -15,12 +15,19 @@ class GameGUI:
     def __init__(self, screen_width=Screen.WIDTH, screen_height=Screen.HEIGHT):
         self.screen_width = screen_width
         self.screen_height = screen_height
+        # --- エージェントオプションをキャッシュ ---
+        # compute_min_height や player settings 計算で agent_options を参照するため
+        self.agent_options = get_agent_options()
+        # フォントを先に読み込み、必要な最小高さを計算してウィンドウ高さを調整する
+        self.font = self._load_font()
+        # 必要な高さを計算し、指定された高さより大きければ調整する
+        required_height = self._compute_min_height()
+        if self.screen_height < required_height:
+            self.screen_height = required_height
+        # ディスプレイを初期化
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.display.set_caption("Reversi")
         self.cell_size = Screen.CELL_SIZE # Screen.CELL_SIZE を使用
-        self.font = self._load_font()
-        # --- エージェントオプションをキャッシュ ---
-        self.agent_options = get_agent_options()
 
         # --- ボタンインスタンスの生成 (Start ボタンのみ) ---
         # Start ボタンの Rect を計算
@@ -186,6 +193,26 @@ class GameGUI:
                 # If everything fails, raise the original error
                 raise
 
+    def _compute_min_height(self):
+        """計算: すべてのUI要素が表示されるために必要な最小ウィンドウ高さを返す"""
+        # 盤面上端・下端
+        board_top = Screen.BOARD_TOP_MARGIN
+        board_bottom = board_top + Screen.BOARD_SIZE
+        # 石数表示のY
+        stone_count_y = board_bottom + Screen.TURN_MESSAGE_TOP_MARGIN
+        font_height = self.font.get_height()
+        # 手番表示の中心Y
+        turn_message_center_y = stone_count_y + font_height + Screen.TURN_MESSAGE_TOP_MARGIN + font_height // 2
+        # ボタン群の高さ（下端）
+        button_height = self._calculate_button_height()
+        buttons_bottom = turn_message_center_y + font_height // 2 + Screen.TURN_MESSAGE_BOTTOM_MARGIN + button_height
+        # プレイヤー設定領域の下端
+        player_settings_top = self._calculate_player_settings_top()
+        player_settings_height = self._calculate_player_settings_height()
+        player_settings_bottom = player_settings_top + player_settings_height
+        needed = max(buttons_bottom, player_settings_bottom)
+        # 余白を少し追加して安全側に
+        return int(needed + 20)
 
     def _calculate_board_rect(self):
         """盤面の描画領域(Rect)を計算する"""
