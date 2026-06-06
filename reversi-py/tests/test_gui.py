@@ -393,7 +393,7 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
 
     @patch('gui.Label')
     def test_draw_player_settings_both_ai(self, mock_label):
-        """両方 AI の場合に区別バッジを描画する"""
+        """両方 AI の場合、UI上でのバッジ表示は行われない（ログで区別する仕様）。"""
         self.game_mock.agents = {-1: MagicMock(name='BlackAI'), 1: MagicMock(name='WhiteAI')}
         player_settings_top = self.gui._calculate_player_settings_top()
         self.gui.draw_player_settings(self.game_mock, player_settings_top, enabled=False)
@@ -401,8 +401,9 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         expected_black = _t("ui.ai_black", "AI (Black)")
         expected_white = _t("ui.ai_white", "AI (White)")
         texts = [args[1] for args, _ in mock_label.call_args_list]
-        self.assertIn(expected_black, texts)
-        self.assertIn(expected_white, texts)
+        # Badges are intentionally not shown in the UI; verify they are not present
+        self.assertNotIn(expected_black, texts)
+        self.assertNotIn(expected_white, texts)
 
     def test_draw_valid_moves(self):
         board_rect = self.gui._calculate_board_rect()

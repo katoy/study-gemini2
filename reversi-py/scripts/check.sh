@@ -18,7 +18,7 @@ ERRORS=0
 
 # 1. Ruff Lint チェック
 echo ""
-echo -e "${YELLOW}[1/4] Ruff Lint チェック...${NC}"
+echo -e "${YELLOW}[1/5] Ruff Lint チェック...${NC}"
 if uv run ruff check .; then
     echo -e "${GREEN}✅ Ruff: OK${NC}"
 else
@@ -28,7 +28,7 @@ fi
 
 # 2. Mypy 型チェック
 echo ""
-echo -e "${YELLOW}[2/4] Mypy 型チェック...${NC}"
+echo -e "${YELLOW}[2/5] Mypy 型チェック...${NC}"
 if uv run mypy . --ignore-missing-imports; then
     echo -e "${GREEN}✅ Mypy: OK${NC}"
 else
@@ -38,7 +38,7 @@ fi
 
 # 3. Pytest テスト実行
 echo ""
-echo -e "${YELLOW}[3/4] Pytest テスト実行...${NC}"
+echo -e "${YELLOW}[3/5] Pytest テスト実行...${NC}"
 if command -v xvfb-run &> /dev/null; then
     # Xvfb が利用可能な場合（Linux）
     if xvfb-run -a uv run pytest tests/ --cov=. --cov-report=json --cov-config=.coveragerc -q; then
@@ -57,9 +57,30 @@ else
     fi
 fi
 
-# 4. カバレッジ 100% チェック
+# 4. GUI 起動テスト
 echo ""
-echo -e "${YELLOW}[4/4] カバレッジ 100% チェック...${NC}"
+echo -e "${YELLOW}[4/5] GUI 起動テスト...${NC}"
+if command -v xvfb-run &> /dev/null; then
+    # Xvfb が利用可能な場合
+    if xvfb-run -a uv run python scripts/test_gui_init.py; then
+        echo -e "${GREEN}✅ GUI Init: OK${NC}"
+    else
+        echo -e "${RED}❌ GUI Init: NG${NC}"
+        ERRORS=$((ERRORS + 1))
+    fi
+else
+    # Xvfb が利用できない場合
+    if SDL_VIDEODRIVER=dummy uv run python scripts/test_gui_init.py; then
+        echo -e "${GREEN}✅ GUI Init: OK${NC}"
+    else
+        echo -e "${RED}❌ GUI Init: NG${NC}"
+        ERRORS=$((ERRORS + 1))
+    fi
+fi
+
+# 5. カバレッジ 100% チェック
+echo ""
+echo -e "${YELLOW}[5/5] カバレッジ 100% チェック...${NC}"
 if uv run python scripts/check_coverage.py; then
     echo -e "${GREEN}✅ Coverage: OK${NC}"
 else

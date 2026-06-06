@@ -55,5 +55,8 @@ jobs:
     - name: Run tests with coverage (GUI enabled via Xvfb)
       run: xvfb-run -a uv run pytest tests/ --cov=. --cov-report=term-missing --cov-report=json --cov-config=.coveragerc
 
+    - name: Run GUI Integration Test (Xvfb)
+      run: xvfb-run -a uv run python scripts/test_gui_init.py
+
     - name: Check coverage (excluding gui.py)
       run: uv run python scripts/check_coverage.py

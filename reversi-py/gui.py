@@ -12,7 +12,18 @@ from ui_elements import Button, RadioButton, Label
 # ---------------------------------------------
 
 class GameGUI:
-    def __init__(self, screen_width=Screen.WIDTH, screen_height=Screen.HEIGHT):
+    def __init__(self, screen_width=Screen.WIDTH, screen_height=Screen.HEIGHT, allow_width_shrink: bool = False):
+        """Game GUI initializer.
+
+        Args:
+            screen_width (int): Requested initial width.
+            screen_height (int): Requested initial height.
+            allow_width_shrink (bool): If True, GUI will reduce the requested
+                screen_width down to the minimal width needed (helpful for
+                default-app behavior to remove large side margins). Tests and
+                callers that pass an explicit width should keep this False to
+                preserve explicit sizing.
+        """
         self.screen_width = screen_width
         self.screen_height = screen_height
         # --- エージェントオプションをキャッシュ ---
@@ -24,6 +35,12 @@ class GameGUI:
         required_height = self._compute_min_height()
         if self.screen_height < required_height:
             self.screen_height = required_height
+        # 必要な最小幅を計算して、指定された幅が大きすぎる場合は縮小して余白を小さくする
+        required_width = self._compute_min_width()
+        # Shrink width only if caller explicitly opted in to avoid surprising tests/callers
+        if allow_width_shrink and self.screen_width > required_width:
+            self.screen_width = required_width
+
         # ディスプレイを初期化
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.display.set_caption("Reversi")
@@ -96,7 +113,7 @@ class GameGUI:
         font_dir = script_dir / "fonts"
         font_filename = "NotoSansJP-Regular.ttf"
         font_path = font_dir / font_filename
-        font_size = 24
+        font_size = 20
 
         # Evaluate existence once to avoid multiple stat calls (tests assert single call)
         try:
@@ -223,6 +240,13 @@ class GameGUI:
         the current screen width (respecting SIDE_PADDING) and the available
         vertical space so that the UI below the board still fits.
         """
+        # existing implementation unchanged below
+        """盤面の描画領域(Rect)を計算する
+
+        Chooses the largest square board (multiple of 8) that fits within both
+        the current screen width (respecting SIDE_PADDING) and the available
+        vertical space so that the UI below the board still fits.
+        """
         font_height = self.font.get_height()
         side_pad = getattr(Screen, 'SIDE_PADDING', 20)
         max_by_width = max(8 * 10, self.screen_width - 2 * side_pad)  # at least 80
@@ -275,6 +299,45 @@ class GameGUI:
         board_top = Screen.BOARD_TOP_MARGIN
         return pygame.Rect(board_left, board_top, chosen_B, chosen_B)
 
+    def _compute_min_width(self):
+        """最小表示幅を計算する
+
+        Returns the minimal window width necessary to display the board at its
+        preferred size (up to Screen.BOARD_SIZE) while respecting SIDE_PADDING.
+        Ensures there is enough room for the bottom control buttons and the
+        two player-setting columns so buttons/labels won't be clipped or
+        overlap when the window is automatically shrunk.
+        """
+        side_pad = getattr(Screen, 'SIDE_PADDING', 20)
+
+        # Board-based minimum: keep default board size visible with side paddings
+        board_min = Screen.BOARD_SIZE + side_pad * 2
+
+        # Button-based minimum: calculate using font metrics (4 buttons in a row)
+        try:
+            base_text_surface = self.font.render(_t("ui.restart"), True, Color.BUTTON_TEXT)
+            button_width = base_text_surface.get_width() + Screen.BUTTON_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
+            total_button_width = button_width * 4 + Screen.BUTTON_MARGIN * 3
+            button_min = total_button_width + side_pad * 2
+        except Exception:
+            # If font/render isn't available for some reason, fall back to board_min
+            button_min = board_min
+
+        # Player-settings minimum: ensure both left/right columns can display radio + label
+        try:
+            max_label_width = 0
+            for _, display_name in self.agent_options:
+                surf = self.font.render(display_name, True, Color.BUTTON_TEXT)
+                max_label_width = max(max_label_width, surf.get_width())
+            # radio + margin + label + badge padding (safe over-approximation)
+            column_width = Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN + max_label_width + getattr(Screen, 'BADGE_PADDING_X', 0) + getattr(Screen, 'BADGE_MARGIN', 0)
+            column_width = max(column_width, 100)
+            players_min = column_width * 2 + side_pad * 2 + Screen.RADIO_BUTTON_MARGIN
+        except Exception:
+            players_min = board_min
+
+        min_width = int(max(board_min, button_min, players_min, 8 * 10 + side_pad * 2))
+        return min_width
     # --- 描画メソッド ---
     def _draw_board_background(self, board_rect):
         """画面背景と盤面の背景を描画する"""
@@ -534,34 +597,79 @@ class GameGUI:
         left_margin = board_rect.left
         white_player_label_x = self.screen_width // 2 + Screen.RADIO_BUTTON_MARGIN
 
-        # ラベル描画
-        Label((left_margin, player_settings_top), _t("ui.black_player"), self.font).draw(self.screen)
-        Label((white_player_label_x, player_settings_top), _t("ui.white_player"), self.font).draw(self.screen)
+        # Header labels for player columns (keep objects to compute badge placement)
+        header_label_black = Label((left_margin, player_settings_top), _t("ui.black_player"), self.font)
+        header_label_white = Label((white_player_label_x, player_settings_top), _t("ui.white_player"), self.font)
+        header_label_black.draw(self.screen)
+        header_label_white.draw(self.screen)
 
-        # 両方がAIの場合はプレイヤ区別用の小さなバッジを表示（半透明パネル + テキスト）
-        font_height = self.font.get_height()
-        badge_y = player_settings_top + font_height
-        if game.agents.get(-1) is not None and game.agents.get(1) is not None:
-            # 黒バッジ（ローカライズ対応）
+        # 両方がAIの場合はプレイヤ区別用の小さなバッジを表示（ヘッダラベルの右側に表示）
+        if False and game.agents.get(-1) is not None and game.agents.get(1) is not None:
+            # 黒バッジ（ローカライズ対応） — ヘッダの右に表示
             badge_text_black = _t("ui.ai_black", "AI (Black)")
-            label_black = Label((left_margin + Screen.BADGE_MARGIN, badge_y + Screen.BADGE_Y_OFFSET), badge_text_black, self.font, Color.BUTTON_TEXT)
-            # badge_rect を label.rect を基準にパディングで作る
+            # place badge to the right of header label
+            badge_x_black = header_label_black.rect.right + Screen.BADGE_MARGIN
+            badge_y_black = header_label_black.rect.top + Screen.BADGE_Y_OFFSET
+            label_black = Label((badge_x_black, badge_y_black), badge_text_black, self.font, Color.BUTTON_TEXT)
             badge_rect_black = label_black.rect.inflate(Screen.BADGE_PADDING_X, Screen.BADGE_PADDING_Y)
             try:
-                pygame.draw.rect(self.screen, Color.BADGE_BG, badge_rect_black, border_radius=6)
+                badge_surf = pygame.Surface((badge_rect_black.width, badge_rect_black.height), pygame.SRCALPHA)
+                badge_surf.fill((0, 0, 0, 0))
+                pygame.draw.rect(badge_surf, Color.BADGE_BG, badge_surf.get_rect(), border_radius=6)
+                # render text directly onto badge surface, centered
+                text_surf = self.font.render(badge_text_black, True, Color.BUTTON_TEXT)
+                try:
+                    text_surf = text_surf.convert_alpha()
+                except Exception:
+                    pass
+                try:
+                    if text_surf.get_alpha() is None:
+                        corner = text_surf.get_at((0, 0))
+                        if corner[:3] == (0, 0, 0):
+                            try:
+                                text_surf.set_colorkey((0, 0, 0))
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+                text_rect = text_surf.get_rect(center=badge_surf.get_rect().center)
+                badge_surf.blit(text_surf, text_rect)
+                self.screen.blit(badge_surf, badge_rect_black.topleft)
             except Exception:
-                pygame.draw.rect(self.screen, Color.BADGE_BG, badge_rect_black)
-            label_black.draw(self.screen)
+                pygame.draw.rect(self.screen, Color.BADGE_BG[:3], badge_rect_black)
+                label_black.draw(self.screen)
 
-            # 白バッジ（ローカライズ対応）
+            # 白バッジ（ローカライズ対応） — ヘッダの右に表示
             badge_text_white = _t("ui.ai_white", "AI (White)")
-            label_white = Label((white_player_label_x + Screen.BADGE_MARGIN, badge_y + Screen.BADGE_Y_OFFSET), badge_text_white, self.font, Color.BUTTON_TEXT)
+            badge_x_white = header_label_white.rect.right + Screen.BADGE_MARGIN
+            badge_y_white = header_label_white.rect.top + Screen.BADGE_Y_OFFSET
+            label_white = Label((badge_x_white, badge_y_white), badge_text_white, self.font, Color.BUTTON_TEXT)
             badge_rect_white = label_white.rect.inflate(Screen.BADGE_PADDING_X, Screen.BADGE_PADDING_Y)
             try:
-                pygame.draw.rect(self.screen, Color.BADGE_BG, badge_rect_white, border_radius=6)
+                badge_surf_w = pygame.Surface((badge_rect_white.width, badge_rect_white.height), pygame.SRCALPHA)
+                badge_surf_w.fill((0, 0, 0, 0))
+                pygame.draw.rect(badge_surf_w, Color.BADGE_BG, badge_surf_w.get_rect(), border_radius=6)
+                text_surf_w = self.font.render(badge_text_white, True, Color.BUTTON_TEXT)
+                try:
+                    text_surf_w = text_surf_w.convert_alpha()
+                except Exception:
+                    pass
+                try:
+                    if text_surf_w.get_alpha() is None:
+                        corner = text_surf_w.get_at((0, 0))
+                        if corner[:3] == (0, 0, 0):
+                            try:
+                                text_surf_w.set_colorkey((0, 0, 0))
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+                text_rect_w = text_surf_w.get_rect(center=badge_surf_w.get_rect().center)
+                badge_surf_w.blit(text_surf_w, text_rect_w)
+                self.screen.blit(badge_surf_w, badge_rect_white.topleft)
             except Exception:
-                pygame.draw.rect(self.screen, Color.BADGE_BG, badge_rect_white)
-            label_white.draw(self.screen)
+                pygame.draw.rect(self.screen, Color.BADGE_BG[:3], badge_rect_white)
+                label_white.draw(self.screen)
 
         # ラジオボタンの垂直位置オフセットと間隔
         radio_y_offset = Screen.RADIO_Y_OFFSET
