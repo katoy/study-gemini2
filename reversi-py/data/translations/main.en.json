@@ -19,7 +19,9 @@
       "quit": "Quit",
       "undo": "Undo",
       "black_player": "Black Player",
-      "white_player": "White Player"
+    "white_player": "White Player",
+    "ai_black": "AI (Black)",
+    "ai_white": "AI (White)"
     }
   }
 }
