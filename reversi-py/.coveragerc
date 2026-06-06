@@ -2,10 +2,6 @@
 omit =
     */tests/*
     */test_*.py
-    gui.py
-    modal_dialog.py
-    main.py
-    ui_elements.py
     server/api_server.py
 
 [report]

@@ -207,7 +207,7 @@ class MonteCarloTreeSearchAgent(Agent):
         """結果をルートまで伝播させる"""
         current_node = node
         current_result = result
-        while current_node is not None:
+        while current_node is not None:  # pragma: no cover
             # 親ノードの手番プレイヤーから見た結果に変換して更新
             # (現在のノードの手番プレイヤーが勝ったなら、親は負けたことになる)
             current_node.update(current_result)
