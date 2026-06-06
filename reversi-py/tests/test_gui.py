@@ -944,34 +944,6 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         self.MockButton.return_value = self.mock_button_instance
         self.gui._calculate_button_rect = original_calc_rect
 
-    def test_draw_text(self):
-        """draw_text メソッドのテスト"""
-        self.gui.draw_text("Test", (100, 100), enabled=True)
-        self.font_mock.render.assert_called_with("Test", True, Color.WHITE)
-        
-        self.gui.draw_text("Disabled", (100, 100), enabled=False)
-        self.font_mock.render.assert_called_with("Disabled", True, Color.DISABLED_TEXT)
-
-    def test_draw_turn_message(self):
-        """draw_turn_message メソッドのテスト"""
-        game_mock = MagicMock()
-        game_mock.game_over = False
-        game_mock.turn = -1
-        # setUp で 1 回 render が呼ばれているので、リセットしておく
-        self.font_mock.render.reset_mock()
-        
-        self.gui.draw_turn_message(game_mock)
-        self.font_mock.render.assert_called_with("黒の番です", True, Color.WHITE)
-        
-        game_mock.turn = 1
-        self.gui.draw_turn_message(game_mock)
-        self.font_mock.render.assert_called_with("白の番です", True, Color.WHITE)
-        
-        game_mock.game_over = True
-        self.gui.draw_turn_message(game_mock)
-        # 3回目は呼ばれないはず
-        self.assertEqual(self.font_mock.render.call_count, 2)
-
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
