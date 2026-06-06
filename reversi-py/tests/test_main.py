@@ -11,6 +11,7 @@ sys.path.append(parent_dir)
 import main
 from game import Game
 from gui import GameGUI
+from config.i18n import _t
 
 class TestApp(unittest.TestCase):
 
@@ -30,6 +31,7 @@ class TestApp(unittest.TestCase):
         self.mock_game.make_ai_move = MagicMock()
         self.mock_game.pass_turn = MagicMock()
         self.mock_game.agents = {-1: None, 1: None}
+        self.mock_game.history_index = 0
         
         self.mock_gui.screen = MagicMock(spec=pygame.Surface)
         self.mock_gui.get_board_click_pos = MagicMock(return_value=None)
@@ -41,6 +43,7 @@ class TestApp(unittest.TestCase):
         self.mock_gui.is_reset_button_clicked = MagicMock(return_value=False)
         self.mock_gui.is_quit_button_clicked = MagicMock(return_value=False)
         self.mock_gui.is_settings_button_clicked = MagicMock(return_value=False)
+        self.mock_gui.is_undo_button_clicked = MagicMock(return_value=False)
 
         pygame.init()
         # display.set_mode を呼ばないと flip で落ちる場合があるため、パッチを検討
@@ -193,10 +196,15 @@ class TestApp(unittest.TestCase):
         mock_agent.play.return_value = (3, 3)
         self.mock_game.place_stone.return_value = True
 
-        self.app._handle_ai_or_pass()
-        self.mock_game.place_stone.assert_called_with(3, 3)
+        # AI手番のテスト (スレッドが開始されることを確認)
+        with patch('main.threading.Thread') as mock_thread:
+            self.app._handle_ai_or_pass()
+            self.assertTrue(self.app.is_ai_thinking)
+            mock_thread.assert_called_once()
+            mock_thread.return_value.start.assert_called_once()
 
         # パス処理のテスト
+        self.app.is_ai_thinking = False
         self.mock_game.get_valid_moves.return_value = []
         self.app._handle_ai_or_pass()
         self.mock_game.switch_turn.assert_called()
@@ -277,7 +285,23 @@ class TestApp(unittest.TestCase):
         self.mock_game.game_over = True
         self.mock_game.get_winner.return_value = 1
         self.app._render()
-        self.mock_game.set_message.assert_called_with("白の勝ちです！")
+        self.mock_game.set_message.assert_called_with(_t("game.white_win"))
+
+    def test_render_winner_black(self):
+        """黒の勝ちの描画テスト"""
+        self.app.game_started = True
+        self.mock_game.game_over = True
+        self.mock_game.get_winner.return_value = -1
+        self.app._render()
+        self.mock_game.set_message.assert_called_with(_t("game.black_win"))
+
+    def test_render_winner_draw(self):
+        """引き分けの描画テスト"""
+        self.app.game_started = True
+        self.mock_game.game_over = True
+        self.mock_game.get_winner.return_value = 0
+        self.app._render()
+        self.mock_game.set_message.assert_called_with(_t("game.draw"))
 
     def test_handle_click_before_start_radio_button_no_change(self):
         """プレイヤー選択ラジオボタンのクリック (変更なし)"""
@@ -303,7 +327,7 @@ class TestApp(unittest.TestCase):
         mock_agent.play.return_value = (3, 3)
         self.mock_game.place_stone.return_value = False
         with patch('main.logging.error') as mock_log_error:
-            self.app._handle_ai_move(mock_agent, [(3, 3)])
+            self.app._apply_ai_move((3, 3))
             mock_log_error.assert_called()
 
 class TestMainFunction(unittest.TestCase):

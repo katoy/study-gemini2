@@ -2,9 +2,14 @@
 import pygame
 import sys
 import logging
+import threading
+import queue
 from game import Game
 from gui import GameGUI
 from config.theme import Color
+# --- config.i18n からインポート ---
+from config.i18n import _t
+# -----------------------------
 
 class App:
     """
@@ -33,6 +38,11 @@ class App:
         # --- ゲーム状態 ---
         self.game_started = False # ゲームが開始されているか
         self.running = True       # メインループが実行中か
+
+        # --- AI非同期処理用 ---
+        self.ai_thread = None
+        self.ai_queue: queue.Queue = queue.Queue()
+        self.is_ai_thinking = False
 
     def run(self):
         """
@@ -88,6 +98,15 @@ class App:
         Args:
             mouse_click_pos: マウスのクリック位置 (クリックがなければ None)。
         """
+        # --- AIの思考結果をチェック ---
+        if self.is_ai_thinking:
+            try:
+                move = self.ai_queue.get_nowait()
+                self.is_ai_thinking = False
+                self._apply_ai_move(move)
+            except queue.Empty:
+                pass # まだ考え中
+
         # --- 1. マウスクリックに基づく更新 ---
         if mouse_click_pos:
             if not self.game_started:
@@ -177,6 +196,15 @@ class App:
         elif self.gui.is_quit_button_clicked(mouse_click_pos, game_over=False):
             self.running = False
             logging.info("Game exited from in-game screen.") # pragma: no cover
+        elif self.gui.is_undo_button_clicked(mouse_click_pos, game_over=False):
+            # 1手戻る
+            if self.game.history_index >= 0:
+                self.game.replay(self.game.history_index - 1)
+                # AIが相手ならもう1手戻る (自分が打つ直前の状態に戻す)
+                if self.game.agents[self.game.turn] is not None and self.game.history_index >= 0:
+                    self.game.replay(self.game.history_index - 1)
+                self.game.set_message("") # メッセージをクリア
+                logging.info("Game state undone.") # pragma: no cover
 
         # ----------------------------------------------------
         # プレイヤーが人間の手番の場合、盤面クリックを処理
@@ -185,6 +213,10 @@ class App:
 
     def _handle_human_move(self, mouse_click_pos: tuple[int, int]):
         """人間の手番での盤面クリック処理"""
+        # AIが思考中の場合は入力を無視
+        if self.is_ai_thinking:
+            return
+
         # クリックされたセル座標を取得
         row, col = self.gui.get_clicked_cell(mouse_click_pos)
         # 現在のプレイヤーの合法手を取得
@@ -208,6 +240,10 @@ class App:
 
     def _handle_ai_or_pass(self):
         """AIの手番またはパスの処理"""
+        # AIが思考中の場合は何もしない
+        if self.is_ai_thinking:
+            return
+
         current_turn = self.game.turn
         current_agent = self.game.agents[current_turn]
         valid_moves = self.game.get_valid_moves()
@@ -217,13 +253,25 @@ class App:
             self._handle_pass(current_turn)
         elif current_agent is not None:
             # AIの手番の場合
-            self._handle_ai_move(current_agent, valid_moves)
+            self.is_ai_thinking = True
+            self.game.set_message(_t("game.thinking", default="Thinking..."))
+            self.ai_thread = threading.Thread(target=self._run_ai_agent, args=(current_agent,))
+            self.ai_thread.daemon = True
+            self.ai_thread.start()
         # else: 人間の手番の場合は何もしない (クリック待ち)
+
+    def _run_ai_agent(self, agent):
+        """AIエージェントを実行するスレッドワーカー"""
+        try:
+            move = agent.play(self.game)
+            self.ai_queue.put(move)
+        except Exception as e:
+            logging.error(f"Error in AI thread: {e}")
+            self.ai_queue.put(None)
 
     def _handle_pass(self, current_turn: int):
         """パス処理"""
-        current_player_color = '黒' if current_turn == -1 else '白'
-        pass_message = f"{current_player_color}はパスです。"
+        pass_message = _t("game.black_pass") if current_turn == -1 else _t("game.white_pass")
         self.game.set_message(pass_message)
         logging.info(f"Player {'Black' if current_turn == -1 else 'White'} passed.") # pragma: no cover
         self.game.switch_turn() # 手番を交代
@@ -235,16 +283,14 @@ class App:
             logging.info("Both players passed. Game over.") # pragma: no cover
             # 勝敗メッセージの設定は _render で行う
 
-    def _handle_ai_move(self, current_agent, valid_moves: list[tuple[int, int]]):
-        """AIの手番処理"""
-        # AIに次の手を問い合わせる
-        move = current_agent.play(self.game)
+    def _apply_ai_move(self, move: tuple[int, int] | None):
+        """AIの手番結果を適用する"""
+        valid_moves = self.game.get_valid_moves()
         # AIが有効な手を返したか確認
         if move and move in valid_moves:
             # 石を置く処理を実行
             if self.game.place_stone(move[0], move[1]):
-                ai_name = type(current_agent).__name__
-                logging.info(f"AI ({ai_name}) placed stone at {move}.") # pragma: no cover
+                logging.info(f"AI placed stone at {move}.") # pragma: no cover
                 self.game.set_message("") # メッセージをクリア
                 self.game.switch_turn()   # 手番を交代
                 self.game.check_game_over() # ゲームオーバーかチェック
@@ -253,14 +299,11 @@ class App:
             else: # pragma: no cover
                 # 通常、AIがvalid_moves内の手を返すのでここには来ないはず
                 logging.error(f"Error: place_stone{move} returned False unexpectedly for AI agent.") # pragma: no cover
-            # else: 人間の手番の場合は何もしない (クリック待ち)
-
+        else:
             # AIが None を返した、または無効な手を返した場合
-            ai_name = type(current_agent).__name__
-            log_message = f"AI ({ai_name}) returned invalid move: {move}. Valid moves: {valid_moves}"
-            logging.warning(log_message) # pragma: no cover
-            # エラーメッセージを画面に表示するなどの対応も可能
-            # self.game.set_message(f"AI Error: Invalid move {move}")
+            if move is not None: # パス（None）以外で無効な手の場合
+                log_message = f"AI returned invalid move: {move}. Valid moves: {valid_moves}"
+                logging.warning(log_message) # pragma: no cover
 
     def _render(self):
         """画面を描画する"""
@@ -294,11 +337,11 @@ class App:
         # 勝敗メッセージを作成
         winner_message = ""
         if winner == -1:
-            winner_message = "黒の勝ちです！" # pragma: no cover
+            winner_message = _t("game.black_win") # pragma: no cover
         elif winner == 1:
-            winner_message = "白の勝ちです！" # pragma: no cover
+            winner_message = _t("game.white_win") # pragma: no cover
         else:
-            winner_message = "引き分けです！" # pragma: no cover
+            winner_message = _t("game.draw") # pragma: no cover
         # game.message がパスなどで上書きされている可能性があるので、ここで最終的な勝敗メッセージを設定
         self.game.set_message(winner_message)
 
@@ -323,6 +366,7 @@ class App:
         # 手番表示を描画
         self.gui.draw_turn_message(self.game)
         # 各ボタンを描画 (game_over=False)
+        self.gui.draw_undo_button(game_over=False)
         self.gui.draw_restart_button(game_over=False)
         self.gui.draw_reset_button(game_over=False)
         self.gui.draw_quit_button(game_over=False)

@@ -11,6 +11,7 @@ sys.path.append(parent_dir)
 
 from gui import GameGUI
 from config.theme import Color, Screen
+from config.i18n import _t
 from game import Game
 from agents.first_agent import FirstAgent
 from agents.random_agent import RandomAgent
@@ -378,36 +379,12 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         expected_radius = Screen.CELL_SIZE // 2 - 5
         self.mock_pygame_draw.circle.assert_called_once_with(self.gui.screen, color, expected_center, expected_radius)
 
-    @patch('gui.GameGUI._draw_text_with_position')
-    def test_draw_stone_count(self, mock_draw_text):
+    @patch('gui.Label')
+    def test_draw_stone_count(self, mock_label):
         board_rect = self.gui._calculate_board_rect()
         self.game_mock.board.count_stones.return_value = (10, 5)
         self.gui._draw_stone_count(self.game_mock, board_rect)
-        expected_y = board_rect.bottom + Screen.TURN_MESSAGE_TOP_MARGIN
-        left_margin = board_rect.left
-        right_x = self.gui.screen_width - left_margin
-        self.assertEqual(mock_draw_text.call_count, 2)
-        mock_draw_text.assert_any_call("黒: 10", Color.BLACK, (left_margin, expected_y))
-        mock_draw_text.assert_any_call("白: 5", Color.WHITE, (right_x, expected_y), is_right_aligned=True)
-
-    def test_draw_text_with_position(self):
-        text = "Test"
-        color = Color.WHITE
-        pos = (50, 60)
-        self.gui._draw_text_with_position(text, color, pos)
-        self.font_mock.render.assert_called_with(text, True, color)
-        expected_rect = self.dummy_surface.get_rect(topleft=pos)
-        self.gui.screen.blit.assert_called_once_with(self.dummy_surface, expected_rect)
-
-    def test_draw_text_with_position_right_aligned(self):
-        text = "Right"
-        color = Color.BLACK
-        pos = (200, 80)
-        self.gui._draw_text_with_position(text, color, pos, is_right_aligned=True)
-        self.font_mock.render.assert_called_with(text, True, color)
-        expected_rect = self.dummy_surface.get_rect(topleft=pos)
-        expected_rect.right = pos[0]
-        self.gui.screen.blit.assert_called_once_with(self.dummy_surface, expected_rect)
+        self.assertEqual(mock_label.return_value.draw.call_count, 2)
 
     def test_draw_valid_moves(self):
         board_rect = self.gui._calculate_board_rect()
@@ -446,7 +423,7 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         with patch.object(self.gui, '_calculate_turn_message_center_y', return_value=200) as mock_calc_y:
             self.gui.draw_turn_message(self.game_mock)
             mock_calc_y.assert_called_once()
-            expected_message = "白の番です"
+            expected_message = _t("game.white_turn")
             self.font_mock.render.assert_called_with(expected_message, True, Color.WHITE)
             expected_center = (self.gui.screen_width // 2, 200)
             expected_rect = self.dummy_surface.get_rect(center=expected_center)
@@ -465,6 +442,22 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         # __init__ で生成されたインスタンスの draw が呼ばれる
         self.mock_button_instance.draw.assert_called_once_with(self.gui.screen)
 
+    def test_draw_undo_button(self):
+        expected_rect = pygame.Rect(10, 10, 100, 30)
+        self.gui._calculate_button_rect = MagicMock(return_value=expected_rect)
+        mock_button_in_method = MagicMock(spec=OriginalButton)
+        self.MockButton.return_value = mock_button_in_method
+
+        self.gui.draw_undo_button(game_over=False)
+
+        self.gui._calculate_button_rect.assert_called_once_with(False, False, False, False, is_undo_button=True)
+        self.MockButton.assert_called_with(expected_rect, _t("ui.undo"), self.gui.font)
+        mock_button_in_method.draw.assert_called_with(self.gui.screen)
+
+        self.MockButton.return_value = self.mock_button_instance
+        self.gui._calculate_button_rect.reset_mock()
+        self.gui._calculate_button_rect.return_value = None
+
     def test_draw_restart_button(self):
         expected_rect = pygame.Rect(10, 10, 100, 30)
         self.gui._calculate_button_rect = MagicMock(return_value=expected_rect)
@@ -477,7 +470,7 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
 
         self.gui._calculate_button_rect.assert_called_once_with(False, False, False, False)
         # Button が正しい引数でインスタンス化されたか確認
-        self.MockButton.assert_called_with(expected_rect, "リスタート", self.gui.font)
+        self.MockButton.assert_called_with(expected_rect, _t("ui.restart"), self.gui.font)
         # 生成されたインスタンスの draw が呼ばれたか
         mock_button_in_method.draw.assert_called_with(self.gui.screen)
 
@@ -499,7 +492,7 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         self.gui.draw_reset_button(game_over=True)
 
         self.gui._calculate_button_rect.assert_called_once_with(False, True, True, False)
-        self.MockButton.assert_called_with(expected_rect, "リセット", self.gui.font)
+        self.MockButton.assert_called_with(expected_rect, _t("ui.reset"), self.gui.font)
         mock_button_in_method.draw.assert_called_with(self.gui.screen)
 
         # --- 修正: モックの return_value を元に戻す ---
@@ -519,7 +512,7 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         self.gui.draw_quit_button(game_over=False)
 
         self.gui._calculate_button_rect.assert_called_once_with(False, False, False, True)
-        self.MockButton.assert_called_with(expected_rect, "終了", self.gui.font)
+        self.MockButton.assert_called_with(expected_rect, _t("ui.quit"), self.gui.font)
         mock_button_in_method.draw.assert_called_with(self.gui.screen)
 
         # --- 修正: モックの return_value を元に戻す ---
@@ -528,71 +521,23 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         self.gui._calculate_button_rect.reset_mock()
         self.gui._calculate_button_rect.return_value = None
 
-    # === ラジオボタン関連のテスト ===
-    def test_draw_radio_button(self):
-        pos = (100, 120)
-        selected = True
-        enabled = True
-        self.gui.draw_radio_button(pos, selected, enabled)
-        center = (pos[0] + Screen.RADIO_BUTTON_SIZE // 2, pos[1] + Screen.RADIO_BUTTON_SIZE // 2)
-        outer_radius = Screen.RADIO_BUTTON_SIZE // 2
-        inner_radius = int(Screen.RADIO_BUTTON_SIZE * Screen.RADIO_BUTTON_INNER_CIRCLE_RATIO // 2)
-        self.assertEqual(self.mock_pygame_draw.circle.call_count, 2)
-        self.mock_pygame_draw.circle.assert_any_call(self.gui.screen, Color.DARK_BLUE, center, outer_radius, 1)
-        self.mock_pygame_draw.circle.assert_any_call(self.gui.screen, Color.DARK_BLUE, center, inner_radius)
-
-    def test_draw_radio_button_not_selected(self):
-        pos = (100, 120)
-        selected = False
-        enabled = True
-        self.gui.draw_radio_button(pos, selected, enabled)
-        center = (pos[0] + Screen.RADIO_BUTTON_SIZE // 2, pos[1] + Screen.RADIO_BUTTON_SIZE // 2)
-        outer_radius = Screen.RADIO_BUTTON_SIZE // 2
-        self.assertEqual(self.mock_pygame_draw.circle.call_count, 1)
-        self.mock_pygame_draw.circle.assert_called_once_with(self.gui.screen, Color.DARK_BLUE, center, outer_radius, 1)
-
-    def test_draw_radio_button_disabled(self):
-        pos = (100, 120)
-        selected = True
-        enabled = False
-        self.gui.draw_radio_button(pos, selected, enabled)
-        center = (pos[0] + Screen.RADIO_BUTTON_SIZE // 2, pos[1] + Screen.RADIO_BUTTON_SIZE // 2)
-        outer_radius = Screen.RADIO_BUTTON_SIZE // 2
-        inner_radius = int(Screen.RADIO_BUTTON_SIZE * Screen.RADIO_BUTTON_INNER_CIRCLE_RATIO // 2)
-        self.assertEqual(self.mock_pygame_draw.circle.call_count, 2)
-        self.mock_pygame_draw.circle.assert_any_call(self.gui.screen, Color.LIGHT_BLUE, center, outer_radius, 1)
-        self.mock_pygame_draw.circle.assert_any_call(self.gui.screen, Color.LIGHT_BLUE, center, inner_radius)
-
-    def test_draw_text(self):
-        text = "Label"
-        pos = (150, 160)
-        enabled = True
-        self.gui.draw_text(text, pos, enabled)
-        self.font_mock.render.assert_called_with(text, True, Color.WHITE)
-        expected_rect = self.dummy_surface.get_rect(topleft=pos)
-        self.gui.screen.blit.assert_called_once_with(self.dummy_surface, expected_rect)
-
-    def test_draw_text_disabled(self):
-        text = "Disabled Label"
-        pos = (150, 160)
-        enabled = False
-        self.gui.draw_text(text, pos, enabled)
-        self.font_mock.render.assert_called_with(text, True, Color.DISABLED_TEXT)
-        expected_rect = self.dummy_surface.get_rect(topleft=pos)
-        self.gui.screen.blit.assert_called_once_with(self.dummy_surface, expected_rect)
-
-    @patch('gui.GameGUI.draw_radio_button')
-    @patch('gui.GameGUI._draw_text_with_position')
-    def test_draw_player_settings_calls_draw_methods(self, mock_draw_text, mock_draw_radio):
+    @patch('gui.RadioButton')
+    @patch('gui.Label')
+    def test_draw_player_settings_calls_draw_methods(self, mock_label, mock_radio):
         mock_first_agent = MagicMock(spec=FirstAgent)
         self.game_mock.agents = {-1: None, 1: mock_first_agent}
         player_settings_top = 100
         enabled = True
         self.gui._calculate_board_rect = MagicMock(return_value=pygame.Rect(0,0,400,400))
         self.gui.draw_player_settings(self.game_mock, player_settings_top, enabled)
-        expected_calls = len(self.test_agent_options) * 2
-        self.assertEqual(mock_draw_radio.call_count, expected_calls)
-        self.assertEqual(mock_draw_text.call_count, 2 + expected_calls)
+        
+        # プレイヤーごとの選択肢数 * 2 (黒と白)
+        expected_radio_calls = len(self.test_agent_options) * 2
+        self.assertEqual(mock_radio.return_value.draw.call_count, expected_radio_calls)
+        
+        # ラベル: "黒プレイヤー", "白プレイヤー" + (選択肢名 * 2)
+        expected_label_calls = 2 + (len(self.test_agent_options) * 2)
+        self.assertEqual(mock_label.return_value.draw.call_count, expected_label_calls)
 
     def test_get_clicked_radio_button(self):
         """get_clicked_radio_button が正しいボタンを返すか"""
@@ -800,6 +745,26 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         # --- 修正: モックの return_value を元に戻す ---
         self.MockButton.return_value = self.mock_button_instance
         # -----------------------------------------
+        self.gui._calculate_button_rect = original_calc_rect
+
+    def test_is_undo_button_clicked(self):
+        """is_undo_button_clicked が正しく判定するか"""
+        expected_rect = pygame.Rect(10, 200, 100, 40)
+        original_calc_rect = self.gui._calculate_button_rect
+        self.gui._calculate_button_rect = MagicMock(wraps=original_calc_rect)
+        self.gui._calculate_button_rect.return_value = expected_rect
+
+        mock_temp_button_instance = MagicMock(spec=OriginalButton)
+        mock_temp_button_instance.is_clicked.return_value = True
+        self.MockButton.return_value = mock_temp_button_instance
+
+        click_pos = expected_rect.center
+        self.assertTrue(self.gui.is_undo_button_clicked(click_pos, game_over=False))
+        self.gui._calculate_button_rect.assert_called_with(False, False, False, False, is_undo_button=True)
+        self.MockButton.assert_called_with(expected_rect, "", self.gui.font)
+        mock_temp_button_instance.is_clicked.assert_called_with(click_pos)
+
+        self.MockButton.return_value = self.mock_button_instance
         self.gui._calculate_button_rect = original_calc_rect
 
     def test_is_restart_button_clicked(self):
