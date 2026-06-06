@@ -38,6 +38,18 @@ class TestThrottlingFilter(unittest.TestCase):
             self.assertTrue(f.filter(r_info))
             self.assertTrue(f.filter(r_warning))
 
+    def test_handles_formatting_error_and_fallback(self):
+        f = ThrottlingFilter(interval_seconds=1.0)
+        with patch('utils.logging_utils.time.time') as mock_time:
+            mock_time.return_value = 100.0
+            # Create a LogRecord whose getMessage will raise due to format mismatch
+            r = logging.LogRecord('test', logging.INFO, __file__, 1, 'bad %s %s', ('one',), None)
+            # First call should pass (no prior message)
+            self.assertTrue(f.filter(r))
+            # Immediate second call should be throttled
+            mock_time.return_value = 100.5
+            self.assertFalse(f.filter(r))
+
 
 if __name__ == '__main__':
     unittest.main()
