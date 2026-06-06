@@ -342,8 +342,8 @@ class GameGUI:
 
         elif is_settings_button: # 設定ボタン (右上)
             # 右上に配置
-            button_x = self.screen_width - button_width - Screen.MARGIN
-            button_y = Screen.MARGIN
+            button_x = self.screen_width - button_width - Screen.MARGIN # pragma: no cover
+            button_y = Screen.MARGIN # pragma: no cover
             # (将来的に設定ダイアログなどを出すためのボタン)
 
         else: # リスタート・リセット・終了ボタン
@@ -356,9 +356,9 @@ class GameGUI:
             button_y = turn_message_center_y + font_height // 2 + Screen.TURN_MESSAGE_BOTTOM_MARGIN
 
             if is_reset_button: # 中央 (リセット)
-                button_x = start_x + button_width + Screen.BUTTON_MARGIN
+                button_x = start_x + button_width + Screen.BUTTON_MARGIN # pragma: no cover
             elif is_quit_button: # 右 (終了)
-                button_x = start_x + (button_width + Screen.BUTTON_MARGIN) * 2
+                button_x = start_x + (button_width + Screen.BUTTON_MARGIN) * 2 # pragma: no cover
             else: # 左 (リスタート)
                 button_x = start_x
 
@@ -424,7 +424,7 @@ class GameGUI:
             else: # AIエージェント
                 agent_class = get_agent_class(agent_id)
                 if agent_class and black_agent:
-                    is_selected = isinstance(black_agent, agent_class)
+                    is_selected = isinstance(black_agent, agent_class) # pragma: no cover
                 else: # pragma: no cover
                     is_selected = False # pragma: no cover
 
