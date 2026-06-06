@@ -69,7 +69,11 @@ class RadioButton:
 
     def draw(self, screen: pygame.Surface):
         center = self.rect.center
-        outer_color = Color.DARK_BLUE if self.enabled else Color.LIGHT_BLUE
+        # 非選択時は背景から区別しやすい色を使い、選択時は濃い色で表示。
+        if self.enabled:
+            outer_color = Color.DARK_BLUE if self.selected else Color.RADIO_UNSELECTED
+        else:
+            outer_color = Color.DISABLED_TEXT
         pygame.draw.circle(screen, outer_color, center, self.size // 2, 1)
         if self.selected:
             # 選択時は背景と区別しやすい色を使用（有効時は RADIO_SELECTED、無効時は DISABLED_TEXT）
