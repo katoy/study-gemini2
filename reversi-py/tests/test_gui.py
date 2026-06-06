@@ -391,6 +391,16 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         self.gui._draw_stone_count(self.game_mock, board_rect)
         self.assertEqual(mock_label.return_value.draw.call_count, 2)
 
+    @patch('gui.Label')
+    def test_draw_player_settings_both_ai(self, mock_label):
+        """両方 AI の場合に区別バッジを描画する"""
+        self.game_mock.agents = {-1: MagicMock(name='BlackAI'), 1: MagicMock(name='WhiteAI')}
+        player_settings_top = self.gui._calculate_player_settings_top()
+        self.gui.draw_player_settings(self.game_mock, player_settings_top, enabled=False)
+        texts = [args[1] for args, _ in mock_label.call_args_list]
+        self.assertIn("AI (Black)", texts)
+        self.assertIn("AI (White)", texts)
+
     def test_draw_valid_moves(self):
         board_rect = self.gui._calculate_board_rect()
         valid_moves = [(2, 3), (5, 5)]

@@ -2,7 +2,7 @@ class Color:
     """
     ゲームで使用する色を定義するクラス。
     """
-    BACKGROUND = (32, 32, 32)       # 画面全体の背景色
+    BACKGROUND = (96, 96, 96)       # 画面全体の背景色 (スクリーンショットに合わせグレーに変更)
     BOARD      = (0, 102, 0)        # 盤面の背景色
     BLACK      = (0, 0, 0)           # 黒石の色
     WHITE      = (255, 255, 255)       # 白石の色
@@ -43,3 +43,5 @@ class Screen:
     BUTTON_VERTICAL_MARGIN = 5 # ボタンの上下マージン
     BUTTON_BORDER_WIDTH = 2  # ボタンの枠線の太さ
     BUTTON_BOTTOM_MARGIN = 10 # ボタンの下マージン
+    # サイドの最小余白（ピクセル） — これを小さくすると左右の空白が減る
+    SIDE_PADDING = 20
