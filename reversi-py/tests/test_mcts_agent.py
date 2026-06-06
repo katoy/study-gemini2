@@ -51,5 +51,13 @@ class TestMCTSNode(unittest.TestCase):
         # best should be either child1 or child2 depending on UCB scores
         self.assertIn(best, parent.children)
 
+    def test_simulate_draw_for_white_perspective(self):
+        # Node with board that immediately ends in draw
+        draw_board = DummyBoard(moves=[], counts=(30,30))
+        node = mcts_agent.Node(draw_board, turn=1)
+        agent = mcts_agent.MonteCarloTreeSearchAgent(iterations=1, time_limit_ms=1)
+        result = agent._simulate(node)
+        self.assertEqual(result, 0.5)
+
 if __name__ == '__main__':
     unittest.main()
