@@ -20,6 +20,8 @@ class Color:
     RED        = (255, 0, 0)        # 赤色
     MODAL_BACKGROUND = (0, 0, 0, 128) # モーダルダイアログの背景色 (半透明)
     MODAL_CONTENT = (128, 128, 128)   # モーダルダイアログのコンテンツ領域の色
+    # 両AIが表示するバッジの半透明背景色
+    BADGE_BG = (0, 0, 0, 160)
 
 class Screen:
     """
