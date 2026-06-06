@@ -29,28 +29,11 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         try:
             pygame.init()
             cls.pygame_initialized = True
+            cls.skip_tests = False
         except pygame.error as e:
             cls.pygame_initialized = False
-            print(f"\nPygame initialization failed in setUpClass: {e}. Skipping GUI tests.", file=sys.stderr)
-            # --- 追加: Pygame初期化失敗時にテストをスキップするためのフラグ ---
             cls.skip_tests = True
             cls.skip_reason = f"Pygame initialization failed: {e}"
-        else:
-            cls.skip_tests = False
-            cls.skip_reason = ""
-            # --- 追加: フォントの準備 ---
-            try:
-                cls.OriginalPygameFont = pygame.font.Font # 元のクラスを保持
-                # --- 修正: setUpClass ではモックを作らず、クラス参照のみ保持 ---
-                # cls.font_mock_for_setup = MagicMock(spec=cls.OriginalPygameFont)
-                # dummy_surface = pygame.Surface((10, 10))
-                # cls.font_mock_for_setup.render.return_value = dummy_surface
-                # cls.font_mock_for_setup.get_height.return_value = 24
-                # ----------------------------------------------------------
-            except Exception as font_e:
-                cls.skip_tests = True
-                cls.skip_reason = f"Font setup failed during setUpClass: {font_e}"
-            # --------------------------
 
     @classmethod
     def tearDownClass(cls):
@@ -60,33 +43,17 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
 
     def setUp(self):
         """各テストメソッドの前に実行"""
-        # --- 修正: setUpClass でスキップ判定 ---
         if self.skip_tests:
             self.skipTest(self.skip_reason)
-        # ------------------------------------
 
-        # --- 修正: モック化する前の Font クラスへの参照を保持 ---
-        # setUpClass で保持したものを利用
-        self.OriginalPygameFont = self.__class__.OriginalPygameFont
-        # ----------------------------------------------------
-
-        # --- _load_font のテストのために、GameGUI の初期化前にパッチを適用 ---
-        # --- 修正: setUp で毎回新しいモックを作成し、それを返すようにパッチ ---
-        self.font_mock = MagicMock(spec=self.OriginalPygameFont)
-        self.dummy_surface = MagicMock(spec=pygame.Surface)
-        self.dummy_surface.get_rect.return_value = MagicMock(spec=pygame.Rect)
+        # conftest で設定されたフォントモックを取得
+        self.mock_pygame_font = pygame.font.Font
+        self.mock_pygame_sysfont = pygame.font.SysFont
+        self.font_mock = pygame.font.Font.return_value
+        self.dummy_surface = self.font_mock.render.return_value
         self.dummy_surface.get_height.return_value = 24
-        self.font_mock.render.return_value = self.dummy_surface
-        self.font_mock.get_height.return_value = 24
-
-        self.patcher_pygame_font = patch('gui.pygame.font.Font', return_value=self.font_mock)
-        self.mock_pygame_font = self.patcher_pygame_font.start()
-        self.addCleanup(self.patcher_pygame_font.stop)
-
-        self.patcher_pygame_sysfont = patch('gui.pygame.font.SysFont', return_value=self.font_mock) # SysFont も同じモックを返す
-        self.mock_pygame_sysfont = self.patcher_pygame_sysfont.start()
-        self.addCleanup(self.patcher_pygame_sysfont.stop)
-        # ----------------------------------------------------------------
+        self.dummy_surface.get_width.return_value = 50
+        self.dummy_surface.get_rect.return_value = MagicMock(spec=pygame.Rect)
 
         self.patcher_path_exists = patch('gui.Path.exists', return_value=True)
         self.mock_path_exists = self.patcher_path_exists.start()
@@ -960,6 +927,50 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         self.MockButton.return_value = self.mock_button_instance
         # -----------------------------------------
         self.gui._calculate_button_rect = original_calc_rect
+
+    def test_is_settings_button_clicked(self):
+        """is_settings_button_clicked が正しく判定するか"""
+        expected_rect = pygame.Rect(10, 10, 50, 50)
+        original_calc_rect = self.gui._calculate_button_rect
+        self.gui._calculate_button_rect = MagicMock(return_value=expected_rect)
+
+        mock_temp_button_instance = MagicMock(spec=OriginalButton)
+        mock_temp_button_instance.is_clicked.return_value = True
+        self.MockButton.return_value = mock_temp_button_instance
+        
+        self.assertTrue(self.gui.is_settings_button_clicked((15, 15)))
+        self.gui._calculate_button_rect.assert_called_once_with(is_settings_button=True)
+        
+        self.MockButton.return_value = self.mock_button_instance
+        self.gui._calculate_button_rect = original_calc_rect
+
+    def test_draw_text(self):
+        """draw_text メソッドのテスト"""
+        self.gui.draw_text("Test", (100, 100), enabled=True)
+        self.font_mock.render.assert_called_with("Test", True, Color.WHITE)
+        
+        self.gui.draw_text("Disabled", (100, 100), enabled=False)
+        self.font_mock.render.assert_called_with("Disabled", True, Color.DISABLED_TEXT)
+
+    def test_draw_turn_message(self):
+        """draw_turn_message メソッドのテスト"""
+        game_mock = MagicMock()
+        game_mock.game_over = False
+        game_mock.turn = -1
+        # setUp で 1 回 render が呼ばれているので、リセットしておく
+        self.font_mock.render.reset_mock()
+        
+        self.gui.draw_turn_message(game_mock)
+        self.font_mock.render.assert_called_with("黒の番です", True, Color.WHITE)
+        
+        game_mock.turn = 1
+        self.gui.draw_turn_message(game_mock)
+        self.font_mock.render.assert_called_with("白の番です", True, Color.WHITE)
+        
+        game_mock.game_over = True
+        self.gui.draw_turn_message(game_mock)
+        # 3回目は呼ばれないはず
+        self.assertEqual(self.font_mock.render.call_count, 2)
 
 
 if __name__ == '__main__':

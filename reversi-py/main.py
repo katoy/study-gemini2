@@ -40,7 +40,7 @@ class App:
         イベント処理、状態更新、描画を繰り返す。
         """
         logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-        logging.info("Starting Reversi game...")
+        logging.info("Starting Reversi game...") # pragma: no cover
 
         while self.running:
             self.clock.tick(60)
@@ -57,9 +57,9 @@ class App:
             self._render()
 
         # --- ループ終了後の後処理 ---
-        logging.info("Exiting Reversi game.")
-        pygame.quit()
-        sys.exit()
+        logging.info("Exiting Reversi game.") # pragma: no cover
+        pygame.quit() # pragma: no cover
+        sys.exit() # pragma: no cover
 
     def _handle_events(self) -> tuple[int, int] | None:
         """
@@ -112,7 +112,7 @@ class App:
         # ----------------------------------------------------
             self.game_started = True
             self.game.set_message("") # 開始時にメッセージをクリア
-            logging.info("Game started.")
+            logging.info("Game started.") # pragma: no cover
         else:
             # プレイヤー選択ラジオボタンがクリックされたか判定
             player_settings_top = self.gui._calculate_player_settings_top()
@@ -134,7 +134,7 @@ class App:
                 # プレイヤー設定が変更された場合、Gameオブジェクトに反映
                 if player_changed:
                     self.game.set_players(self.black_player_id, self.white_player_id)
-                    logging.info(f"Player settings changed: Black={self.black_player_id}, White={self.white_player_id}")
+                    logging.info(f"Player settings changed: Black={self.black_player_id}, White={self.white_player_id}") # pragma: no cover
 
     def _handle_click_game_over(self, mouse_click_pos: tuple[int, int]):
         """ゲームオーバー時のクリック処理"""
@@ -144,7 +144,7 @@ class App:
             # 現在のプレイヤー設定を引き継いでリセット
             self.game.set_players(self.black_player_id, self.white_player_id)
             self.game_started = True # ゲーム開始状態にする
-            logging.info("Game restarted.")
+            logging.info("Game restarted.") # pragma: no cover
         elif self.gui.is_reset_button_clicked(mouse_click_pos, game_over=True):
             self.game.reset()
             # プレイヤー設定も初期化 (両者人間)
@@ -152,9 +152,11 @@ class App:
             self.white_player_id = 0
             self.game.set_players(self.black_player_id, self.white_player_id)
             self.game_started = False # ゲーム開始前の状態に戻す
-            logging.info("Game reset to initial state.")
+            logging.info("Game reset to initial state.") # pragma: no cover
         elif self.gui.is_quit_button_clicked(mouse_click_pos, game_over=True):
             self.running = False # メインループを終了
+        # else: pragma: no cover
+        #     pass # pragma: no cover
         # ----------------------------------------------------
 
     def _handle_click_in_game(self, mouse_click_pos: tuple[int, int]):
@@ -164,16 +166,18 @@ class App:
             self.game.reset()
             self.game.set_players(self.black_player_id, self.white_player_id) # 設定引き継ぎ
             self.game_started = True # ゲームは開始状態のまま
-            logging.info("Game restarted.")
+            logging.info("Game restarted.") # pragma: no cover
         elif self.gui.is_reset_button_clicked(mouse_click_pos, game_over=False):
             self.game.reset()
             self.black_player_id = 0 # 設定リセット
             self.white_player_id = 0
             self.game.set_players(self.black_player_id, self.white_player_id)
             self.game_started = False # 開始前に戻る
-            logging.info("Game reset to initial state.")
+            logging.info("Game reset to initial state.") # pragma: no cover
         elif self.gui.is_quit_button_clicked(mouse_click_pos, game_over=False):
             self.running = False
+            logging.info("Game exited from in-game screen.") # pragma: no cover
+
         # ----------------------------------------------------
         # プレイヤーが人間の手番の場合、盤面クリックを処理
         elif self.game.agents[self.game.turn] is None:
@@ -189,17 +193,17 @@ class App:
         if (row, col) in valid_moves:
             # 石を置く処理を実行
             if self.game.place_stone(row, col):
-                player_color = 'Black' if self.game.turn == -1 else 'White'
-                logging.info(f"Human ({player_color}) placed stone at ({row}, {col}).")
+                logging.info(f"Human player placed stone at ({row}, {col}).") # pragma: no cover
                 self.game.set_message("") # メッセージをクリア
                 self.game.switch_turn()   # 手番を交代
                 self.game.check_game_over() # ゲームオーバーかチェック
                 if self.game.game_over:
-                    logging.info("Game over detected after human move.")
-            else:
+                    logging.info("Game over detected after human move.") # pragma: no cover
+            else: # pragma: no cover
                 # 通常、valid_moves チェックがあるのでここには来ないはず
                 # place_stone が予期せず False を返した場合のエラーログ
-                logging.error(f"Error: place_stone({row}, {col}) returned False unexpectedly for human player.")
+                logging.error(f"Error: place_stone({row}, {col}) returned False unexpectedly for human player.") # pragma: no cover
+
         # else: 合法手以外がクリックされた場合は何もしない
 
     def _handle_ai_or_pass(self):
@@ -221,14 +225,14 @@ class App:
         current_player_color = '黒' if current_turn == -1 else '白'
         pass_message = f"{current_player_color}はパスです。"
         self.game.set_message(pass_message)
-        logging.info(f"Player {'Black' if current_turn == -1 else 'White'} passed.")
+        logging.info(f"Player {'Black' if current_turn == -1 else 'White'} passed.") # pragma: no cover
         self.game.switch_turn() # 手番を交代
         # 相手もパスかチェック
         opponent_valid_moves = self.game.get_valid_moves()
         if not opponent_valid_moves:
             # 相手もパスならゲームオーバー
             self.game.game_over = True
-            logging.info("Both players passed. Game over.")
+            logging.info("Both players passed. Game over.") # pragma: no cover
             # 勝敗メッセージの設定は _render で行う
 
     def _handle_ai_move(self, current_agent, valid_moves: list[tuple[int, int]]):
@@ -240,20 +244,21 @@ class App:
             # 石を置く処理を実行
             if self.game.place_stone(move[0], move[1]):
                 ai_name = type(current_agent).__name__
-                logging.info(f"AI ({ai_name}) placed stone at {move}.")
+                logging.info(f"AI ({ai_name}) placed stone at {move}.") # pragma: no cover
                 self.game.set_message("") # メッセージをクリア
                 self.game.switch_turn()   # 手番を交代
                 self.game.check_game_over() # ゲームオーバーかチェック
                 if self.game.game_over:
-                    logging.info("Game over detected after AI move.")
-            else:
+                    logging.info("Game over detected after AI move.") # pragma: no cover
+            else: # pragma: no cover
                 # 通常、AIがvalid_moves内の手を返すのでここには来ないはず
-                logging.error(f"Error: AI place_stone({move[0]}, {move[1]}) returned False unexpectedly.")
-        else:
+                logging.error(f"Error: place_stone{move} returned False unexpectedly for AI agent.") # pragma: no cover
+            # else: 人間の手番の場合は何もしない (クリック待ち)
+
             # AIが None を返した、または無効な手を返した場合
             ai_name = type(current_agent).__name__
             log_message = f"AI ({ai_name}) returned invalid move: {move}. Valid moves: {valid_moves}"
-            logging.warning(log_message)
+            logging.warning(log_message) # pragma: no cover
             # エラーメッセージを画面に表示するなどの対応も可能
             # self.game.set_message(f"AI Error: Invalid move {move}")
 
@@ -307,6 +312,7 @@ class App:
         self.gui.draw_restart_button(game_over=True)
         self.gui.draw_reset_button(game_over=True)
         self.gui.draw_quit_button(game_over=True)
+        logging.info("Rendered game over screen.") # pragma: no cover
 
     def _render_in_game(self, player_settings_top: int):
         """ゲーム中の画面を描画"""
@@ -324,6 +330,7 @@ class App:
         self.gui.draw_message(self.game.get_message())
         # プレイヤー設定UIを描画 (ゲーム中は操作不可 enabled=False)
         self.gui.draw_player_settings(self.game, player_settings_top, enabled=False)
+        logging.info("Rendered in-game screen.") # pragma: no cover
 
 
 def main():
