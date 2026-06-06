@@ -2,6 +2,7 @@
 import pygame
 import sys
 import logging
+from utils.logging_utils import ThrottlingFilter
 import threading
 import queue
 from game import Game
@@ -47,6 +48,13 @@ class App:
         イベント処理、状態更新、描画を繰り返す。
         """
         logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+        # Attach throttling filter to reduce repeated identical log messages
+        try:
+            root_logger = logging.getLogger()
+            root_logger.addFilter(ThrottlingFilter(interval_seconds=0.5))
+        except Exception:
+            # if filter cannot be attached for any reason, continue without failing
+            pass
         logging.info("Starting Reversi game...") # pragma: no cover
 
         while self.running: # pragma: no cover
