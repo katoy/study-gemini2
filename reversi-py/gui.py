@@ -1,9 +1,8 @@
 # gui.py
 import pygame
-import os
 from pathlib import Path
 # --- config.agents からヘルパー関数をインポート ---
-from config.agents import get_agent_options, get_agent_class
+from config.agents_config import get_agent_options, get_agent_class
 # --- config.theme からインポート ---
 from config.theme import Color, Screen
 # <<< 追加: ui_elements から Button をインポート >>>
@@ -325,18 +324,8 @@ class GameGUI:
     # ---------------------------------
 
     # --- _calculate_button_rect は変更なし ---
-    def _calculate_button_rect(self, is_start_button, game_over=False, is_reset_button=False, is_quit_button=False): # is_quit_button 引数を追加
+    def _calculate_button_rect(self, is_start_button=False, game_over=False, is_reset_button=False, is_quit_button=False, is_settings_button=False): # is_quit_button 引数を追加
         """ボタンの描画領域(Rect)を計算する"""
-        if is_start_button:
-            text = "ゲーム開始"
-        elif is_reset_button:
-            text = "リセット"
-        elif is_quit_button: # 終了ボタンのテキスト
-            text = "終了"
-        else: # リスタートボタン
-            text = "リスタート"
-
-        text_surface = self.font.render(text, True, Color.BUTTON_TEXT)
         # ボタン幅はテキストに応じて可変にする場合 (今回は固定幅とする)
         # button_width = text_surface.get_width() + Screen.BUTTON_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
         # 固定幅にする (例: "リスタート" の幅を基準にする)
@@ -545,4 +534,9 @@ class GameGUI:
         """終了ボタンがクリックされたか判定"""
         button_rect = self._calculate_button_rect(False, game_over, False, True)
         return Button(button_rect, "", self.font).is_clicked(pos)
+
+    def is_settings_button_clicked(self, pos: tuple[int, int]) -> bool:
+        """設定ボタンがクリックされたか判定"""
+        settings_rect = self._calculate_button_rect(is_settings_button=True)
+        return Button(settings_rect, "", self.font).is_clicked(pos)
     # ---------------------------------------------

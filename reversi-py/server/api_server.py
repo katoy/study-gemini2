@@ -101,7 +101,7 @@ if __name__ == "__main__":
         uvicorn.run(app, host="0.0.0.0", port=5001, log_level="info")
     except OSError as e:
         if "Address already in use" in str(e):
-            print(f"エラー: ポート 5001 は既に使用中です。")
+            print("エラー: ポート 5001 は既に使用中です。")
             print("他のプロセスがポートを使用していないか確認するか、別のポートを指定してください。")
         else:
             print(f"サーバー起動エラー: {e}")

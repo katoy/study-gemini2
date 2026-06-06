@@ -2,18 +2,14 @@
 import unittest
 import sys
 from pathlib import Path
-from unittest.mock import patch # print文の出力を抑制するために使用 (任意)
+from unittest.mock import patch
 
-# プロジェクトルートをsys.pathに追加
-# このテストファイル (test_agents.py) の親 (config) のさらに親 (tests) のさらに親 (プロジェクトルート)
 project_root = Path(__file__).resolve().parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
 
-# テスト対象のモジュールをインポート
-# config.agents モジュールから必要な関数と定数をインポート
 try:
-    from config.agents import (
+    from config.agents_config import (
         AGENT_DEFINITIONS,
         get_agent_options,
         get_agent_class,
@@ -22,15 +18,13 @@ try:
     from config.agent_config_utils import get_agent_params
 except ImportError as e:
     print(f"テストのインポートエラー: {e}")
-    print("config/agents.py が見つからないか、インポートできません。")
+    print("config/agents_config.py が見つからないか、インポートできません。")
     print("プロジェクト構造と sys.path を確認してください。")
     print(f"現在の sys.path: {sys.path}")
     sys.exit(1)
 
-# 比較のためにエージェントクラスもインポート
-# (get_agent_class のテストで使用)
 try:
-    from agents.base_agent import Agent # Base class (optional)
+    from agents.base_agent import Agent
     from agents.first_agent import FirstAgent
     from agents.random_agent import RandomAgent
     from agents.gain_agent import GainAgent

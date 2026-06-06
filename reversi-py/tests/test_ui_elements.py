@@ -5,16 +5,12 @@ from unittest.mock import MagicMock, call, patch
 import sys
 import os
 
-# --- プロジェクトルートへのパスを追加 ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
-# ------------------------------------
 
-# --- テスト対象と依存モジュールをインポート ---
 from ui_elements import Button
 from config.theme import Color, Screen
-# -----------------------------------------
 
 class TestButton(unittest.TestCase):
 

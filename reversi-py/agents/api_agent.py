@@ -1,7 +1,6 @@
 # agents/api_agent.py
 from .base_agent import Agent
 import requests
-import time
 import logging
 import os  # 環境変数を参照するために追加
 

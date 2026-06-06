@@ -1,5 +1,4 @@
 import unittest
-import json
 from fastapi.testclient import TestClient
 from api_server import app
 from fastapi import status

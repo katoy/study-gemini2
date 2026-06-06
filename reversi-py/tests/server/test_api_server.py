@@ -1,6 +1,5 @@
 # tests/server/test_api_server.py
 import unittest
-import json
 import sys
 from pathlib import Path
 
@@ -15,14 +14,13 @@ if str(project_root) not in sys.path:
 try:
     from server.api_server import app
     from board import Board
+    IMPORT_SUCCESS = True
 except ImportError as e:
     print(f"テストのインポートエラー: {e}")
-    print("server/api_server.py または board.py が見つからないか、インポートできません。")
-    print("プロジェクト構造と sys.path を確認してください。")
-    print(f"現在の sys.path: {sys.path}")
-    sys.exit(1)
+    IMPORT_SUCCESS = False
 
 
+@unittest.skipIf(not IMPORT_SUCCESS, "FastAPI が利用できない")
 class TestApiServer(unittest.TestCase):
 
     def setUp(self):

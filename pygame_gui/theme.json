@@ -1,0 +1,28 @@
+{
+    "defaults": {
+        "font": {
+            "regular_path": "/Users/katoy/github/study-gemini2/pygame_gui/fonts/azuki.ttf"
+        },
+        "colours": {
+            "normal_text": "#FFFFFF",
+            "dark_bg": "#202020"
+        }
+    },
+    "UIButton": {
+        "misc": {
+            "size": 64,
+            "shape": "rounded_rectangle",
+            "shape_corner_radius": 5,
+            "border_width": 1,
+            "shadow_width": 2
+        }
+    },
+    "#open_popup_button": {
+    },
+    "#quit_button": {
+    },
+    "UIWindow":{
+    },
+    "@popup_label": {
+    }
+}

@@ -1,23 +1,19 @@
 # tests/test_gui.py
 import unittest
 import pygame
-from unittest.mock import MagicMock, patch, call, ANY # ANY をインポート
+from unittest.mock import MagicMock, patch, ANY
 import sys
 import os
-from pathlib import Path # _load_font のテストで使用
 
-# プロジェクトルートへのパスを追加
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-# テスト対象と依存モジュール
 from gui import GameGUI
 from config.theme import Color, Screen
-from game import Game # Game のモック化のためインポート
-from agents.first_agent import FirstAgent # モック用
-from agents.random_agent import RandomAgent # モック用
-# Button クラスをモック化するためにインポート (元のクラスとして参照)
+from game import Game
+from agents.first_agent import FirstAgent
+from agents.random_agent import RandomAgent
 from ui_elements import Button as OriginalButton
 
 # --- App クラスのテストは test_main.py に移動するため、ここからは削除 ---
@@ -143,9 +139,12 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         self.addCleanup(self.patcher_get_options.stop)
 
         def mock_get_class(agent_id):
-            if agent_id == 0: return None
-            if agent_id == 1: return FirstAgent
-            if agent_id == 2: return RandomAgent
+            if agent_id == 0:
+                return None
+            if agent_id == 1:
+                return FirstAgent
+            if agent_id == 2:
+                return RandomAgent
             return None
         self.patcher_get_class = patch('gui.get_agent_class', side_effect=mock_get_class)
         self.mock_get_class = self.patcher_get_class.start()
@@ -421,8 +420,8 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         left_margin = board_rect.left
         right_x = self.gui.screen_width - left_margin
         self.assertEqual(mock_draw_text.call_count, 2)
-        mock_draw_text.assert_any_call(f"黒: 10", Color.BLACK, (left_margin, expected_y))
-        mock_draw_text.assert_any_call(f"白: 5", Color.WHITE, (right_x, expected_y), is_right_aligned=True)
+        mock_draw_text.assert_any_call("黒: 10", Color.BLACK, (left_margin, expected_y))
+        mock_draw_text.assert_any_call("白: 5", Color.WHITE, (right_x, expected_y), is_right_aligned=True)
 
     def test_draw_text_with_position(self):
         text = "Test"

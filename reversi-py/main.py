@@ -43,8 +43,7 @@ class App:
         logging.info("Starting Reversi game...")
 
         while self.running:
-            # FPS制限とデルタタイム (今回は未使用だが、将来的なアニメーション等で利用可能)
-            time_delta = self.clock.tick(60) / 1000.0
+            self.clock.tick(60)
 
             # 1. イベント処理
             mouse_click_pos = self._handle_events()
@@ -97,7 +96,7 @@ class App:
             elif self.game.game_over:
                 # ゲームオーバー時のクリック処理 (リスタート、リセット、終了)
                 self._handle_click_game_over(mouse_click_pos)
-            else: # ゲーム中
+            else:  # ゲーム中
                 # ゲーム中のクリック処理 (リスタート、リセット、終了、盤面クリック)
                 self._handle_click_in_game(mouse_click_pos)
 
@@ -289,9 +288,12 @@ class App:
         winner = self.game.get_winner()
         # 勝敗メッセージを作成
         winner_message = ""
-        if winner == -1: winner_message = "黒の勝ちです！"
-        elif winner == 1: winner_message = "白の勝ちです！"
-        else: winner_message = "引き分けです！"
+        if winner == -1:
+            winner_message = "黒の勝ちです！"
+        elif winner == 1:
+            winner_message = "白の勝ちです！"
+        else:
+            winner_message = "引き分けです！"
         # game.message がパスなどで上書きされている可能性があるので、ここで最終的な勝敗メッセージを設定
         self.game.set_message(winner_message)
 
