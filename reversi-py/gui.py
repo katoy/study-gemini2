@@ -194,31 +194,86 @@ class GameGUI:
                 raise
 
     def _compute_min_height(self):
-        """計算: すべてのUI要素が表示されるために必要な最小ウィンドウ高さを返す"""
-        # 盤面上端・下端
-        board_top = Screen.BOARD_TOP_MARGIN
-        board_bottom = board_top + Screen.BOARD_SIZE
-        # 石数表示のY
-        stone_count_y = board_bottom + Screen.TURN_MESSAGE_TOP_MARGIN
+        """計算: すべてのUI要素が表示されるために必要な最小ウィンドウ高さを返す
+
+        Uses a conservative estimate (prefers the default BOARD_SIZE up to available
+        width) to determine the minimum height required. This avoids circular
+        calls with _calculate_board_rect during initialization.
+        """
         font_height = self.font.get_height()
-        # 手番表示の中心Y
+        # choose a candidate board size based on available width but not exceeding default
+        candidate_board = min(Screen.BOARD_SIZE, max(8 * 10, self.screen_width - Screen.SIDE_PADDING * 2))
+        # compute positions as if board size were candidate_board
+        board_top = Screen.BOARD_TOP_MARGIN
+        board_bottom = board_top + candidate_board
+        stone_count_y = board_bottom + Screen.TURN_MESSAGE_TOP_MARGIN
         turn_message_center_y = stone_count_y + font_height + Screen.TURN_MESSAGE_TOP_MARGIN + font_height // 2
-        # ボタン群の高さ（下端）
         button_height = self._calculate_button_height()
         buttons_bottom = turn_message_center_y + font_height // 2 + Screen.TURN_MESSAGE_BOTTOM_MARGIN + button_height
-        # プレイヤー設定領域の下端
-        player_settings_top = self._calculate_player_settings_top()
         player_settings_height = self._calculate_player_settings_height()
+        player_settings_top = buttons_bottom + Screen.BUTTON_BOTTOM_MARGIN
         player_settings_bottom = player_settings_top + player_settings_height
         needed = max(buttons_bottom, player_settings_bottom)
-        # 余白を少し追加して安全側に
         return int(needed + 20)
 
     def _calculate_board_rect(self):
-        """盤面の描画領域(Rect)を計算する"""
-        board_left = (self.screen_width - Screen.BOARD_SIZE) // 2
+        """盤面の描画領域(Rect)を計算する
+
+        Chooses the largest square board (multiple of 8) that fits within both
+        the current screen width (respecting SIDE_PADDING) and the available
+        vertical space so that the UI below the board still fits.
+        """
+        font_height = self.font.get_height()
+        side_pad = getattr(Screen, 'SIDE_PADDING', 20)
+        max_by_width = max(8 * 10, self.screen_width - 2 * side_pad)  # at least 80
+
+        # maximum starting candidate: don't exceed screen height minus basic UI area
+        # Start from the smaller of max_by_width and screen height minus top margin
+        start_candidate = min(max_by_width, max(8 * 10, self.screen_height - Screen.BOARD_TOP_MARGIN - 100))
+
+        def required_height_for_board(B: int) -> int:
+            board_top = Screen.BOARD_TOP_MARGIN
+            board_bottom = board_top + B
+            stone_count_y = board_bottom + Screen.TURN_MESSAGE_TOP_MARGIN
+            turn_message_center_y = stone_count_y + font_height + Screen.TURN_MESSAGE_TOP_MARGIN + font_height // 2
+            button_height = self._calculate_button_height()
+            buttons_bottom = turn_message_center_y + font_height // 2 + Screen.TURN_MESSAGE_BOTTOM_MARGIN + button_height
+            player_settings_height = self._calculate_player_settings_height()
+            player_settings_top = buttons_bottom + Screen.BUTTON_BOTTOM_MARGIN
+            player_settings_bottom = player_settings_top + player_settings_height
+            needed = max(buttons_bottom, player_settings_bottom)
+            return int(needed + 20)
+
+        chosen_B = None
+        # iterate down in multiples of 8 to ensure integer cell sizes
+        candidate = int(start_candidate) - (int(start_candidate) % 8)
+        while candidate >= 8 * 8:  # at least 8 cells of size >=8
+            req_h = required_height_for_board(candidate)
+            if req_h <= self.screen_height:
+                chosen_B = candidate
+                break
+            candidate -= 8
+
+        if chosen_B is None:
+            # fallback: use the default BOARD_SIZE but respect side padding
+            chosen_B = min(Screen.BOARD_SIZE, max_by_width)
+            # round down to multiple of 8
+            chosen_B -= chosen_B % 8
+
+        # update cell size for this GUI instance
+        self.cell_size = max(1, chosen_B // 8)
+        # ensure minimum side padding on both sides while keeping board centered when possible
+        centered_left = (self.screen_width - chosen_B) // 2
+        min_left = side_pad
+        max_left = max(side_pad, self.screen_width - side_pad - chosen_B)
+        if centered_left < min_left:
+            board_left = min_left
+        elif centered_left > max_left:
+            board_left = max_left
+        else:
+            board_left = centered_left
         board_top = Screen.BOARD_TOP_MARGIN
-        return pygame.Rect(board_left, board_top, Screen.BOARD_SIZE, Screen.BOARD_SIZE)
+        return pygame.Rect(board_left, board_top, chosen_B, chosen_B)
 
     # --- 描画メソッド ---
     def _draw_board_background(self, board_rect):

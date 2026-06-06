@@ -59,5 +59,13 @@ class TestMCTSNode(unittest.TestCase):
         result = agent._simulate(node)
         self.assertEqual(result, 0.5)
 
+    def test_simulate_draw_for_black_perspective(self):
+        # Ensure draw from black's perspective also returns 0.5
+        draw_board = DummyBoard(moves=[], counts=(20,20))
+        node = mcts_agent.Node(draw_board, turn=-1)
+        agent = mcts_agent.MonteCarloTreeSearchAgent(iterations=1, time_limit_ms=1)
+        result = agent._simulate(node)
+        self.assertEqual(result, 0.5)
+
 if __name__ == '__main__':
     unittest.main()
