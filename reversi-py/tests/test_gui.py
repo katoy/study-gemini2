@@ -294,17 +294,22 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
 
 
     def test_calculate_board_rect(self):
-        """_calculate_board_rect が正しい盤面 Rect を返すか"""
+        """_calculate_board_rect が盤面 Rect を返すか（SIDE_PADDING を考慮）"""
         rect = self.gui._calculate_board_rect()
-        expected_left = (Screen.WIDTH - Screen.BOARD_SIZE) // 2
-        expected_top = Screen.BOARD_TOP_MARGIN
-        expected_rect = pygame.Rect(expected_left, expected_top, Screen.BOARD_SIZE, Screen.BOARD_SIZE)
-        self.assertEqual(rect, expected_rect)
+        # 矩形型で、上マージンは固定であること
+        self.assertIsInstance(rect, pygame.Rect)
+        self.assertEqual(rect.top, Screen.BOARD_TOP_MARGIN)
+        # 幅は既定の BOARD_SIZE 以下で、8 の倍数であること
+        self.assertLessEqual(rect.width, Screen.BOARD_SIZE)
+        self.assertEqual(rect.width % 8, 0)
+        # 左右の余白が SIDE_PADDING 以上確保されていること
+        self.assertGreaterEqual(rect.left, Screen.SIDE_PADDING)
+        self.assertGreaterEqual(self.gui.screen_width - (rect.left + rect.width), Screen.SIDE_PADDING)
 
     def test_get_clicked_cell(self):
         """get_clicked_cell が正しいセル座標を返すか"""
         board_rect = self.gui._calculate_board_rect()
-        cell_size = Screen.CELL_SIZE
+        cell_size = self.gui.cell_size
         click_x = board_rect.left + cell_size * 3 + cell_size // 2
         click_y = board_rect.top + cell_size * 4 + cell_size // 2
         row, col = self.gui.get_clicked_cell((click_x, click_y))
@@ -348,10 +353,10 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         self.gui._draw_board_grid(board_rect)
         self.assertEqual(self.mock_pygame_draw.rect.call_count, 64)
         last_cell_rect = pygame.Rect(
-            board_rect.left + 7 * Screen.CELL_SIZE,
-            board_rect.top + 7 * Screen.CELL_SIZE,
-            Screen.CELL_SIZE,
-            Screen.CELL_SIZE
+            board_rect.left + 7 * self.gui.cell_size,
+            board_rect.top + 7 * self.gui.cell_size,
+            self.gui.cell_size,
+            self.gui.cell_size
         )
         self.mock_pygame_draw.rect.assert_called_with(self.gui.screen, Color.BLACK, last_cell_rect, 1)
 
@@ -373,10 +378,10 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         color = Color.BLACK
         self.gui._draw_stone(board_rect, row, col, color)
         expected_center = (
-            board_rect.left + col * Screen.CELL_SIZE + Screen.CELL_SIZE // 2,
-            board_rect.top + row * Screen.CELL_SIZE + Screen.CELL_SIZE // 2
+            board_rect.left + col * self.gui.cell_size + self.gui.cell_size // 2,
+            board_rect.top + row * self.gui.cell_size + self.gui.cell_size // 2
         )
-        expected_radius = Screen.CELL_SIZE // 2 - 5
+        expected_radius = self.gui.cell_size // 2 - 5
         self.mock_pygame_draw.circle.assert_called_once_with(self.gui.screen, color, expected_center, expected_radius)
 
     @patch('gui.Label')
@@ -393,10 +398,10 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         self.gui.draw_valid_moves(self.game_mock)
         self.assertEqual(self.mock_pygame_draw.circle.call_count, len(valid_moves))
         expected_center_1 = (
-            board_rect.left + 3 * Screen.CELL_SIZE + Screen.CELL_SIZE // 2,
-            board_rect.top + 2 * Screen.CELL_SIZE + Screen.CELL_SIZE // 2
+            board_rect.left + 3 * self.gui.cell_size + self.gui.cell_size // 2,
+            board_rect.top + 2 * self.gui.cell_size + self.gui.cell_size // 2
         )
-        expected_radius = Screen.CELL_SIZE // 8
+        expected_radius = self.gui.cell_size // 8
         self.mock_pygame_draw.circle.assert_any_call(self.gui.screen, Color.GRAY, expected_center_1, expected_radius)
 
     def test_draw_message(self):
@@ -611,6 +616,8 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         row, col = 3, 3
         color = Color.BLACK
         self.gui._calculate_player_settings_top = MagicMock(return_value=500)
+        # Recompute board_rect so that cell_size matches what draw_stone_animation will use
+        self.gui._calculate_board_rect()
         max_radius = self.gui.cell_size // 2 - 5
         expected_loop_count = (max_radius + 4) // 5 if max_radius > 0 else 0
         if max_radius > 0:
