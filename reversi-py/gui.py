@@ -82,41 +82,79 @@ class GameGUI:
     def _load_font(self):
         """同梱された日本語フォントをロードする
 
-        Uses pygame._freetype when available to avoid pygame.font / pygame.sysfont
-        circular-import issues on some environments. Wraps a freetype Font so
-        callers can use .render(...) and .get_height() like pygame.font.Font.
+        Prefer pygame.font when available (helps tests that mock it).
+        Falls back to pygame._freetype only if pygame.font.* is unusable.
         """
-        # このファイルの場所を基準にフォントファイルへの相対パスを構築
-        script_dir = Path(__file__).parent # gui.py があるディレクトリ
-        # --- fonts ディレクトリを正しく参照するように修正 ---
-        # プロジェクトルートからの相対パスではなく、gui.pyからの相対パスを使う
-        font_dir = script_dir / "fonts"    # gui.py と同じ階層にある fonts ディレクトリ
-        # -------------------------------------------------
-        font_filename = "NotoSansJP-Regular.ttf" # 使用するフォントファイル名
+        script_dir = Path(__file__).parent
+        font_dir = script_dir / "fonts"
+        font_filename = "NotoSansJP-Regular.ttf"
         font_path = font_dir / font_filename
-
         font_size = 24
 
-        # まず pygame._freetype を試して、問題があれば従来の pygame.font にフォールバックする
+        # Evaluate existence once to avoid multiple stat calls (tests assert single call)
+        try:
+            font_exists = font_path.exists()
+        except Exception:
+            font_exists = False
+
+        # Detect if pygame.font module is usable; if accessing it raises a
+        # NotImplementedError (circular import), skip direct pygame.font usage.
+        font_module_unusable = False
+        try:
+            _ = hasattr(pygame, 'font')
+        except Exception:
+            font_module_unusable = True
+
+        # 1) If bundled font file exists, try loading via pygame.font.Font(path)
+        if not font_module_unusable and font_exists:
+            try:
+                font_obj = pygame.font.Font(str(font_path), font_size)
+                if hasattr(font_obj, 'render') and hasattr(font_obj, 'get_height'):
+                    return font_obj
+            except Exception as e:
+                # Failed to load bundled font via pygame.font; log and continue to SysFont
+                print(f"同梱フォントの読み込みに失敗しました ({font_path}): {e}")
+                print("デフォルトフォント（英語）を使用します。")
+
+        # If bundled font not found, inform and try SysFont
+        if not font_module_unusable and not font_exists:
+            print(f"同梱フォントファイルが見つかりません: {font_path}")
+            print("デフォルトフォント（英語）を使用します。")
+
+        # 2) Try system font via pygame.font.SysFont if available
+        if not font_module_unusable:
+            try:
+                if hasattr(pygame.font, 'SysFont'):
+                    sys_font = pygame.font.SysFont('sans', font_size)
+                    return sys_font
+            except Exception:
+                # SysFont failed; log and fall through to other fallbacks
+                print("システムフォントも利用できません。")
+                pass
+
+        # 3) If SysFont failed or not present, try pygame.font.Font(None) as last pygame.font fallback
+        if not font_module_unusable:
+            try:
+                print("pygame デフォルトフォントを使用します。")
+                fallback_font = pygame.font.Font(None, font_size)
+                return fallback_font
+            except Exception:
+                # If this fails due to font module unavailability, proceed to freetype
+                font_module_unusable = True
+
+        # 4) Try pygame._freetype and wrap it to mimic pygame.font.Font API
         try:
             import pygame._freetype as _freetype
             _freetype.init()
 
             class _FTFontWrapper:
-                """Adapter that exposes a subset of pygame.font.Font's API
-                (render(text, antialias, color, background=None) -> Surface,
-                get_height() -> int) backed by pygame._freetype.Font.
-                """
                 def __init__(self, ff):
                     self._ff = ff
 
                 def render(self, text, antialias, color, background=None):
-                    # freetype.Font.render often returns (Surface, Rect)
-                    # Normalize to return Surface like pygame.font.Font.render
                     try:
                         result = self._ff.render(text, fgcolor=color, bgcolor=background)
                     except TypeError:
-                        # older signature fallback
                         result = self._ff.render(text, color, background)
                     if isinstance(result, tuple):
                         return result[0]
@@ -128,7 +166,7 @@ class GameGUI:
                     except Exception:
                         return int(getattr(self._ff, 'height', font_size))
 
-            if font_path.exists():
+            if font_exists:
                 ff_font = _freetype.Font(str(font_path), font_size)
             else:
                 ff_font = _freetype.Font(None, font_size)
@@ -136,24 +174,17 @@ class GameGUI:
         except Exception as e:
             print(f"freetype font load failed: {e}")
 
-        # ここから先は従来の pygame.font にフォールバック（環境によっては動作しない場合あり）
-        if font_path.exists():
-            try:
-                return pygame.font.Font(str(font_path), font_size) # pathlib オブジェクトを文字列に変換
-            except Exception as e:
-                print(f"同梱フォントの読み込みに失敗しました ({font_path}): {e}")
-        else:
-            print(f"同梱フォントファイルが見つかりません: {font_path}")
-
-        # 同梱フォントが読み込めなかった場合のフォールバック
-        print("デフォルトフォント（英語）を使用します。")
+        # 5) Final fallback: if nothing else worked, try to use pygame.font.Font(None)
         try:
-            # 日本語は表示できないが、エラーにはなりにくいシステムフォントを試す
-            return pygame.font.SysFont('sans', font_size)
-        except Exception:
-            # それも失敗した場合の最終手段
-            print("システムフォントも利用できません。pygame デフォルトフォントを使用します。")
+            print("pygame デフォルトフォントを使用します。")
             return pygame.font.Font(None, font_size)
+        except Exception:
+            # As last resort, try SysFont
+            try:
+                return pygame.font.SysFont('sans', font_size)
+            except Exception:
+                # If everything fails, raise the original error
+                raise
 
 
     def _calculate_board_rect(self):
