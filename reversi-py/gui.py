@@ -538,12 +538,29 @@ class GameGUI:
         Label((left_margin, player_settings_top), _t("ui.black_player"), self.font).draw(self.screen)
         Label((white_player_label_x, player_settings_top), _t("ui.white_player"), self.font).draw(self.screen)
 
-        # 両方がAIの場合はプレイヤ区別用の小さなバッジを表示
+        # 両方がAIの場合はプレイヤ区別用の小さなバッジを表示（半透明パネル + テキスト）
         font_height = self.font.get_height()
+        badge_y = player_settings_top + font_height
         if game.agents.get(-1) is not None and game.agents.get(1) is not None:
-            # 黒/白それぞれのバッジを描画
-            Label((left_margin, player_settings_top + font_height), "AI (Black)", self.font, Color.BUTTON_TEXT).draw(self.screen)
-            Label((white_player_label_x, player_settings_top + font_height), "AI (White)", self.font, Color.BUTTON_TEXT).draw(self.screen)
+            # 黒バッジ
+            label_black = Label((left_margin + 4, badge_y), "AI (Black)", self.font, Color.BUTTON_TEXT)
+            try:
+                badge_rect_black = label_black.rect.inflate(8, 4)
+                pygame.draw.rect(self.screen, Color.BADGE_BG, badge_rect_black, border_radius=6)
+            except Exception:
+                badge_rect_black = label_black.rect.inflate(8, 4)
+                pygame.draw.rect(self.screen, Color.BADGE_BG, badge_rect_black)
+            label_black.draw(self.screen)
+
+            # 白バッジ
+            label_white = Label((white_player_label_x + 4, badge_y), "AI (White)", self.font, Color.BUTTON_TEXT)
+            try:
+                badge_rect_white = label_white.rect.inflate(8, 4)
+                pygame.draw.rect(self.screen, Color.BADGE_BG, badge_rect_white, border_radius=6)
+            except Exception:
+                badge_rect_white = label_white.rect.inflate(8, 4)
+                pygame.draw.rect(self.screen, Color.BADGE_BG, badge_rect_white)
+            label_white.draw(self.screen)
 
         # ラジオボタンの垂直位置オフセットと間隔
         radio_y_offset = Screen.RADIO_Y_OFFSET
