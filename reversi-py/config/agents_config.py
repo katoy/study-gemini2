@@ -1,4 +1,4 @@
-# config/agents.py
+# config/agents_config.py
 """
 エージェントの種類、クラス、表示名、パラメータなどの情報を一元管理するモジュール。
 """
@@ -8,7 +8,6 @@
 # from agents import FirstAgent, RandomAgent, GainAgent, MonteCarloTreeSearchAgent # 削除
 # from agents.api_agent import ApiAgent # 削除
 
-from agents.base_agent import Agent # 必要に応じて (現在は使われていないが念のため)
 from agents.first_agent import FirstAgent
 from agents.random_agent import RandomAgent
 from agents.gain_agent import GainAgent

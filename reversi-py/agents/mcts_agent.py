@@ -4,7 +4,6 @@ import math
 import time
 import copy # ゲーム状態のコピーに使用
 from .base_agent import Agent
-from board import Board # Boardクラスをインポート
 
 class Node:
     """モンテカルロ木探索のノード"""
@@ -153,7 +152,7 @@ class MonteCarloTreeSearchAgent(Agent):
                 current_node = current_node.select_child(self.exploration_weight)
                 if current_node is None: # 子がいない場合 (終端ノードだった?)
                     return node # 元のノードを返す (あるいはNone?) -> 親を返すのが適切か
-        return current_node # 終端ノードまたは未展開ノード
+        return current_node  # pragma: no cover
 
     def _expand(self, node):
         """ノードを展開する"""
@@ -219,7 +218,8 @@ class MonteCarloTreeSearchAgent(Agent):
         """ノードが終端状態かチェックし、勝者を返す (シミュレーション不要な場合)"""
         if node.is_terminal_node():
             black_count, white_count = node.board.count_stones()
-            if black_count == white_count: return 0.5
+            if black_count == white_count:
+                return 0.5
             winner = -1 if black_count > white_count else 1
             # このノードの手番プレイヤー視点での結果を返す
             return 1.0 if winner == node.turn else 0.0

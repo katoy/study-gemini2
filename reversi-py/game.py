@@ -1,7 +1,7 @@
 # game.py
 from board import Board
 # config.agents からヘルパー関数をインポート
-from config.agents import get_agent_class
+from config.agents_config import get_agent_class
 from config.agent_config_utils import get_agent_params
 
 

@@ -2,7 +2,6 @@
 import random
 from .base_agent import Agent
 # Board クラスは get_flipped_stones を使うために必要
-from board import Board
 
 # --- TempGame クラス定義を削除 ---
 

@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, dialog ]
+  pull_request:
+    branches: [ main, dialog ]
+
+jobs:
+  lint-and-typecheck:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14.2'
+
+    - name: Install uv
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    - name: Install dependencies
+      run: uv sync --all-extras
+
+    - name: Run ruff lint
+      run: uv run ruff check .
+
+    - name: Run mypy type check
+      run: uv run mypy . --ignore-missing-imports
+
+  tests:
+    name: Tests and Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14.2'
+
+    - name: Install uv
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    - name: Install dependencies
+      run: uv sync --all-extras
+
+    - name: Run tests with coverage
+      run: uv run pytest tests/ --cov=. --cov-report=term-missing --cov-report=json --cov-config=.coveragerc
+
+    - name: Check coverage (excluding gui.py)
+      run: uv run python scripts/check_coverage.py

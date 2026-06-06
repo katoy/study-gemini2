@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "./pygame_gui_2"
+		},
+		{
+			"path": "reversi-py"
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"**/*.ttf": true,
+			"**/__pycache__": true,
+			"**/__pycache__/**": true,
+		},
+		"search.exclude": {},
+		"commentTranslate.targetLanguage": "ja"
+	}
+}

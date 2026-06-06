@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reversi-py"
+version = "0.1.0"
+description = "Reversi game with AI agents"
+requires-python = ">=3.14.2"
+authors = [
+    { name = "katoy", email = "katoy@media-5.co.jp" }
+]
+dependencies = [
+    "pygame>=2.6.1",
+    "flask>=3.1.3",
+    "requests>=2.34.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.15.16",
+    "mypy>=2.1.0",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[tool.ruff]
+exclude = ["tests"]
+
+[tool.ruff.lint]
+per-file-ignores = { "tests/**" = ["E402"] }
+
+[tool.mypy]
+ignore_missing_imports = true
+
+[tool.setuptools]
+packages = ["agents", "config", "server"]

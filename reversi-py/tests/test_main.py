@@ -4,12 +4,10 @@ import pygame
 import sys
 import os
 
-# プロジェクトルートへのパスを追加
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-# テスト対象と依存モジュール
 import main
 from game import Game
 from gui import GameGUI
