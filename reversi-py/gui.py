@@ -13,7 +13,6 @@ from ui_elements import Button, RadioButton, Label
 
 class GameGUI:
     def __init__(self, screen_width=Screen.WIDTH, screen_height=Screen.HEIGHT):
-        pygame.init()
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
@@ -81,7 +80,12 @@ class GameGUI:
 
 
     def _load_font(self):
-        """同梱された日本語フォントをロードする"""
+        """同梱された日本語フォントをロードする
+
+        Uses pygame._freetype when available to avoid pygame.font / pygame.sysfont
+        circular-import issues on some environments. Wraps a freetype Font so
+        callers can use .render(...) and .get_height() like pygame.font.Font.
+        """
         # このファイルの場所を基準にフォントファイルへの相対パスを構築
         script_dir = Path(__file__).parent # gui.py があるディレクトリ
         # --- fonts ディレクトリを正しく参照するように修正 ---
@@ -93,6 +97,46 @@ class GameGUI:
 
         font_size = 24
 
+        # まず pygame._freetype を試して、問題があれば従来の pygame.font にフォールバックする
+        try:
+            import pygame._freetype as _freetype
+            _freetype.init()
+
+            class _FTFontWrapper:
+                """Adapter that exposes a subset of pygame.font.Font's API
+                (render(text, antialias, color, background=None) -> Surface,
+                get_height() -> int) backed by pygame._freetype.Font.
+                """
+                def __init__(self, ff):
+                    self._ff = ff
+
+                def render(self, text, antialias, color, background=None):
+                    # freetype.Font.render often returns (Surface, Rect)
+                    # Normalize to return Surface like pygame.font.Font.render
+                    try:
+                        result = self._ff.render(text, fgcolor=color, bgcolor=background)
+                    except TypeError:
+                        # older signature fallback
+                        result = self._ff.render(text, color, background)
+                    if isinstance(result, tuple):
+                        return result[0]
+                    return result
+
+                def get_height(self):
+                    try:
+                        return int(self._ff.get_sized_height())
+                    except Exception:
+                        return int(getattr(self._ff, 'height', font_size))
+
+            if font_path.exists():
+                ff_font = _freetype.Font(str(font_path), font_size)
+            else:
+                ff_font = _freetype.Font(None, font_size)
+            return _FTFontWrapper(ff_font)
+        except Exception as e:
+            print(f"freetype font load failed: {e}")
+
+        # ここから先は従来の pygame.font にフォールバック（環境によっては動作しない場合あり）
         if font_path.exists():
             try:
                 return pygame.font.Font(str(font_path), font_size) # pathlib オブジェクトを文字列に変換
