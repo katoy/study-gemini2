@@ -19,7 +19,9 @@
       "quit": "終了",
       "undo": "待った",
       "black_player": "黒プレイヤー",
-      "white_player": "白プレイヤー"
+    "white_player": "白プレイヤー",
+    "ai_black": "AI（黒）",
+    "ai_white": "AI（白）"
     }
   }
 }

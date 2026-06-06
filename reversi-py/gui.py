@@ -542,23 +542,24 @@ class GameGUI:
         font_height = self.font.get_height()
         badge_y = player_settings_top + font_height
         if game.agents.get(-1) is not None and game.agents.get(1) is not None:
-            # 黒バッジ
-            label_black = Label((left_margin + 4, badge_y), "AI (Black)", self.font, Color.BUTTON_TEXT)
+            # 黒バッジ（ローカライズ対応）
+            badge_text_black = _t("ui.ai_black", "AI (Black)")
+            label_black = Label((left_margin + Screen.BADGE_MARGIN, badge_y + Screen.BADGE_Y_OFFSET), badge_text_black, self.font, Color.BUTTON_TEXT)
+            # badge_rect を label.rect を基準にパディングで作る
+            badge_rect_black = label_black.rect.inflate(Screen.BADGE_PADDING_X, Screen.BADGE_PADDING_Y)
             try:
-                badge_rect_black = label_black.rect.inflate(8, 4)
                 pygame.draw.rect(self.screen, Color.BADGE_BG, badge_rect_black, border_radius=6)
             except Exception:
-                badge_rect_black = label_black.rect.inflate(8, 4)
                 pygame.draw.rect(self.screen, Color.BADGE_BG, badge_rect_black)
             label_black.draw(self.screen)
 
-            # 白バッジ
-            label_white = Label((white_player_label_x + 4, badge_y), "AI (White)", self.font, Color.BUTTON_TEXT)
+            # 白バッジ（ローカライズ対応）
+            badge_text_white = _t("ui.ai_white", "AI (White)")
+            label_white = Label((white_player_label_x + Screen.BADGE_MARGIN, badge_y + Screen.BADGE_Y_OFFSET), badge_text_white, self.font, Color.BUTTON_TEXT)
+            badge_rect_white = label_white.rect.inflate(Screen.BADGE_PADDING_X, Screen.BADGE_PADDING_Y)
             try:
-                badge_rect_white = label_white.rect.inflate(8, 4)
                 pygame.draw.rect(self.screen, Color.BADGE_BG, badge_rect_white, border_radius=6)
             except Exception:
-                badge_rect_white = label_white.rect.inflate(8, 4)
                 pygame.draw.rect(self.screen, Color.BADGE_BG, badge_rect_white)
             label_white.draw(self.screen)
 

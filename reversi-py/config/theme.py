@@ -23,6 +23,7 @@ class Color:
     # 両AIが表示するバッジの半透明背景色
     BADGE_BG = (0, 0, 0, 160)
 
+
 class Screen:
     """
     画面サイズやUI要素のサイズを定義するクラス。
@@ -47,3 +48,8 @@ class Screen:
     BUTTON_BOTTOM_MARGIN = 10 # ボタンの下マージン
     # サイドの最小余白（ピクセル） — これを小さくすると左右の空白が減る
     SIDE_PADDING = 20
+    # --- バッジの配置・パディング微調整 (Screenに移動) ---
+    BADGE_PADDING_X = 10  # バッジ左右の内側パディング
+    BADGE_PADDING_Y = 6   # バッジ上下の内側パディング
+    BADGE_MARGIN = 6      # バッジとラベルのX方向マージン
+    BADGE_Y_OFFSET = 4    # バッジのY方向オフセット（親ラベルからの微調整）
