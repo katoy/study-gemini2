@@ -353,7 +353,7 @@ class App:
         self.gui.draw_restart_button(game_over=True)
         self.gui.draw_reset_button(game_over=True)
         self.gui.draw_quit_button(game_over=True)
-        logging.info("Rendered game over screen.") # pragma: no cover
+        logging.debug("Rendered game over screen.") # pragma: no cover
 
     def _render_in_game(self, player_settings_top: int):
         """ゲーム中の画面を描画"""
@@ -372,7 +372,7 @@ class App:
         self.gui.draw_message(self.game.get_message())
         # プレイヤー設定UIを描画 (ゲーム中は操作不可 enabled=False)
         self.gui.draw_player_settings(self.game, player_settings_top, enabled=False)
-        logging.info("Rendered in-game screen.") # pragma: no cover
+        logging.debug("Rendered in-game screen.") # pragma: no cover
 
 
 def main():
