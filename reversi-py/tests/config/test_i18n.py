@@ -2,7 +2,8 @@ import pytest
 import os
 import json
 import locale
-from config.i18n import Translator, _t
+from config.i18n import Translator, _t, _get_translator
+import config.i18n as i18n_module
 
 
 def test_translator_load_default_ja(tmp_path):
@@ -108,3 +109,44 @@ def test_locale_fallback_to_ja_when_missing_locale_file(tmp_path):
     translator = Translator(translations_dir=str(translations_dir), lang_code="en")
     assert translator.locale == "ja"
     assert translator.translate("test") == "テスト"
+
+
+def test_locale_detection_none_returns_ja(tmp_path, monkeypatch):
+    """locale.getdefaultlocale() が (None, ...) を返す場合のカバレッジ"""
+    translations_dir = tmp_path / "translations"
+    translations_dir.mkdir()
+    (translations_dir / "main.ja.json").write_text('{"ja": {"test": "テスト"}}', encoding="utf-8")
+
+    # Mock locale.getdefaultlocale to return (None, 'UTF-8')
+    def mock_getdefault():
+        return (None, "UTF-8")
+
+    monkeypatch.setattr(locale, "getdefaultlocale", mock_getdefault)
+
+    translator = Translator(translations_dir=str(translations_dir), lang_code=None)
+    assert translator.locale == "ja"
+
+
+def test_get_translator_lazy_initialization(tmp_path, monkeypatch):
+    """_get_translator の遅延初期化をテスト"""
+    translations_dir = tmp_path / "translations"
+    translations_dir.mkdir()
+    (translations_dir / "main.ja.json").write_text('{"ja": {"test": "テスト"}}', encoding="utf-8")
+
+    # Reset global _translator
+    original_translator = i18n_module._translator
+    original_dir = i18n_module.TRANSLATIONS_DIR
+    try:
+        i18n_module._translator = None
+        i18n_module.TRANSLATIONS_DIR = str(translations_dir)
+
+        # First call should initialize _translator
+        translator1 = _get_translator()
+        assert translator1 is not None
+
+        # Second call should return the same instance
+        translator2 = _get_translator()
+        assert translator1 is translator2
+    finally:
+        i18n_module._translator = original_translator
+        i18n_module.TRANSLATIONS_DIR = original_dir
