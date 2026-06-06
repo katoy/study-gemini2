@@ -1,10 +1,9 @@
-# Task 5: Non-blocking AI Moves TODO
+# Task 2: Integrate into Local Check Script
+- [ ] Modify `scripts/check.sh` to include `scripts/test_gui_init.py` as step 5/5
+- [ ] Implement `xvfb-run` fallback logic in `scripts/check.sh`
+- [ ] Verify `scripts/check.sh` locally
 
-- [ ] Import `threading` and `queue` in `main.py`
-- [ ] Initialize AI state in `App.__init__` (`self.ai_thread`, `self.ai_queue`, `self.is_ai_thinking`)
-- [ ] Refactor `App._handle_ai_or_pass` to start AI thread
-- [ ] Implement `App._run_ai_agent` worker
-- [ ] Update `App._update_state` to poll `self.ai_queue`
-- [ ] Prevent human move while `self.is_ai_thinking` is True
-- [ ] Show "Thinking..." message during AI moves
-- [ ] Update and run tests to verify threaded AI moves
+# Task 3: Integrate into GitHub Actions
+- [ ] Modify `.github/workflows/ci.yml` to include the GUI integration test step
+- [ ] Use `xvfb-run` for the GUI integration test in CI
+- [ ] Verify YAML syntax

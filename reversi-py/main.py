@@ -8,6 +8,8 @@ import queue
 from game import Game
 from gui import GameGUI
 from config.i18n import _t
+# For resolving agent display names in logs
+from config.agents_config import get_agent_definition
 
 class App:
     """
@@ -295,7 +297,19 @@ class App:
         if move and move in valid_moves:
             # 石を置く処理を実行
             if self.game.place_stone(move[0], move[1]):
-                logging.info(f"AI placed stone at {move}.") # pragma: no cover
+                # Determine player color and agent display name for clearer logs
+                player_color = "Black" if self.game.turn == -1 else "White"
+                # Try to resolve the agent id from App-level stored ids if available
+                try:
+                    agent_id = self.black_player_id if self.game.turn == -1 else self.white_player_id
+                    agent_def = get_agent_definition(agent_id)
+                    agent_name = agent_def.get('display_name') if agent_def else None
+                except Exception:  # pragma: no cover - defensive fallback; tested via unit tests that exercise normal path
+                    agent_name = None
+                if agent_name:
+                    logging.info(f"AI ({player_color}, {agent_name}) placed stone at {move}.") # pragma: no cover
+                else:
+                    logging.info(f"AI ({player_color}) placed stone at {move}.") # pragma: no cover
                 self.game.set_message("") # メッセージをクリア
                 self.game.switch_turn()   # 手番を交代
                 self.game.check_game_over() # ゲームオーバーかチェック
@@ -391,7 +405,8 @@ def main():
     """
     pygame.init()
     game_instance = Game()
-    gui_instance = GameGUI()
+    # Allow the application to shrink window width to reduce side padding by default
+    gui_instance = GameGUI(allow_width_shrink=True)
     app = App(game_instance, gui_instance)
     app.run()
 
