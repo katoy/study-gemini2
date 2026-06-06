@@ -58,6 +58,40 @@ class Button:
         """
         return self.rect.collidepoint(pos)
 
+class RadioButton:
+    def __init__(self, pos: tuple[int, int], size: int, selected: bool = False, enabled: bool = True):
+        self.rect = pygame.Rect(pos[0], pos[1], size, size)
+        self.selected = selected
+        self.enabled = enabled
+        self.size = size
+
+    def draw(self, screen: pygame.Surface):
+        center = self.rect.center
+        outer_color = Color.DARK_BLUE if self.enabled else Color.LIGHT_BLUE
+        pygame.draw.circle(screen, outer_color, center, self.size // 2, 1)
+        if self.selected:
+            inner_color = Color.DARK_BLUE if self.enabled else Color.LIGHT_BLUE
+            inner_circle_radius = int(self.size * Screen.RADIO_BUTTON_INNER_CIRCLE_RATIO // 2)
+            pygame.draw.circle(screen, inner_color, center, inner_circle_radius)
+
+    def is_clicked(self, pos: tuple[int, int]) -> bool:
+        return self.rect.collidepoint(pos)
+
+class Label:
+    def __init__(self, pos: tuple[int, int], text: str, font: pygame.font.Font, color=Color.WHITE, is_right_aligned=False):
+        self.pos = pos
+        self.text = text
+        self.font = font
+        self.color = color
+        self.is_right_aligned = is_right_aligned
+        self.surface = self.font.render(self.text, True, self.color)
+        self.rect = self.surface.get_rect(topleft=self.pos)
+        if self.is_right_aligned:
+            self.rect.right = self.pos[0]
+
+    def draw(self, screen: pygame.Surface):
+        screen.blit(self.surface, self.rect)
+
 # --- 他のUI要素クラスもここに追加していくことができます ---
 # class RadioButtonGroup:
 #     ...

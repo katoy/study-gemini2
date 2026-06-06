@@ -1,7 +1,25 @@
 {
   "en": {
-    "window_title":    "Modal Dialog Sample",
-    "settings_button": "Settings",
-    "quit_button":     "Quit"
+    "game": {
+      "black_turn": "Black's turn",
+      "white_turn": "White's turn",
+      "black_win": "Black wins!",
+      "white_win": "White wins!",
+      "draw": "Draw!",
+      "black_pass": "Black passed.",
+      "white_pass": "White passed.",
+      "black_stones": "Black: {count}",
+      "white_stones": "White: {count}",
+      "thinking": "Thinking..."
+    },
+    "ui": {
+      "start": "Start",
+      "restart": "Restart",
+      "reset": "Reset",
+      "quit": "Quit",
+      "undo": "Undo",
+      "black_player": "Black Player",
+      "white_player": "White Player"
+    }
   }
 }

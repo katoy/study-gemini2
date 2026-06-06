@@ -5,8 +5,10 @@ from pathlib import Path
 from config.agents_config import get_agent_options, get_agent_class
 # --- config.theme からインポート ---
 from config.theme import Color, Screen
-# <<< 追加: ui_elements から Button をインポート >>>
-from ui_elements import Button
+# --- config.i18n からインポート ---
+from config.i18n import _t
+# <<< 追加: ui_elements から UI要素をインポート >>>
+from ui_elements import Button, RadioButton, Label
 # ---------------------------------------------
 
 class GameGUI:
@@ -25,7 +27,7 @@ class GameGUI:
         # Start ボタンの Rect を計算
         start_rect = self._calculate_button_rect(is_start_button=True)
         # Start Button インスタンスを生成して保持
-        self.start_button = Button(start_rect, "ゲーム開始", self.font)
+        self.start_button = Button(start_rect, _t("ui.start"), self.font)
         # 他のボタン (Restart, Reset, Quit) は描画時に都度生成する方針
         # -------------------------------------------------
 
@@ -165,17 +167,9 @@ class GameGUI:
         stone_count_y = board_rect.bottom + Screen.TURN_MESSAGE_TOP_MARGIN
         left_margin = board_rect.left
         # 黒石数 (左寄せ)
-        self._draw_text_with_position(f"黒: {black_count}", Color.BLACK, (left_margin, stone_count_y))
+        Label((left_margin, stone_count_y), _t("game.black_stones", count=black_count), self.font, Color.BLACK).draw(self.screen)
         # 白石数 (右寄せ)
-        self._draw_text_with_position(f"白: {white_count}", Color.WHITE, (self.screen_width - left_margin, stone_count_y), is_right_aligned=True)
-
-    def _draw_text_with_position(self, text, color, pos, is_right_aligned=False):
-        """指定された位置にテキストを描画する（右寄せオプション付き）"""
-        text_surface = self.font.render(text, True, color)
-        text_rect = text_surface.get_rect(topleft=pos)
-        if is_right_aligned:
-            text_rect.right = pos[0] # 右端を指定したx座標に合わせる
-        self.screen.blit(text_surface, text_rect)
+        Label((self.screen_width - left_margin, stone_count_y), _t("game.white_stones", count=white_count), self.font, Color.WHITE, is_right_aligned=True).draw(self.screen)
 
     def draw_valid_moves(self, game):
         """合法手を示すマーカーを描画する"""
@@ -303,33 +297,36 @@ class GameGUI:
         self.start_button.draw(self.screen)
         # クリック判定用に Rect を返す必要はなくなる
 
+    def draw_undo_button(self, game_over=False):
+        """待ったボタンを描画する"""
+        button_rect = self._calculate_button_rect(False, game_over, False, False, is_undo_button=True)
+        button = Button(button_rect, _t("ui.undo"), self.font)
+        button.draw(self.screen)
+
     def draw_restart_button(self, game_over=False):
         """リスタートボタンを描画する"""
         # 描画時に Button インスタンスを生成して描画
         button_rect = self._calculate_button_rect(False, game_over, False, False)
-        button = Button(button_rect, "リスタート", self.font)
+        button = Button(button_rect, _t("ui.restart"), self.font)
         button.draw(self.screen)
 
     def draw_reset_button(self, game_over=False):
         """リセットボタンを描画する"""
         button_rect = self._calculate_button_rect(False, game_over, True, False)
-        button = Button(button_rect, "リセット", self.font)
+        button = Button(button_rect, _t("ui.reset"), self.font)
         button.draw(self.screen)
 
     def draw_quit_button(self, game_over=False):
         """終了ボタンを描画する"""
         button_rect = self._calculate_button_rect(False, game_over, False, True)
-        button = Button(button_rect, "終了", self.font)
+        button = Button(button_rect, _t("ui.quit"), self.font)
         button.draw(self.screen)
     # ---------------------------------
 
-    # --- _calculate_button_rect は変更なし ---
-    def _calculate_button_rect(self, is_start_button=False, game_over=False, is_reset_button=False, is_quit_button=False, is_settings_button=False): # is_quit_button 引数を追加
+    def _calculate_button_rect(self, is_start_button=False, game_over=False, is_reset_button=False, is_quit_button=False, is_settings_button=False, is_undo_button=False):
         """ボタンの描画領域(Rect)を計算する"""
-        # ボタン幅はテキストに応じて可変にする場合 (今回は固定幅とする)
-        # button_width = text_surface.get_width() + Screen.BUTTON_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
         # 固定幅にする (例: "リスタート" の幅を基準にする)
-        base_text_surface = self.font.render("リスタート", True, Color.BUTTON_TEXT)
+        base_text_surface = self.font.render(_t("ui.restart"), True, Color.BUTTON_TEXT)
         button_width = base_text_surface.get_width() + Screen.BUTTON_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
         button_height = self._calculate_button_height()
 
@@ -346,51 +343,33 @@ class GameGUI:
             button_y = Screen.MARGIN # pragma: no cover
             # (将来的に設定ダイアログなどを出すためのボタン)
 
-        else: # リスタート・リセット・終了ボタン
-            # 3つのボタンを横に並べる
-            total_button_width = button_width * 3 + Screen.BUTTON_MARGIN * 2 # 3つ分の幅と間のマージン2つ
+        else: # 待った・リスタート・リセット・終了ボタン
+            # 4つのボタンを横に並べる
+            num_buttons = 4
+            total_button_width = button_width * num_buttons + Screen.BUTTON_MARGIN * (num_buttons - 1)
             start_x = (self.screen_width - total_button_width) // 2
             # 手番表示の下に配置
             turn_message_center_y = self._calculate_turn_message_center_y()
             font_height = self.font.get_height()
             button_y = turn_message_center_y + font_height // 2 + Screen.TURN_MESSAGE_BOTTOM_MARGIN
 
-            if is_reset_button: # 中央 (リセット)
-                button_x = start_x + button_width + Screen.BUTTON_MARGIN # pragma: no cover
-            elif is_quit_button: # 右 (終了)
-                button_x = start_x + (button_width + Screen.BUTTON_MARGIN) * 2 # pragma: no cover
-            else: # 左 (リスタート)
+            if is_undo_button: # 左端
                 button_x = start_x
+            elif is_reset_button: # 中央右
+                button_x = start_x + (button_width + Screen.BUTTON_MARGIN) * 2
+            elif is_quit_button: # 右端
+                button_x = start_x + (button_width + Screen.BUTTON_MARGIN) * 3
+            else: # リスタート (中央左)
+                button_x = start_x + (button_width + Screen.BUTTON_MARGIN) * 1
 
-        return pygame.Rect(button_x, button_y, button_width, button_height)  # pragma: no cover
+        return pygame.Rect(button_x, button_y, button_width, button_height)
+  # pragma: no cover
 
     # --- 不要になったメソッドを削除 ---
     # def _draw_button(self, button_rect, text): ...
     # def _draw_button_border(self, button_rect): ...
     # def is_button_clicked(self, pos, button_rect): ...
     # ---------------------------------
-
-    # --- ラジオボタン関連メソッド (変更なし) ---
-    def draw_radio_button(self, pos, selected, enabled=True):
-        """ラジオボタンを描画する"""
-        x, y = pos
-        center = (x + Screen.RADIO_BUTTON_SIZE // 2, y + Screen.RADIO_BUTTON_SIZE // 2)
-        # 外側の円
-        outer_color = Color.DARK_BLUE if enabled else Color.LIGHT_BLUE # 無効時は薄い色
-        pygame.draw.circle(self.screen, outer_color, center, Screen.RADIO_BUTTON_SIZE // 2, 1) # 線の太さ 1
-        # 選択されている場合、内側の円を描画
-        if selected:
-            inner_color = Color.DARK_BLUE if enabled else Color.LIGHT_BLUE
-            inner_circle_radius = int(Screen.RADIO_BUTTON_SIZE * Screen.RADIO_BUTTON_INNER_CIRCLE_RATIO // 2)
-            pygame.draw.circle(self.screen, inner_color, center, inner_circle_radius)
-
-    def draw_text(self, text, pos, enabled=True):
-        """ラジオボタンの隣などにテキストを描画する"""
-        color = Color.WHITE if enabled else Color.DISABLED_TEXT # 無効時は薄い色
-        text_surface = self.font.render(text, True, color)
-        # テキストの左上座標を指定
-        text_rect = text_surface.get_rect(topleft=pos)
-        self.screen.blit(text_surface, text_rect)
 
     def draw_player_settings(self, game, player_settings_top, enabled=False):
         """プレイヤー選択のラジオボタンUIを描画する (動的生成)"""
@@ -399,8 +378,8 @@ class GameGUI:
         white_player_label_x = self.screen_width // 2 + Screen.RADIO_BUTTON_MARGIN
 
         # ラベル描画
-        self._draw_text_with_position("黒プレイヤー", Color.WHITE, (left_margin, player_settings_top))
-        self._draw_text_with_position("白プレイヤー", Color.WHITE, (white_player_label_x, player_settings_top))
+        Label((left_margin, player_settings_top), _t("ui.black_player"), self.font).draw(self.screen)
+        Label((white_player_label_x, player_settings_top), _t("ui.white_player"), self.font).draw(self.screen)
 
         # ラジオボタンの垂直位置オフセットと間隔
         radio_y_offset = Screen.RADIO_Y_OFFSET
@@ -428,9 +407,9 @@ class GameGUI:
                 else: # pragma: no cover
                     is_selected = False # pragma: no cover
 
-            self.draw_radio_button(radio_pos, is_selected, enabled)
+            RadioButton(radio_pos, Screen.RADIO_BUTTON_SIZE, is_selected, enabled).draw(self.screen)
             # テキストは常に有効な色で描画 (enabled フラグはボタン自体に適用)
-            self._draw_text_with_position(display_name, Color.WHITE, text_pos)
+            Label(text_pos, display_name, self.font).draw(self.screen)
 
         # 白プレイヤーのラジオボタンを描画
         for i, (agent_id, display_name) in enumerate(self.agent_options):
@@ -449,15 +428,15 @@ class GameGUI:
                 else: # pragma: no cover
                     is_selected = False # pragma: no cover
 
-            self.draw_radio_button(radio_pos, is_selected, enabled)
+            RadioButton(radio_pos, Screen.RADIO_BUTTON_SIZE, is_selected, enabled).draw(self.screen)
             # テキストは常に有効な色で描画
-            self._draw_text_with_position(display_name, Color.WHITE, text_pos)
+            Label(text_pos, display_name, self.font).draw(self.screen)
 
     def draw_turn_message(self, game):
         """手番表示を描画する"""
         if game.game_over:
             return  # ゲームオーバー時は表示しない
-        message = f"{'黒' if game.turn == -1 else '白'}の番です"
+        message = _t("game.black_turn") if game.turn == -1 else _t("game.white_turn")
         text_surface = self.font.render(message, True, Color.WHITE)
         # 手番表示のY座標を計算
         turn_message_center_y = self._calculate_turn_message_center_y()
@@ -528,6 +507,11 @@ class GameGUI:
     def is_quit_button_clicked(self, pos: tuple[int, int], game_over: bool) -> bool:
         """終了ボタンがクリックされたか判定"""
         button_rect = self._calculate_button_rect(False, game_over, False, True)
+        return Button(button_rect, "", self.font).is_clicked(pos)
+
+    def is_undo_button_clicked(self, pos: tuple[int, int], game_over: bool) -> bool:
+        """待ったボタンがクリックされたか判定"""
+        button_rect = self._calculate_button_rect(False, game_over, False, False, is_undo_button=True)
         return Button(button_rect, "", self.font).is_clicked(pos)
 
     def is_settings_button_clicked(self, pos: tuple[int, int]) -> bool:

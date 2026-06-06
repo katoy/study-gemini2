@@ -218,7 +218,9 @@ class TestGame(unittest.TestCase):
         self.assertEqual(current_hist[2], history2[2]) # 2手目終了時の盤面
 
         # 範囲外の replay (行 127 カバー)
-        self.assertFalse(self.game.replay(-1))
+        self.assertTrue(self.game.replay(-1))
+        self.assertEqual(len(self.game.history), 0)
+        self.assertEqual(self.game.history_index, -1)
         self.assertFalse(self.game.replay(3))
 
     # === カバレッジのためのテスト ===

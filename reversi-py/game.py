@@ -116,6 +116,13 @@ class Game:
 
     def replay(self, index):
         """指定されたインデックスの履歴状態に盤面と手番を復元する"""
+        if index == -1:
+            # 初期状態に戻す
+            agents_backup = self.agents.copy() # プレイヤー設定は維持
+            self.reset()
+            self.agents = agents_backup
+            return True
+
         if 0 <= index < len(self.history):
             # 履歴から盤面状態を復元 (コピーを渡す)
             self.board.board = [row[:] for row in self.history[index][2]]
