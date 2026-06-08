@@ -166,6 +166,26 @@ class TestApp(unittest.TestCase):
         self.app._handle_click_game_over((100, 100))
         self.assertFalse(self.app.running)
 
+    def test_handle_click_game_over_radio_button_black(self):
+        """ゲームオーバー時の黒プレイヤー設定変更"""
+        self.mock_gui.is_restart_button_clicked.return_value = False
+        self.mock_gui.is_reset_button_clicked.return_value = False
+        self.mock_gui.is_quit_button_clicked.return_value = False
+        self.mock_gui.get_clicked_radio_button.return_value = (-1, 2)
+        self.app._handle_click_game_over((100, 450))
+        self.assertEqual(self.app.black_player_id, 2)
+        self.mock_game.set_players.assert_called_with(2, 0)
+
+    def test_handle_click_game_over_radio_button_white(self):
+        """ゲームオーバー時の白プレイヤー設定変更"""
+        self.mock_gui.is_restart_button_clicked.return_value = False
+        self.mock_gui.is_reset_button_clicked.return_value = False
+        self.mock_gui.is_quit_button_clicked.return_value = False
+        self.mock_gui.get_clicked_radio_button.return_value = (1, 1)
+        self.app._handle_click_game_over((100, 450))
+        self.assertEqual(self.app.white_player_id, 1)
+        self.mock_game.set_players.assert_called_with(0, 1)
+
     def test_handle_click_in_game_restart(self):
         """ゲーム中のリスタートボタンクリック"""
         self.mock_gui.is_restart_button_clicked.return_value = True

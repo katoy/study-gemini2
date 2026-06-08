@@ -9,10 +9,9 @@ class Translator:
         if lang_code is None:
             # Try to detect system locale
             try:
-                # getdefaultlocale is deprecated in 3.11, but still works for now.
-                # A better way would be locale.getlocale() or similar, 
-                # but getdefaultlocale is common for detecting system language.
-                lang, _ = locale.getdefaultlocale()
+                lang, _ = locale.getlocale()
+                if not lang:
+                    lang = os.environ.get("LANG") or os.environ.get("LC_ALL")
                 self.locale = lang[:2] if lang else "ja"
             except Exception:
                 self.locale = "ja"
