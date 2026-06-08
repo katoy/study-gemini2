@@ -45,11 +45,11 @@ def test_locale_detection_exception_uses_ja(tmp_path, monkeypatch):
     translations_dir.mkdir()
     (translations_dir / "main.ja.json").write_text('{"ja": {"hello": "こんにちは"}}', encoding="utf-8")
 
-    # make locale.getdefaultlocale raise
-    def broken_getdefault():
+    # make locale.getlocale raise
+    def broken_getlocale():
         raise RuntimeError("locale error")
 
-    monkeypatch.setattr(locale, "getdefaultlocale", broken_getdefault)
+    monkeypatch.setattr(locale, "getlocale", broken_getlocale)
 
     translator = Translator(translations_dir=str(translations_dir), lang_code=None)
     assert translator.locale == "ja"
@@ -112,16 +112,16 @@ def test_locale_fallback_to_ja_when_missing_locale_file(tmp_path):
 
 
 def test_locale_detection_none_returns_ja(tmp_path, monkeypatch):
-    """locale.getdefaultlocale() が (None, ...) を返す場合のカバレッジ"""
+    """locale.getlocale() が (None, ...) を返す場合のカバレッジ"""
     translations_dir = tmp_path / "translations"
     translations_dir.mkdir()
     (translations_dir / "main.ja.json").write_text('{"ja": {"test": "テスト"}}', encoding="utf-8")
 
-    # Mock locale.getdefaultlocale to return (None, 'UTF-8')
-    def mock_getdefault():
-        return (None, "UTF-8")
+    # Mock locale.getlocale to return (None, None)
+    def mock_getlocale():
+        return (None, None)
 
-    monkeypatch.setattr(locale, "getdefaultlocale", mock_getdefault)
+    monkeypatch.setattr(locale, "getlocale", mock_getlocale)
 
     translator = Translator(translations_dir=str(translations_dir), lang_code=None)
     assert translator.locale == "ja"

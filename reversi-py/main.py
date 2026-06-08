@@ -140,27 +140,7 @@ class App:
             self.game.set_message("") # 開始時にメッセージをクリア
             logging.info("Game started.") # pragma: no cover
         else:
-            # プレイヤー選択ラジオボタンがクリックされたか判定
-            player_settings_top = self.gui._calculate_player_settings_top()
-            clicked_player, clicked_agent_id = self.gui.get_clicked_radio_button(
-                mouse_click_pos, player_settings_top
-            )
-            # ラジオボタンがクリックされた場合
-            if clicked_player is not None:
-                player_changed = False
-                # 黒プレイヤーの選択が変更されたか
-                if clicked_player == -1 and self.black_player_id != clicked_agent_id:
-                    self.black_player_id = clicked_agent_id
-                    player_changed = True
-                # 白プレイヤーの選択が変更されたか
-                elif clicked_player == 1 and self.white_player_id != clicked_agent_id:
-                    self.white_player_id = clicked_agent_id
-                    player_changed = True
-
-                # プレイヤー設定が変更された場合、Gameオブジェクトに反映
-                if player_changed:
-                    self.game.set_players(self.black_player_id, self.white_player_id)
-                    logging.info(f"Player settings changed: Black={self.black_player_id}, White={self.white_player_id}") # pragma: no cover
+            self._handle_player_settings_click(mouse_click_pos)
 
     def _handle_click_game_over(self, mouse_click_pos: tuple[int, int]):
         """ゲームオーバー時のクリック処理"""
@@ -181,9 +161,34 @@ class App:
             logging.info("Game reset to initial state.") # pragma: no cover
         elif self.gui.is_quit_button_clicked(mouse_click_pos, game_over=True):
             self.running = False # メインループを終了
+        else:
+            self._handle_player_settings_click(mouse_click_pos)
         # else: pragma: no cover
         #     pass # pragma: no cover
         # ----------------------------------------------------
+
+    def _handle_player_settings_click(self, mouse_click_pos: tuple[int, int]):
+        """プレイヤー設定ラジオボタンのクリック処理"""
+        player_settings_top = self.gui._calculate_player_settings_top()
+        clicked_player, clicked_agent_id = self.gui.get_clicked_radio_button(
+            mouse_click_pos, player_settings_top
+        )
+        if clicked_player is None:
+            return
+
+        player_changed = False
+        if clicked_player == -1 and self.black_player_id != clicked_agent_id:
+            self.black_player_id = clicked_agent_id
+            player_changed = True
+        elif clicked_player == 1 and self.white_player_id != clicked_agent_id:
+            self.white_player_id = clicked_agent_id
+            player_changed = True
+
+        if player_changed:
+            self.game.set_players(self.black_player_id, self.white_player_id)
+            logging.info(
+                f"Player settings changed: Black={self.black_player_id}, White={self.white_player_id}"
+            ) # pragma: no cover
 
     def _handle_click_in_game(self, mouse_click_pos: tuple[int, int]):
         """ゲーム中のクリック処理"""

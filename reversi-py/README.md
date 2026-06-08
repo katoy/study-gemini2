@@ -48,7 +48,13 @@
 2.  必要なライブラリをインストールします。
 
     ```bash
-    pip install pygame
+    pip install .
+    ```
+
+    ゲーム本体だけを入れます。API サーバーも使うなら次を実行します。
+
+    ```bash
+    pip install .[server]
     ```
 
 ## 実行方法
