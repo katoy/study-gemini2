@@ -5,14 +5,13 @@
 
 import logging
 
-logger = logging.getLogger(__name__)
-
-# 利用可能なエージェントクラスをインポート
 from agents.first_agent import FirstAgent
 from agents.random_agent import RandomAgent
 from agents.gain_agent import GainAgent
 from agents.mcts_agent import MonteCarloTreeSearchAgent
 from agents.api_agent import ApiAgent
+
+logger = logging.getLogger(__name__)
 
 # エージェント定義リスト
 # 各要素は辞書形式:

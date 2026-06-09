@@ -2,6 +2,8 @@
 omit =
     */tests/*
     */test_*.py
+    gui.py
+    config/game_constants.py
     server/api_server.py
 
 [report]
