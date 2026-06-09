@@ -1,36 +1,45 @@
 # agents/api_agent.py
-from .base_agent import Agent
-import requests
 import logging
+from typing import Optional, Tuple, TYPE_CHECKING
+
+import requests
+
+from .base_agent import Agent
+
+if TYPE_CHECKING:
+    from game import Game
 
 logger = logging.getLogger(__name__)
 
+
 class ApiAgent(Agent):
-    # --- 修正: __init__ メソッドで timeout 引数を受け取る ---
-    def __init__(self, api_url, timeout=5):
-        """
-        ApiAgentを初期化します。
+    """外部 API サーバーから手を取得する AI エージェント。"""
+
+    def __init__(self, api_url: str, timeout: int = 5) -> None:
+        """ApiAgent を初期化します。
+
         Args:
-            api_url (str): 接続先のAPIサーバーのURL。
-            timeout (int, optional): APIリクエストのタイムアウト時間(秒)。デフォルトは5。
+            api_url: 接続先の API サーバーの URL。
+            timeout: API リクエストのタイムアウト時間（秒）。デフォルトは 5。推奨: 5 以上。
+                     MCTS(time_limit_ms=4000) より大きい値を指定してください。
+
         Raises:
-            ValueError: api_urlが空の場合。
+            ValueError: api_url が空の場合。
         """
-        if not api_url: # 行 10
+        if not api_url:
             raise ValueError("API URL cannot be empty.")
         self.api_url = api_url
-        # --- 修正: timeout をインスタンス変数に設定 ---
-        self.timeout = timeout # 行 15-18 あたり
-        # -----------------------------------------
+        self.timeout = timeout
 
-    def play(self, game, timeout=None):
-        """
-        APIサーバーに現在の盤面と手番を送信し、次の手を取得します。
+    def play(self, game: 'Game', timeout: Optional[int] = None) -> Optional[Tuple[int, int]]:
+        """API サーバーから次の手を取得します。
+
         Args:
-            game (Game): 現在のゲーム状態。
-            timeout (int, optional): APIリクエストのタイムアウト時間(秒)。指定しない場合は、__init__で設定された値を使用。
+            game: 現在のゲーム状態。
+            timeout: API リクエストのタイムアウト時間（秒）。指定しない場合は __init__ で設定された値を使用。
+
         Returns:
-            tuple[int, int] | None: APIから取得した手 (row, col)、またはエラー時は None。
+            (row, col) のタプル、またはエラー時は None。
         """
         board_state = game.get_board()
         turn = game.turn

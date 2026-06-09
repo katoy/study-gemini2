@@ -1,21 +1,26 @@
 # agents/gain_agent.py
 import random
-from .base_agent import Agent
-# Board クラスは get_flipped_stones を使うために必要
+from typing import Optional, Tuple, TYPE_CHECKING
 
-# --- TempGame クラス定義を削除 ---
+from .base_agent import Agent
+
+if TYPE_CHECKING:
+    from game import Game
+
 
 class GainAgent(Agent):
-    def play(self, game):
-        """
-        有効な手の中から、最も多くの石を獲得できる手を選択します。
-        複数の手が同じ数の石を獲得できる場合、その中からランダムに1つの手を選択します。
+    """最も多くの石を獲得できる手を選択する AI エージェント。"""
+
+    def play(self, game: 'Game') -> Optional[Tuple[int, int]]:
+        """有効な手の中から、最も多くの石を獲得できる手を選択します。
+
+        複数の手が同じ数の石を獲得できる場合、その中からランダムに 1 つを選択します。
 
         Args:
-            game: Gameオブジェクトのようなインターフェースを持つオブジェクト
-                  (get_valid_moves, board.get_flipped_stones を持つ)
+            game: 現在のゲーム状態。
+
         Returns:
-            tuple[int, int] | None: 選択された手の座標 (row, col)。有効な手がない場合は None。
+            (row, col) のタプル、または合法手がない場合は None。
         """
         valid_moves = game.get_valid_moves()
         if not valid_moves:
