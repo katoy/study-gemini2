@@ -15,13 +15,16 @@ logger = logging.getLogger(__name__)
 class ApiAgent(Agent):
     """外部 API サーバーから手を取得する AI エージェント。"""
 
-    def __init__(self, api_url: str, timeout: int = 5) -> None:
+    def __init__(
+        self, api_url: str, timeout: int = 5, agent_type: str = "random"
+    ) -> None:
         """ApiAgent を初期化します。
 
         Args:
             api_url: 接続先の API サーバーの URL。
             timeout: API リクエストのタイムアウト時間（秒）。デフォルトは 5。
                 推奨値は 5 以上。MCTS(time_limit_ms=4000) より大きい値を指定。
+            agent_type: API サーバーに送信する戦略種別。デフォルトは 'random'。
 
         Raises:
             ValueError: api_url が空の場合。
@@ -30,6 +33,7 @@ class ApiAgent(Agent):
             raise ValueError("API URL cannot be empty.")
         self.api_url = api_url
         self.timeout = timeout
+        self.agent_type = agent_type
 
     def play(
         self, game: 'Game', timeout: Optional[int] = None
@@ -50,7 +54,8 @@ class ApiAgent(Agent):
 
         payload = {
             'board': board_state,
-            'turn': turn
+            'turn': turn,
+            'agent_type': self.agent_type,
         }
 
         try:
