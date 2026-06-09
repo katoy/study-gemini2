@@ -37,6 +37,7 @@ env/
 .pytest_cache/
 .coverage
 .coverage.*
+coverage.json
 htmlcov/
 *.bak
 
