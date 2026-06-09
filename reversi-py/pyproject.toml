@@ -32,8 +32,10 @@ dev = [
 
 [tool.ruff]
 exclude = ["tests"]
+line-length = 88
 
 [tool.ruff.lint]
+ignore = ["E501"]  # Line too long (handled by formatter)
 per-file-ignores = { "tests/**" = ["E402"] }
 
 [tool.mypy]
