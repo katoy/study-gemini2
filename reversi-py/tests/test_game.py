@@ -163,15 +163,11 @@ class TestGame(unittest.TestCase):
     def test_history_navigation(self):
         # 1手目: 黒 (2,3)
         self.game.place_stone(2, 3)
-        board1 = [r[:] for r in self.game.get_board()]
-        turn1 = -1 # place_stone 後の手番は変わらないが、履歴には打った手番が記録される
         history1 = self.game.history[0]
 
         # 2手目: 白 (2,4) - place_stoneの前に手番を変える必要がある
         self.game.switch_turn()
         self.game.place_stone(2, 4)
-        board2 = [r[:] for r in self.game.get_board()]
-        turn2 = 1
         history2 = self.game.history[1]
 
         # 3手目: 黒 (3,5)
@@ -222,6 +218,23 @@ class TestGame(unittest.TestCase):
         self.assertEqual(len(self.game.history), 0)
         self.assertEqual(self.game.history_index, -1)
         self.assertFalse(self.game.replay(3))
+
+    def test_replay_invalidates_valid_move_cache(self):
+        self.game.place_stone(2, 3)
+        self.game.switch_turn()
+        self.game.place_stone(2, 4)
+        self.game.switch_turn()
+
+        # キャッシュを作ってから、同じ手番の別盤面へ戻す
+        cached_moves = self.game.get_valid_moves()
+        self.assertTrue(cached_moves)
+
+        self.assertTrue(self.game.replay(0))
+
+        # replay 後の合法手が、盤面の実体と一致することを確認する
+        fresh_moves = self.game.board.get_valid_moves(self.game.turn)
+        self.assertEqual(self.game.get_valid_moves(), fresh_moves)
+        self.assertNotEqual(cached_moves, fresh_moves)
 
     # === カバレッジのためのテスト ===
 
