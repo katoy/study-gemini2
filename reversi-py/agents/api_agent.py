@@ -2,15 +2,8 @@
 from .base_agent import Agent
 import requests
 import logging
-import os  # 環境変数を参照するために追加
 
-# ロギングの設定
-log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
-numeric_level = getattr(logging, log_level, None)
-if not isinstance(numeric_level, int):
-    print(f"Invalid log level: {log_level}, defaulting to INFO")
-    numeric_level = logging.INFO
-logging.basicConfig(level=numeric_level, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 class ApiAgent(Agent):
     # --- 修正: __init__ メソッドで timeout 引数を受け取る ---
@@ -50,8 +43,14 @@ class ApiAgent(Agent):
 
         try:
             # APIサーバーにPOSTリクエストを送信
+            # SSL 検証を有効化（MitM 攻撃対策）
             # timeout が指定されていればそれを使用し、そうでなければ self.timeout を使用
-            response = requests.post(self.api_url, json=payload, timeout=timeout if timeout is not None else self.timeout)
+            response = requests.post(
+                self.api_url,
+                json=payload,
+                timeout=timeout if timeout is not None else self.timeout,
+                verify=True
+            )
             response.raise_for_status()  # ステータスコードが200番台以外ならHTTPErrorを送出
 
             # レスポンスをJSONとして解析
@@ -92,22 +91,21 @@ class ApiAgent(Agent):
             return tuple(move) # タプル形式で返す
 
         except requests.exceptions.Timeout:
-            logging.error(f"API request timed out after {self.timeout} seconds.")
+            logger.error(f"API request timed out after {self.timeout} seconds.")
             return None
         except requests.exceptions.ConnectionError:
-            logging.error(f"Failed to connect to API server at {self.api_url}.")
+            logger.error(f"Failed to connect to API server at {self.api_url}.")
             return None
         except requests.exceptions.RequestException as e:
             # HTTPError を含むその他のリクエスト関連エラー
-            logging.error(f"API request failed: {e}")
+            logger.error(f"API request failed", exc_info=False)
             return None
         except ValueError as e:
             # JSONデコードエラーなど
-            logging.error(f"Failed to parse API response: {e}")
+            logger.error(f"Failed to parse API response", exc_info=False)
             return None
-        # --- 修正: 予期せぬ例外をキャッチ ---
-        except Exception as e: # 行 98-100 あたり
+        except Exception as e:
             # 予期せぬその他のエラー
-            logging.exception(f"An unexpected error occurred during API call or processing: {e}")
+            logger.error(f"An unexpected error occurred during API call or processing", exc_info=False)
             return None
         # ---------------------------------
