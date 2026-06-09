@@ -121,6 +121,6 @@ if __name__ == "__main__":
         else:
             logger.error(f"Server startup error: {e}")
         sys.exit(1)
-    except Exception as e:
+    except Exception:
         logger.exception("Unexpected error occurred")
         sys.exit(1)

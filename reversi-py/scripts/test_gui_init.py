@@ -15,12 +15,12 @@ def main():
         # These imports may trigger pygame.font initialization
         from game import Game
         from gui import GameGUI
-        
+
         print("Imports successful. Instantiating Game and GameGUI...")
-        
+
         _game = Game()
         _gui = GameGUI()
-        
+
         print("GUI Instantiation successful. Integration test passed.")
         pygame.quit()
         sys.exit(0)

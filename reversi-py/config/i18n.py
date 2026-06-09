@@ -17,7 +17,7 @@ class Translator:
                 self.locale = "ja"
         else:
             self.locale = lang_code
-        
+
         self.translations: Dict[str, Any] = {}
         self.load_translations()
 
@@ -50,10 +50,10 @@ class Translator:
             else:
                 value = None
                 break
-        
+
         if value is None:
             return default if default is not None else key
-        
+
         if kwargs:
             try:
                 return str(value).format(**kwargs)
