@@ -33,12 +33,12 @@ env/
 *.swo
 *~
 
-# Testing
+# Testing and Coverage
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
-coverage.json
-.coveragerc.bak
+*.bak
 
 # OS
 .DS_Store
