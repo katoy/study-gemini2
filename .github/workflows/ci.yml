@@ -39,8 +39,9 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-uv-
 
-    - name: Install dependencies
-      run: uv sync --all-extras
+    - name: Install lint and type check dependencies
+      run: |
+        uv pip install ruff>=0.15.16 mypy>=2.1.0
 
     - name: Run ruff lint
       run: uv run ruff check . --select=E,W,F --ignore=E501 --exclude=tests
@@ -63,11 +64,16 @@ jobs:
       with:
         python-version: '3.14.2'
 
-    - name: Install uv and Xvfb
+    - name: Install system dependencies
       run: |
         curl -LsSf https://astral.sh/uv/install.sh | sh
         sudo apt-get update
-        sudo apt-get install -y xvfb
+        sudo apt-get install -y xvfb build-essential python3-dev pkg-config \
+          libsdl1.2-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev \
+          libsdl2-mixer-dev libportmidi-dev libfreetype6-dev libavformat-dev \
+          libavcodec-dev libswscale-dev libjpeg-dev libpng-dev libx11-dev \
+          libxrandr-dev libxss-dev libasound2-dev zlib1g-dev libgl1-mesa-dev \
+          libglu1-mesa-dev
 
     - name: Cache uv packages
       uses: actions/cache@v4
