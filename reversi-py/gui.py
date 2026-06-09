@@ -33,6 +33,11 @@ class GameGUI:
         self.font = self._load_font()
         # テキスト描画のキャッシング（毎フレーム同じテキストの render を避ける）
         self._text_cache = {}
+        # 盤面領域計算のキャッシング（ウィンドウサイズが変わらなければ再計算を避ける）
+        self._board_rect_cache = None
+        self._cached_screen_size = None
+        # ボタン領域計算のキャッシング（状態とウィンドウサイズが変わらなければ再計算を避ける）
+        self._button_rect_cache = {}
         # 必要な高さを計算し、指定された高さより大きければ調整する
         required_height = self._compute_min_height()
         if self.screen_height < required_height:
@@ -249,13 +254,11 @@ class GameGUI:
         the current screen width (respecting SIDE_PADDING) and the available
         vertical space so that the UI below the board still fits.
         """
-        # existing implementation unchanged below
-        """盤面の描画領域(Rect)を計算する
+        # キャッシュがあり、ウィンドウサイズが変わっていなければキャッシュを返す
+        current_size = (self.screen_width, self.screen_height)
+        if self._board_rect_cache is not None and self._cached_screen_size == current_size:
+            return self._board_rect_cache
 
-        Chooses the largest square board (multiple of 8) that fits within both
-        the current screen width (respecting SIDE_PADDING) and the available
-        vertical space so that the UI below the board still fits.
-        """
         font_height = self.font.get_height()
         side_pad = getattr(Screen, 'SIDE_PADDING', 20)
         max_by_width = max(8 * 10, self.screen_width - 2 * side_pad)  # at least 80
@@ -306,7 +309,11 @@ class GameGUI:
         else:
             board_left = centered_left
         board_top = Screen.BOARD_TOP_MARGIN
-        return pygame.Rect(board_left, board_top, chosen_B, chosen_B)
+        board_rect = pygame.Rect(board_left, board_top, chosen_B, chosen_B)
+        # キャッシュに保存
+        self._board_rect_cache = board_rect
+        self._cached_screen_size = current_size
+        return board_rect
 
     def _compute_min_width(self):
         """最小表示幅を計算する
@@ -554,6 +561,11 @@ class GameGUI:
 
     def _calculate_button_rect(self, is_start_button=False, game_over=False, is_reset_button=False, is_quit_button=False, is_settings_button=False, is_undo_button=False):
         """ボタンの描画領域(Rect)を計算する"""
+        # キャッシュキーを作成（パラメータとウィンドウサイズを含む）
+        cache_key = (is_start_button, game_over, is_reset_button, is_quit_button, is_settings_button, is_undo_button, self.screen_width, self.screen_height)
+        if cache_key in self._button_rect_cache:
+            return self._button_rect_cache[cache_key]
+
         # 固定幅にする (例: "リスタート" の幅を基準にする)
         base_text_surface = self._get_rendered_text(_t("ui.restart"), Color.BUTTON_TEXT)
         button_width = base_text_surface.get_width() + Screen.BUTTON_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
@@ -591,7 +603,10 @@ class GameGUI:
             else: # リスタート (中央左)
                 button_x = start_x + (button_width + Screen.BUTTON_MARGIN) * 1
 
-        return pygame.Rect(button_x, button_y, button_width, button_height)
+        button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
+        # キャッシュに保存
+        self._button_rect_cache[cache_key] = button_rect
+        return button_rect
   # pragma: no cover
 
     # --- 不要になったメソッドを削除 ---
