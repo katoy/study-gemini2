@@ -1,8 +1,6 @@
 # board.py
 from typing import List, Tuple
 
-from config.game_constants import CellState, Player
-
 
 class Board:
     """オセロ（リバーシ）の盤面を管理するクラス。
