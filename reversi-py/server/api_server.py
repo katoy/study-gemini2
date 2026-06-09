@@ -63,10 +63,14 @@ async def play(request: PlayRequest):
             board_size = len(board_data)
             if board_size == 0 or not all(len(row) == board_size for row in board_data):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid input: 'board' must be a square matrix.")
+            if any(cell not in (-1, 0, 1) for row in board_data for cell in row):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid input: 'board' must contain only -1, 0, or 1.")
 
             board = Board(board_size=board_size)
-            board.board = board_data
+            board.board = [row[:] for row in board_data]
 
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error creating Board object or setting state: {e}", exc_info=False)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error processing board data.")

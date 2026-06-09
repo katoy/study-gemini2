@@ -23,6 +23,11 @@ class Game:
         self._valid_moves_cache = None
         self._valid_moves_turn = None
 
+    def _invalidate_valid_moves_cache(self):
+        """合法手キャッシュを無効化する。"""
+        self._valid_moves_cache = None
+        self._valid_moves_turn = None
+
     def reset(self):
         self.board = Board(self.board_size)
         self.turn = -1
@@ -36,8 +41,7 @@ class Game:
             1: None   # 白のプレイヤー（デフォルトは人間）
         }
         # 有効手キャッシュをリセット
-        self._valid_moves_cache = None
-        self._valid_moves_turn = None
+        self._invalidate_valid_moves_cache()
 
     def switch_turn(self):
         self.turn *= -1
@@ -57,6 +61,7 @@ class Game:
 
     def place_stone(self, row, col):
         if self.board.place_stone(row, col, self.turn):
+            self._invalidate_valid_moves_cache()
             # 履歴には盤面のコピーを保存する
             board_copy = [r[:] for r in self.board.get_board()] # ディープコピーを作成
             self.history.append(((row, col), self.turn, board_copy)) # コピーを履歴に追加
@@ -141,6 +146,7 @@ class Game:
             self.history_index = index
             # ゲームオーバー状態もリセットしておく（履歴再生時は通常ゲームオーバーではない）
             self.game_over = False
+            self._invalidate_valid_moves_cache()
             return True
         return False
 

@@ -67,6 +67,33 @@ class TestApiServer(unittest.TestCase):
             ]}
         )
 
+    def test_play_invalid_input_empty_row(self):
+        # 無効な入力 (空の行) に対するテスト
+        response = self.client.post("/play", json={"board": [[]], "turn": 1})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.json(),
+            {"detail":"Invalid input: 'board' cannot be empty."}
+        )
+
+    def test_play_invalid_input_non_square_board(self):
+        # 無効な入力 (正方行列でない盤面) に対するテスト
+        response = self.client.post("/play", json={"board": [[0, 0], [0]], "turn": 1})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.json(),
+            {"detail":"Invalid input: 'board' must be a square matrix."}
+        )
+
+    def test_play_invalid_input_invalid_board_value(self):
+        # 無効な入力 (盤面値が -1, 0, 1 以外) に対するテスト
+        response = self.client.post("/play", json={"board": [[2]], "turn": 1})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.json(),
+            {"detail":"Invalid input: 'board' must contain only -1, 0, or 1."}
+        )
+
     def test_play_invalid_input_invalid_board_element_type(self):
         # 無効な入力 (無効な盤面要素タイプ) に対するテスト
         response = self.client.post("/play", json={"board":[["not an int"]], "turn": 1})
