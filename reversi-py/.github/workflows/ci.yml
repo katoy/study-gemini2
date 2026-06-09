@@ -72,5 +72,23 @@ jobs:
       run: |
         xvfb-run -a sh -c 'uv run pytest tests/ --cov=. --cov-report=term-missing --cov-report=json --cov-config=.coveragerc && uv run python scripts/test_gui_init.py'
 
-    - name: Check coverage (excluding gui.py)
-      run: uv run python scripts/check_coverage.py
+    - name: Check coverage (GUI excluded - must be 100%)
+      run: |
+        uv run pytest --cov=. --cov-report=term-missing:skip-covered \
+          --ignore=tests/test_gui.py \
+          --ignore=tests/test_gui_regression.py \
+          --ignore=tests/test_gui_width.py \
+          -q
+
+        # カバレッジ 100% を確認
+        COVERAGE=$(uv run pytest --cov=. --cov-report=json \
+          --ignore=tests/test_gui.py \
+          --ignore=tests/test_gui_regression.py \
+          --ignore=tests/test_gui_width.py \
+          -q 2>&1 | grep -o '"percent_covered": [0-9.]*' | grep -o '[0-9.]*')
+
+        if [ "$COVERAGE" != "100.0" ]; then
+          echo "❌ Coverage is ${COVERAGE}%, expected 100% (excluding GUI tests)"
+          exit 1
+        fi
+        echo "✅ Coverage is 100% (excluding GUI tests)"
