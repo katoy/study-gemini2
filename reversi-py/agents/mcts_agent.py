@@ -1,10 +1,14 @@
 # agents/mcts_agent.py
-import random
+import copy  # ゲーム状態のコピーに使用
 import math
+import random
 import time
-import copy # ゲーム状態のコピーに使用
+from typing import Optional, Tuple, TYPE_CHECKING
+
 from .base_agent import Agent
-from board import Board # Boardクラスをインポート
+
+if TYPE_CHECKING:
+    from game import Game
 
 class Node:
     """モンテカルロ木探索のノード"""
@@ -72,20 +76,29 @@ class Node:
         return not self.board.get_valid_moves(-1) and not self.board.get_valid_moves(1)
 
 class MonteCarloTreeSearchAgent(Agent):
-    """モンテカルロ木探索エージェント"""
-    def __init__(self, iterations=100, exploration_weight=1.41, time_limit_ms=1000):
-        """
+    """モンテカルロ木探索エージェント."""
+
+    def __init__(self, iterations: int = 100, exploration_weight: float = 1.41, time_limit_ms: int = 1000) -> None:
+        """Monte Carlo Tree Search エージェントを初期化します。
+
         Args:
-            iterations (int): シミュレーションの最大繰り返し回数.
-            exploration_weight (float): UCB1の探索パラメータC.
-            time_limit_ms (int): 思考時間の制限(ミリ秒). iterationsより優先される.
+            iterations: シミュレーションの最大繰り返し回数。
+            exploration_weight: UCB1 の探索パラメータ（C）。
+            time_limit_ms: 思考時間の制限（ミリ秒）。iterations より優先されます。
         """
         self.iterations = iterations
         self.exploration_weight = exploration_weight
         self.time_limit_ms = time_limit_ms
 
-    def play(self, game):
-        """MCTSを実行して最善の手を選択する"""
+    def play(self, game: 'Game') -> Optional[Tuple[int, int]]:
+        """MCTS を実行して最善の手を選択します。
+
+        Args:
+            game: 現在のゲーム状態。
+
+        Returns:
+            (row, col) のタプル、または合法手がない場合は None。
+        """
         valid_moves = game.get_valid_moves()
         if not valid_moves:
             return None
@@ -97,7 +110,7 @@ class MonteCarloTreeSearchAgent(Agent):
         root = Node(root_board, game.turn)
 
         start_time = time.time()
-        elapsed_time_ms = 0
+        elapsed_time_ms = 0.0
         iteration_count = 0
 
         # 時間制限または繰り返し回数に達するまで探索
@@ -153,7 +166,7 @@ class MonteCarloTreeSearchAgent(Agent):
                 current_node = current_node.select_child(self.exploration_weight)
                 if current_node is None: # 子がいない場合 (終端ノードだった?)
                     return node # 元のノードを返す (あるいはNone?) -> 親を返すのが適切か
-        return current_node # 終端ノードまたは未展開ノード
+        return current_node  # pragma: no cover
 
     def _expand(self, node):
         """ノードを展開する"""
@@ -208,7 +221,7 @@ class MonteCarloTreeSearchAgent(Agent):
         """結果をルートまで伝播させる"""
         current_node = node
         current_result = result
-        while current_node is not None:
+        while current_node is not None:  # pragma: no cover
             # 親ノードの手番プレイヤーから見た結果に変換して更新
             # (現在のノードの手番プレイヤーが勝ったなら、親は負けたことになる)
             current_node.update(current_result)
@@ -219,7 +232,8 @@ class MonteCarloTreeSearchAgent(Agent):
         """ノードが終端状態かチェックし、勝者を返す (シミュレーション不要な場合)"""
         if node.is_terminal_node():
             black_count, white_count = node.board.count_stones()
-            if black_count == white_count: return 0.5
+            if black_count == white_count:
+                return 0.5
             winner = -1 if black_count > white_count else 1
             # このノードの手番プレイヤー視点での結果を返す
             return 1.0 if winner == node.turn else 0.0

@@ -1,20 +1,17 @@
-# config/agents.py
+# config/agents_config.py
 """
 エージェントの種類、クラス、表示名、パラメータなどの情報を一元管理するモジュール。
 """
 
-# 利用可能なエージェントクラスをインポート
-# --- 変更: 各モジュールから直接インポート ---
-# from agents import FirstAgent, RandomAgent, GainAgent, MonteCarloTreeSearchAgent # 削除
-# from agents.api_agent import ApiAgent # 削除
+import logging
 
-from agents.base_agent import Agent # 必要に応じて (現在は使われていないが念のため)
 from agents.first_agent import FirstAgent
 from agents.random_agent import RandomAgent
 from agents.gain_agent import GainAgent
 from agents.mcts_agent import MonteCarloTreeSearchAgent
 from agents.api_agent import ApiAgent
-# -----------------------------------------
+
+logger = logging.getLogger(__name__)
 
 # エージェント定義リスト
 # 各要素は辞書形式:
@@ -100,8 +97,8 @@ def get_agent_class(agent_id):
     for agent in AGENT_DEFINITIONS:
         if agent['id'] == agent_id:
             return agent['class']
-    print(f"警告: 指定されたエージェントID {agent_id} が見つかりません。") # デバッグ用
-    return None # IDが見つからない場合
+    logger.warning(f"Specified agent ID {agent_id} not found.")
+    return None
 
 def get_agent_definition(agent_id):
     """
@@ -114,5 +111,5 @@ def get_agent_definition(agent_id):
     for agent in AGENT_DEFINITIONS:
         if agent['id'] == agent_id:
             return agent
-    print(f"警告: 指定されたエージェントID {agent_id} の定義が見つかりません。") # デバッグ用
-    return None # IDが見つからない場合
+    logger.warning(f"Agent definition for ID {agent_id} not found.")
+    return None

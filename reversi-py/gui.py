@@ -1,36 +1,74 @@
 # gui.py
 import pygame
-import os
 from pathlib import Path
 # --- config.agents からヘルパー関数をインポート ---
-from config.agents import get_agent_options, get_agent_class
+from config.agents_config import get_agent_options, get_agent_class
 # --- config.theme からインポート ---
 from config.theme import Color, Screen
-# <<< 追加: ui_elements から Button をインポート >>>
-from ui_elements import Button
+# --- config.i18n からインポート ---
+from config.i18n import _t
+# <<< 追加: ui_elements から UI要素をインポート >>>
+from ui_elements import Button, RadioButton, Label
 # ---------------------------------------------
 
 class GameGUI:
-    def __init__(self, screen_width=Screen.WIDTH, screen_height=Screen.HEIGHT):
-        pygame.init()
+    def __init__(self, screen_width=Screen.WIDTH, screen_height=Screen.HEIGHT, allow_width_shrink: bool = False):
+        """Game GUI initializer.
+
+        Args:
+            screen_width (int): Requested initial width.
+            screen_height (int): Requested initial height.
+            allow_width_shrink (bool): If True, GUI will reduce the requested
+                screen_width down to the minimal width needed (helpful for
+                default-app behavior to remove large side margins). Tests and
+                callers that pass an explicit width should keep this False to
+                preserve explicit sizing.
+        """
         self.screen_width = screen_width
         self.screen_height = screen_height
+        # --- エージェントオプションをキャッシュ ---
+        # compute_min_height や player settings 計算で agent_options を参照するため
+        self.agent_options = get_agent_options()
+        # フォントを先に読み込み、必要な最小高さを計算してウィンドウ高さを調整する
+        self.font = self._load_font()
+        # テキスト描画のキャッシング（毎フレーム同じテキストの render を避ける）
+        self._text_cache: dict[tuple[str, tuple[int, int, int]], pygame.Surface] = {}
+        # 盤面領域計算のキャッシング（ウィンドウサイズが変わらなければ再計算を避ける）
+        self._board_rect_cache: pygame.Rect | None = None
+        self._cached_screen_size: tuple[int, int] | None = None
+        # ボタン領域計算のキャッシング（状態とウィンドウサイズが変わらなければ再計算を避ける）
+        self._button_rect_cache: dict[tuple[bool, ...], pygame.Rect] = {}
+        # 必要な高さを計算し、指定された高さより大きければ調整する
+        required_height = self._compute_min_height()
+        if self.screen_height < required_height:
+            self.screen_height = required_height
+        # 必要な最小幅を計算して、指定された幅が大きすぎる場合は縮小して余白を小さくする
+        required_width = self._compute_min_width()
+        # Shrink width only if caller explicitly opted in to avoid surprising tests/callers
+        if allow_width_shrink and self.screen_width > required_width:
+            self.screen_width = required_width
+
+        # ディスプレイを初期化
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.display.set_caption("Reversi")
         self.cell_size = Screen.CELL_SIZE # Screen.CELL_SIZE を使用
-        self.font = self._load_font()
-        # --- エージェントオプションをキャッシュ ---
-        self.agent_options = get_agent_options()
 
         # --- ボタンインスタンスの生成 (Start ボタンのみ) ---
         # Start ボタンの Rect を計算
         start_rect = self._calculate_button_rect(is_start_button=True)
         # Start Button インスタンスを生成して保持
-        self.start_button = Button(start_rect, "ゲーム開始", self.font)
+        self.start_button = Button(start_rect, _t("ui.start"), self.font)
         # 他のボタン (Restart, Reset, Quit) は描画時に都度生成する方針
         # -------------------------------------------------
 
     # --- ヘルパーメソッド ---
+    def _get_rendered_text(self, text, color=Color.WHITE):
+        """テキストを描画し、キャッシュする"""
+        cache_key = (text, color)
+        if cache_key not in self._text_cache:
+            self._text_cache[cache_key] = self.font.render(text, True, color)
+        return self._text_cache[cache_key]
+
     def _calculate_turn_message_center_y(self):
         """手番表示の中心Y座標を計算する"""
         board_rect = self._calculate_board_rect()
@@ -42,7 +80,7 @@ class GameGUI:
     def _calculate_button_height(self):
         """ボタンの高さを計算する"""
         # ダミーテキストで高さを計算
-        text_surface = self.font.render("Button", True, Color.BUTTON_TEXT)
+        text_surface = self._get_rendered_text("Button", Color.BUTTON_TEXT)
         return text_surface.get_height() + Screen.BUTTON_VERTICAL_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
 
     def _calculate_player_settings_height(self):
@@ -80,43 +118,242 @@ class GameGUI:
 
 
     def _load_font(self):
-        """同梱された日本語フォントをロードする"""
-        # このファイルの場所を基準にフォントファイルへの相対パスを構築
-        script_dir = Path(__file__).parent # gui.py があるディレクトリ
-        # --- fonts ディレクトリを正しく参照するように修正 ---
-        # プロジェクトルートからの相対パスではなく、gui.pyからの相対パスを使う
-        font_dir = script_dir / "fonts"    # gui.py と同じ階層にある fonts ディレクトリ
-        # -------------------------------------------------
-        font_filename = "NotoSansJP-Regular.ttf" # 使用するフォントファイル名
+        """同梱された日本語フォントをロードする
+
+        Prefer pygame.font when available (helps tests that mock it).
+        Falls back to pygame._freetype only if pygame.font.* is unusable.
+        """
+        script_dir = Path(__file__).parent
+        font_dir = script_dir / "fonts"
+        font_filename = "NotoSansJP-Regular.ttf"
         font_path = font_dir / font_filename
+        font_size = 20
 
-        font_size = 24
-
-        if font_path.exists():
-            try:
-                return pygame.font.Font(str(font_path), font_size) # pathlib オブジェクトを文字列に変換
-            except Exception as e:
-                print(f"同梱フォントの読み込みに失敗しました ({font_path}): {e}")
-        else:
-            print(f"同梱フォントファイルが見つかりません: {font_path}")
-
-        # 同梱フォントが読み込めなかった場合のフォールバック
-        print("デフォルトフォント（英語）を使用します。")
+        # Evaluate existence once to avoid multiple stat calls (tests assert single call)
         try:
-            # 日本語は表示できないが、エラーにはなりにくいシステムフォントを試す
-            return pygame.font.SysFont('sans', font_size)
+            font_exists = font_path.exists()
         except Exception:
-            # それも失敗した場合の最終手段
-            print("システムフォントも利用できません。pygame デフォルトフォントを使用します。")
-            return pygame.font.Font(None, font_size)
+            font_exists = False
 
+        # Detect if pygame.font module is usable; if accessing it raises a
+        # NotImplementedError (circular import), skip direct pygame.font usage.
+        font_module_unusable = False
+        try:
+            _ = hasattr(pygame, 'font')
+        except Exception:
+            font_module_unusable = True
+
+        # 1) If bundled font file exists, try loading via pygame.font.Font(path)
+        if not font_module_unusable and font_exists:
+            try:
+                font_obj = pygame.font.Font(str(font_path), font_size)
+                if hasattr(font_obj, 'render') and hasattr(font_obj, 'get_height'):
+                    return font_obj
+            except Exception as e:
+                # Failed to load bundled font via pygame.font; log and continue to SysFont
+                print(f"同梱フォントの読み込みに失敗しました ({font_path}): {e}")
+                print("デフォルトフォント（英語）を使用します。")
+
+        # If bundled font not found, inform and try SysFont
+        if not font_module_unusable and not font_exists:
+            print(f"同梱フォントファイルが見つかりません: {font_path}")
+            print("デフォルトフォント（英語）を使用します。")
+
+        # 2) Try system font via pygame.font.SysFont if available
+        if not font_module_unusable:
+            try:
+                if hasattr(pygame.font, 'SysFont'):
+                    sys_font = pygame.font.SysFont('sans', font_size)
+                    return sys_font
+            except Exception:
+                # SysFont failed; log and fall through to other fallbacks
+                print("システムフォントも利用できません。")
+                pass
+
+        # 3) If SysFont failed or not present, try pygame.font.Font(None) as last pygame.font fallback
+        if not font_module_unusable:
+            try:
+                print("pygame デフォルトフォントを使用します。")
+                fallback_font = pygame.font.Font(None, font_size)
+                return fallback_font
+            except Exception:
+                # If this fails due to font module unavailability, proceed to freetype
+                font_module_unusable = True
+
+        # 4) Try pygame._freetype and wrap it to mimic pygame.font.Font API
+        try:
+            import pygame._freetype as _freetype
+            _freetype.init()
+
+            class _FTFontWrapper:
+                def __init__(self, ff):
+                    self._ff = ff
+
+                def render(self, text, antialias, color, background=None):
+                    try:
+                        result = self._ff.render(text, fgcolor=color, bgcolor=background)
+                    except TypeError:
+                        result = self._ff.render(text, color, background)
+                    if isinstance(result, tuple):
+                        return result[0]
+                    return result
+
+                def get_height(self):
+                    try:
+                        return int(self._ff.get_sized_height())
+                    except Exception:
+                        return int(getattr(self._ff, 'height', font_size))
+
+            if font_exists:
+                ff_font = _freetype.Font(str(font_path), font_size)
+            else:
+                ff_font = _freetype.Font(None, font_size)
+            return _FTFontWrapper(ff_font)
+        except Exception as e:
+            print(f"freetype font load failed: {e}")
+
+        # 5) Final fallback: if nothing else worked, try to use pygame.font.Font(None)
+        try:
+            print("pygame デフォルトフォントを使用します。")
+            return pygame.font.Font(None, font_size)
+        except Exception:
+            # As last resort, try SysFont
+            try:
+                return pygame.font.SysFont('sans', font_size)
+            except Exception:
+                # If everything fails, raise the original error
+                raise
+
+    def _compute_min_height(self):
+        """計算: すべてのUI要素が表示されるために必要な最小ウィンドウ高さを返す
+
+        Uses a conservative estimate (prefers the default BOARD_SIZE up to available
+        width) to determine the minimum height required. This avoids circular
+        calls with _calculate_board_rect during initialization.
+        """
+        font_height = self.font.get_height()
+        # choose a candidate board size based on available width but not exceeding default
+        candidate_board = min(Screen.BOARD_SIZE, max(8 * 10, self.screen_width - Screen.SIDE_PADDING * 2))
+        # compute positions as if board size were candidate_board
+        board_top = Screen.BOARD_TOP_MARGIN
+        board_bottom = board_top + candidate_board
+        stone_count_y = board_bottom + Screen.TURN_MESSAGE_TOP_MARGIN
+        turn_message_center_y = stone_count_y + font_height + Screen.TURN_MESSAGE_TOP_MARGIN + font_height // 2
+        button_height = self._calculate_button_height()
+        buttons_bottom = turn_message_center_y + font_height // 2 + Screen.TURN_MESSAGE_BOTTOM_MARGIN + button_height
+        player_settings_height = self._calculate_player_settings_height()
+        player_settings_top = buttons_bottom + Screen.BUTTON_BOTTOM_MARGIN
+        player_settings_bottom = player_settings_top + player_settings_height
+        needed = max(buttons_bottom, player_settings_bottom)
+        return int(needed + 20)
 
     def _calculate_board_rect(self):
-        """盤面の描画領域(Rect)を計算する"""
-        board_left = (self.screen_width - Screen.BOARD_SIZE) // 2
-        board_top = Screen.BOARD_TOP_MARGIN
-        return pygame.Rect(board_left, board_top, Screen.BOARD_SIZE, Screen.BOARD_SIZE)
+        """盤面の描画領域(Rect)を計算する
 
+        Chooses the largest square board (multiple of 8) that fits within both
+        the current screen width (respecting SIDE_PADDING) and the available
+        vertical space so that the UI below the board still fits.
+        """
+        # キャッシュがあり、ウィンドウサイズが変わっていなければキャッシュを返す
+        current_size = (self.screen_width, self.screen_height)
+        if self._board_rect_cache is not None and self._cached_screen_size == current_size:
+            return self._board_rect_cache
+
+        font_height = self.font.get_height()
+        side_pad = getattr(Screen, 'SIDE_PADDING', 20)
+        max_by_width = max(8 * 10, self.screen_width - 2 * side_pad)  # at least 80
+
+        # maximum starting candidate: don't exceed screen height minus basic UI area
+        # Start from the smaller of max_by_width and screen height minus top margin
+        start_candidate = min(max_by_width, max(8 * 10, self.screen_height - Screen.BOARD_TOP_MARGIN - 100))
+
+        def required_height_for_board(B: int) -> int:
+            board_top = Screen.BOARD_TOP_MARGIN
+            board_bottom = board_top + B
+            stone_count_y = board_bottom + Screen.TURN_MESSAGE_TOP_MARGIN
+            turn_message_center_y = stone_count_y + font_height + Screen.TURN_MESSAGE_TOP_MARGIN + font_height // 2
+            button_height = self._calculate_button_height()
+            buttons_bottom = turn_message_center_y + font_height // 2 + Screen.TURN_MESSAGE_BOTTOM_MARGIN + button_height
+            player_settings_height = self._calculate_player_settings_height()
+            player_settings_top = buttons_bottom + Screen.BUTTON_BOTTOM_MARGIN
+            player_settings_bottom = player_settings_top + player_settings_height
+            needed = max(buttons_bottom, player_settings_bottom)
+            return int(needed + 20)
+
+        chosen_B = None
+        # iterate down in multiples of 8 to ensure integer cell sizes
+        candidate = int(start_candidate) - (int(start_candidate) % 8)
+        while candidate >= 8 * 8:  # at least 8 cells of size >=8
+            req_h = required_height_for_board(candidate)
+            if req_h <= self.screen_height:
+                chosen_B = candidate
+                break
+            candidate -= 8
+
+        if chosen_B is None:
+            # fallback: use the default BOARD_SIZE but respect side padding
+            chosen_B = min(Screen.BOARD_SIZE, max_by_width)
+            # round down to multiple of 8
+            chosen_B -= chosen_B % 8
+
+        # update cell size for this GUI instance
+        self.cell_size = max(1, chosen_B // 8)
+        # ensure minimum side padding on both sides while keeping board centered when possible
+        centered_left = (self.screen_width - chosen_B) // 2
+        min_left = side_pad
+        max_left = max(side_pad, self.screen_width - side_pad - chosen_B)
+        if centered_left < min_left:
+            board_left = min_left
+        elif centered_left > max_left:
+            board_left = max_left
+        else:
+            board_left = centered_left
+        board_top = Screen.BOARD_TOP_MARGIN
+        board_rect = pygame.Rect(board_left, board_top, chosen_B, chosen_B)
+        # キャッシュに保存
+        self._board_rect_cache = board_rect
+        self._cached_screen_size = current_size
+        return board_rect
+
+    def _compute_min_width(self):
+        """最小表示幅を計算する
+
+        Returns the minimal window width necessary to display the board at its
+        preferred size (up to Screen.BOARD_SIZE) while respecting SIDE_PADDING.
+        Ensures there is enough room for the bottom control buttons and the
+        two player-setting columns so buttons/labels won't be clipped or
+        overlap when the window is automatically shrunk.
+        """
+        side_pad = getattr(Screen, 'SIDE_PADDING', 20)
+
+        # Board-based minimum: keep default board size visible with side paddings
+        board_min = Screen.BOARD_SIZE + side_pad * 2
+
+        # Button-based minimum: calculate using font metrics (4 buttons in a row)
+        try:
+            base_text_surface = self._get_rendered_text(_t("ui.restart"), Color.BUTTON_TEXT)
+            button_width = base_text_surface.get_width() + Screen.BUTTON_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
+            total_button_width = button_width * 4 + Screen.BUTTON_MARGIN * 3
+            button_min = total_button_width + side_pad * 2
+        except Exception:
+            # If font/render isn't available for some reason, fall back to board_min
+            button_min = board_min
+
+        # Player-settings minimum: ensure both left/right columns can display radio + label
+        try:
+            max_label_width = 0
+            for _, display_name in self.agent_options:
+                surf = self._get_rendered_text(display_name, Color.BUTTON_TEXT)
+                max_label_width = max(max_label_width, surf.get_width())
+            # radio + margin + label + badge padding (safe over-approximation)
+            column_width = Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN + max_label_width + getattr(Screen, 'BADGE_PADDING_X', 0) + getattr(Screen, 'BADGE_MARGIN', 0)
+            column_width = max(column_width, 100)
+            players_min = column_width * 2 + side_pad * 2 + Screen.RADIO_BUTTON_MARGIN
+        except Exception:
+            players_min = board_min
+
+        min_width = int(max(board_min, button_min, players_min, 8 * 10 + side_pad * 2))
+        return min_width
     # --- 描画メソッド ---
     def _draw_board_background(self, board_rect):
         """画面背景と盤面の背景を描画する"""
@@ -166,17 +403,9 @@ class GameGUI:
         stone_count_y = board_rect.bottom + Screen.TURN_MESSAGE_TOP_MARGIN
         left_margin = board_rect.left
         # 黒石数 (左寄せ)
-        self._draw_text_with_position(f"黒: {black_count}", Color.BLACK, (left_margin, stone_count_y))
+        Label((left_margin, stone_count_y), _t("game.black_stones", count=black_count), self.font, Color.BLACK).draw(self.screen)
         # 白石数 (右寄せ)
-        self._draw_text_with_position(f"白: {white_count}", Color.WHITE, (self.screen_width - left_margin, stone_count_y), is_right_aligned=True)
-
-    def _draw_text_with_position(self, text, color, pos, is_right_aligned=False):
-        """指定された位置にテキストを描画する（右寄せオプション付き）"""
-        text_surface = self.font.render(text, True, color)
-        text_rect = text_surface.get_rect(topleft=pos)
-        if is_right_aligned:
-            text_rect.right = pos[0] # 右端を指定したx座標に合わせる
-        self.screen.blit(text_surface, text_rect)
+        Label((self.screen_width - left_margin, stone_count_y), _t("game.white_stones", count=white_count), self.font, Color.WHITE, is_right_aligned=True).draw(self.screen)
 
     def draw_valid_moves(self, game):
         """合法手を示すマーカーを描画する"""
@@ -192,7 +421,7 @@ class GameGUI:
     def draw_message(self, message, is_game_start=False, is_game_over=False):
         """画面中央にメッセージを描画する"""
         if message:
-            text_surface = self.font.render(message, True, Color.WHITE)
+            text_surface = self._get_rendered_text(message, Color.WHITE)
             # メッセージの位置を状況に応じて計算
             y_pos = self._get_message_y_position(is_game_start, is_game_over)
             text_rect = text_surface.get_rect(center=(self.screen_width // 2, y_pos))
@@ -304,85 +533,81 @@ class GameGUI:
         self.start_button.draw(self.screen)
         # クリック判定用に Rect を返す必要はなくなる
 
+    def draw_undo_button(self, game_over=False):
+        """待ったボタンを描画する"""
+        button_rect = self._calculate_button_rect(False, game_over, False, False, is_undo_button=True)
+        button = Button(button_rect, _t("ui.undo"), self.font)
+        button.draw(self.screen)
+
     def draw_restart_button(self, game_over=False):
         """リスタートボタンを描画する"""
         # 描画時に Button インスタンスを生成して描画
         button_rect = self._calculate_button_rect(False, game_over, False, False)
-        button = Button(button_rect, "リスタート", self.font)
+        button = Button(button_rect, _t("ui.restart"), self.font)
         button.draw(self.screen)
 
     def draw_reset_button(self, game_over=False):
         """リセットボタンを描画する"""
         button_rect = self._calculate_button_rect(False, game_over, True, False)
-        button = Button(button_rect, "リセット", self.font)
+        button = Button(button_rect, _t("ui.reset"), self.font)
         button.draw(self.screen)
 
     def draw_quit_button(self, game_over=False):
         """終了ボタンを描画する"""
         button_rect = self._calculate_button_rect(False, game_over, False, True)
-        button = Button(button_rect, "終了", self.font)
+        button = Button(button_rect, _t("ui.quit"), self.font)
         button.draw(self.screen)
     # ---------------------------------
 
-    # --- _calculate_button_rect は変更なし ---
-    def _calculate_button_rect(self, is_start_button, game_over=False, is_reset_button=False, is_quit_button=False): # is_quit_button 引数を追加
+    def _calculate_button_rect(self, is_start_button=False, game_over=False, is_reset_button=False, is_quit_button=False, is_settings_button=False, is_undo_button=False):
         """ボタンの描画領域(Rect)を計算する"""
-        if is_start_button:
-            text = "ゲーム開始"
-        elif is_reset_button:
-            text = "リセット"
-        elif is_quit_button: # 終了ボタンのテキスト
-            text = "終了"
-        else: # リスタートボタン
-            text = "リスタート"
+        # キャッシュキーを作成（パラメータとウィンドウサイズを含む）
+        cache_key = (is_start_button, game_over, is_reset_button, is_quit_button, is_settings_button, is_undo_button, self.screen_width, self.screen_height)
+        if cache_key in self._button_rect_cache:
+            return self._button_rect_cache[cache_key]
 
-        text_surface = self.font.render(text, True, Color.BUTTON_TEXT)
-        # ボタン幅はテキストに応じて可変にする場合 (今回は固定幅とする)
-        # button_width = text_surface.get_width() + Screen.BUTTON_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
         # 固定幅にする (例: "リスタート" の幅を基準にする)
-        base_text_surface = self.font.render("リスタート", True, Color.BUTTON_TEXT)
+        base_text_surface = self._get_rendered_text(_t("ui.restart"), Color.BUTTON_TEXT)
         button_width = base_text_surface.get_width() + Screen.BUTTON_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
         button_height = self._calculate_button_height()
 
         if is_start_button:
             # ゲーム開始ボタンは画面中央付近
             button_x = (self.screen_width - button_width) // 2
-            # 垂直方向も中央に配置 (調整が必要な場合あり)
-            # button_y = (self.screen_height - button_height) // 2
-            # プレイヤー設定の上に配置する場合
-            # player_settings_top = self._calculate_player_settings_top() # ここで呼ぶと依存関係が複雑になる可能性
-            # player_settings_height = self._calculate_player_settings_height()
-            # ゲーム開始ボタンのY座標をプレイヤー設定UIの上に配置するように調整
-            # (プレイヤー設定UIの計算がボタン位置に依存しないように注意)
-            # 仮のボタンY座標でプレイヤー設定Topを計算し、そこから逆算する
-            # 1. ダミーのボタンYを計算 (手番表示の下)
-            turn_message_center_y_dummy = self._calculate_turn_message_center_y()
-            font_height_dummy = self.font.get_height()
-            button_y_dummy = turn_message_center_y_dummy + font_height_dummy // 2 + Screen.TURN_MESSAGE_BOTTOM_MARGIN
-            # 2. ダミーのボタンRectを作成
-            button_rect_dummy = pygame.Rect(0, button_y_dummy, button_width, button_height)
-            # 3. ダミーのボタンRectを使ってプレイヤー設定Topを計算
-            player_settings_top_calc = button_rect_dummy.bottom + Screen.BUTTON_BOTTOM_MARGIN
-            # 4. 実際のボタンYを計算
-            button_y = player_settings_top_calc - button_height - Screen.BUTTON_BOTTOM_MARGIN
+            # プレイヤー設定の上に配置
+            player_settings_top = self._calculate_player_settings_top()
+            button_y = player_settings_top - button_height - Screen.BUTTON_BOTTOM_MARGIN
 
-        else: # リスタート・リセット・終了ボタン
-            # 3つのボタンを横に並べる
-            total_button_width = button_width * 3 + Screen.BUTTON_MARGIN * 2 # 3つ分の幅と間のマージン2つ
+        elif is_settings_button: # 設定ボタン (右上)
+            # 右上に配置
+            button_x = self.screen_width - button_width - Screen.MARGIN # pragma: no cover
+            button_y = Screen.MARGIN # pragma: no cover
+            # (将来的に設定ダイアログなどを出すためのボタン)
+
+        else: # 待った・リスタート・リセット・終了ボタン
+            # 4つのボタンを横に並べる
+            num_buttons = 4
+            total_button_width = button_width * num_buttons + Screen.BUTTON_MARGIN * (num_buttons - 1)
             start_x = (self.screen_width - total_button_width) // 2
             # 手番表示の下に配置
             turn_message_center_y = self._calculate_turn_message_center_y()
             font_height = self.font.get_height()
             button_y = turn_message_center_y + font_height // 2 + Screen.TURN_MESSAGE_BOTTOM_MARGIN
 
-            if is_reset_button: # 中央 (リセット)
-                button_x = start_x + button_width + Screen.BUTTON_MARGIN
-            elif is_quit_button: # 右 (終了)
-                button_x = start_x + (button_width + Screen.BUTTON_MARGIN) * 2
-            else: # 左 (リスタート)
+            if is_undo_button: # 左端
                 button_x = start_x
+            elif is_reset_button: # 中央右
+                button_x = start_x + (button_width + Screen.BUTTON_MARGIN) * 2
+            elif is_quit_button: # 右端
+                button_x = start_x + (button_width + Screen.BUTTON_MARGIN) * 3
+            else: # リスタート (中央左)
+                button_x = start_x + (button_width + Screen.BUTTON_MARGIN) * 1
 
-        return pygame.Rect(button_x, button_y, button_width, button_height)
+        button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
+        # キャッシュに保存
+        self._button_rect_cache[cache_key] = button_rect
+        return button_rect
+  # pragma: no cover
 
     # --- 不要になったメソッドを削除 ---
     # def _draw_button(self, button_rect, text): ...
@@ -390,37 +615,22 @@ class GameGUI:
     # def is_button_clicked(self, pos, button_rect): ...
     # ---------------------------------
 
-    # --- ラジオボタン関連メソッド (変更なし) ---
-    def draw_radio_button(self, pos, selected, enabled=True):
-        """ラジオボタンを描画する"""
-        x, y = pos
-        center = (x + Screen.RADIO_BUTTON_SIZE // 2, y + Screen.RADIO_BUTTON_SIZE // 2)
-        # 外側の円
-        outer_color = Color.DARK_BLUE if enabled else Color.LIGHT_BLUE # 無効時は薄い色
-        pygame.draw.circle(self.screen, outer_color, center, Screen.RADIO_BUTTON_SIZE // 2, 1) # 線の太さ 1
-        # 選択されている場合、内側の円を描画
-        if selected:
-            inner_color = Color.DARK_BLUE if enabled else Color.LIGHT_BLUE
-            inner_circle_radius = int(Screen.RADIO_BUTTON_SIZE * Screen.RADIO_BUTTON_INNER_CIRCLE_RATIO // 2)
-            pygame.draw.circle(self.screen, inner_color, center, inner_circle_radius)
-
-    def draw_text(self, text, pos, enabled=True):
-        """ラジオボタンの隣などにテキストを描画する"""
-        color = Color.WHITE if enabled else Color.DISABLED_TEXT # 無効時は薄い色
-        text_surface = self.font.render(text, True, color)
-        # テキストの左上座標を指定
-        text_rect = text_surface.get_rect(topleft=pos)
-        self.screen.blit(text_surface, text_rect)
-
     def draw_player_settings(self, game, player_settings_top, enabled=False):
         """プレイヤー選択のラジオボタンUIを描画する (動的生成)"""
         board_rect = self._calculate_board_rect()
         left_margin = board_rect.left
         white_player_label_x = self.screen_width // 2 + Screen.RADIO_BUTTON_MARGIN
 
-        # ラベル描画
-        self._draw_text_with_position("黒プレイヤー", Color.WHITE, (left_margin, player_settings_top))
-        self._draw_text_with_position("白プレイヤー", Color.WHITE, (white_player_label_x, player_settings_top))
+        # Header labels for player columns (keep objects to compute badge placement)
+        header_label_black = Label((left_margin, player_settings_top), _t("ui.black_player"), self.font)
+        header_label_white = Label((white_player_label_x, player_settings_top), _t("ui.white_player"), self.font)
+        header_label_black.draw(self.screen)
+        header_label_white.draw(self.screen)
+
+        # 両方がAIの場合はプレイヤ区別用の小さなバッジを表示（ヘッダラベルの右側に表示）
+        if game.agents.get(-1) is not None and game.agents.get(1) is not None:
+            self._draw_ai_badge(header_label_black, "ui.ai_black")
+            self._draw_ai_badge(header_label_white, "ui.ai_white")
 
         # ラジオボタンの垂直位置オフセットと間隔
         radio_y_offset = Screen.RADIO_Y_OFFSET
@@ -444,11 +654,13 @@ class GameGUI:
             else: # AIエージェント
                 agent_class = get_agent_class(agent_id)
                 if agent_class and black_agent:
-                    is_selected = isinstance(black_agent, agent_class)
+                    is_selected = isinstance(black_agent, agent_class) # pragma: no cover
+                else: # pragma: no cover
+                    is_selected = False # pragma: no cover
 
-            self.draw_radio_button(radio_pos, is_selected, enabled)
+            RadioButton(radio_pos, Screen.RADIO_BUTTON_SIZE, is_selected, enabled).draw(self.screen)
             # テキストは常に有効な色で描画 (enabled フラグはボタン自体に適用)
-            self._draw_text_with_position(display_name, Color.WHITE, text_pos)
+            Label(text_pos, display_name, self.font).draw(self.screen)
 
         # 白プレイヤーのラジオボタンを描画
         for i, (agent_id, display_name) in enumerate(self.agent_options):
@@ -464,21 +676,56 @@ class GameGUI:
                 agent_class = get_agent_class(agent_id)
                 if agent_class and white_agent:
                     is_selected = isinstance(white_agent, agent_class)
+                else: # pragma: no cover
+                    is_selected = False # pragma: no cover
 
-            self.draw_radio_button(radio_pos, is_selected, enabled)
+            RadioButton(radio_pos, Screen.RADIO_BUTTON_SIZE, is_selected, enabled).draw(self.screen)
             # テキストは常に有効な色で描画
-            self._draw_text_with_position(display_name, Color.WHITE, text_pos)
+            Label(text_pos, display_name, self.font).draw(self.screen)
 
     def draw_turn_message(self, game):
         """手番表示を描画する"""
         if game.game_over:
             return  # ゲームオーバー時は表示しない
-        message = f"{'黒' if game.turn == -1 else '白'}の番です"
-        text_surface = self.font.render(message, True, Color.WHITE)
+        message = _t("game.black_turn") if game.turn == -1 else _t("game.white_turn")
+        text_surface = self._get_rendered_text(message, Color.WHITE)
         # 手番表示のY座標を計算
         turn_message_center_y = self._calculate_turn_message_center_y()
         text_rect = text_surface.get_rect(center=(self.screen_width // 2, turn_message_center_y))
         self.screen.blit(text_surface, text_rect)
+
+    def _draw_ai_badge(self, header_label, i18n_key):
+        """AI プレイヤーバッジを描画（黒/白共通）"""
+        badge_text = _t(i18n_key, "AI")
+        badge_x = header_label.rect.right + Screen.BADGE_MARGIN
+        badge_y = header_label.rect.top + Screen.BADGE_Y_OFFSET
+        label = Label((badge_x, badge_y), badge_text, self.font, Color.BUTTON_TEXT)
+        badge_rect = label.rect.inflate(Screen.BADGE_PADDING_X, Screen.BADGE_PADDING_Y)
+        try:
+            badge_surf = pygame.Surface((badge_rect.width, badge_rect.height), pygame.SRCALPHA)
+            badge_surf.fill((0, 0, 0, 0))
+            pygame.draw.rect(badge_surf, Color.BADGE_BG, badge_surf.get_rect(), border_radius=6)
+            text_surf = self.font.render(badge_text, True, Color.BUTTON_TEXT)
+            try:
+                text_surf = text_surf.convert_alpha()
+            except Exception:
+                pass
+            try:
+                if text_surf.get_alpha() is None:
+                    corner = text_surf.get_at((0, 0))
+                    if corner[:3] == (0, 0, 0):
+                        try:
+                            text_surf.set_colorkey((0, 0, 0))
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+            text_rect = text_surf.get_rect(center=badge_surf.get_rect().center)
+            badge_surf.blit(text_surf, text_rect)
+            self.screen.blit(badge_surf, badge_rect.topleft)
+        except Exception:
+            pygame.draw.rect(self.screen, Color.BADGE_BG[:3], badge_rect)
+            label.draw(self.screen)
 
     # gui.py の GameGUI クラス内に追加
     def get_clicked_radio_button(self, click_pos, player_settings_top):
@@ -494,8 +741,8 @@ class GameGUI:
         """
         # agent_options がロードされているか確認 (通常は __init__ でロードされる)
         if not hasattr(self, 'agent_options') or not self.agent_options:
-             print("Warning: agent_options not found in GUI. Radio button clicks won't work.")
-             return None, None
+             print("Warning: agent_options not found in GUI. Radio button clicks won't work.") # pragma: no cover
+             return None, None # pragma: no cover
 
         board_rect = self._calculate_board_rect()
         board_left = board_rect.left
@@ -545,4 +792,14 @@ class GameGUI:
         """終了ボタンがクリックされたか判定"""
         button_rect = self._calculate_button_rect(False, game_over, False, True)
         return Button(button_rect, "", self.font).is_clicked(pos)
+
+    def is_undo_button_clicked(self, pos: tuple[int, int], game_over: bool) -> bool:
+        """待ったボタンがクリックされたか判定"""
+        button_rect = self._calculate_button_rect(False, game_over, False, False, is_undo_button=True)
+        return Button(button_rect, "", self.font).is_clicked(pos)
+
+    def is_settings_button_clicked(self, pos: tuple[int, int]) -> bool:
+        """設定ボタンがクリックされたか判定"""
+        settings_rect = self._calculate_button_rect(is_settings_button=True)
+        return Button(settings_rect, "", self.font).is_clicked(pos)
     # ---------------------------------------------

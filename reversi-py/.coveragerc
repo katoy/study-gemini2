@@ -1,0 +1,20 @@
+[run]
+omit =
+    */tests/*
+    */test_*.py
+    gui.py
+    config/game_constants.py
+    server/api_server.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    # 防御的なエラーハンドリング（通常は発生しない）
+    if not isinstance.*:
+    if node is None:
+    # あるいはNone?

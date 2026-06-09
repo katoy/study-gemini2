@@ -1,7 +1,7 @@
 # game.py
 from board import Board
 # config.agents からヘルパー関数をインポート
-from config.agents import get_agent_class
+from config.agents_config import get_agent_class
 from config.agent_config_utils import get_agent_params
 
 
@@ -19,6 +19,9 @@ class Game:
             1: None   # 白のプレイヤー（デフォルトは人間）
         }
         self.message = "" #初期メッセージをクリア
+        # 有効手のキャッシング（毎ターン1回だけ計算）
+        self._valid_moves_cache = None
+        self._valid_moves_turn = None
 
     def reset(self):
         self.board = Board(self.board_size)
@@ -32,6 +35,9 @@ class Game:
             -1: None,  # 黒のプレイヤー（デフォルトは人間）
             1: None   # 白のプレイヤー（デフォルトは人間）
         }
+        # 有効手キャッシュをリセット
+        self._valid_moves_cache = None
+        self._valid_moves_turn = None
 
     def switch_turn(self):
         self.turn *= -1
@@ -62,7 +68,11 @@ class Game:
         return self.board.get_flipped_stones(row, col, turn)
 
     def get_valid_moves(self):
-        return self.board.get_valid_moves(self.turn)
+        # ターンが変わらなければキャッシュを使用
+        if self._valid_moves_turn != self.turn:
+            self._valid_moves_cache = self.board.get_valid_moves(self.turn)
+            self._valid_moves_turn = self.turn
+        return self._valid_moves_cache
 
     def get_board(self):
         return self.board.get_board()
@@ -116,6 +126,13 @@ class Game:
 
     def replay(self, index):
         """指定されたインデックスの履歴状態に盤面と手番を復元する"""
+        if index == -1:
+            # 初期状態に戻す
+            agents_backup = self.agents.copy() # プレイヤー設定は維持
+            self.reset()
+            self.agents = agents_backup
+            return True
+
         if 0 <= index < len(self.history):
             # 履歴から盤面状態を復元 (コピーを渡す)
             self.board.board = [row[:] for row in self.history[index][2]]

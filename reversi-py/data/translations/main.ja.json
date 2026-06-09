@@ -1,7 +1,27 @@
 {
   "ja": {
-    "window_title":    "モーダルダイアログ サンプル",
-    "settings_button": "設定",
-    "quit_button":     "終了"
+    "game": {
+      "black_turn": "黒の番です",
+      "white_turn": "白の番です",
+      "black_win": "黒の勝ちです！",
+      "white_win": "白の勝ちです！",
+      "draw": "引き分けです！",
+      "black_pass": "黒はパスです。",
+      "white_pass": "白はパスです。",
+      "black_stones": "黒: {count}",
+      "white_stones": "白: {count}",
+      "thinking": "思考中..."
+    },
+    "ui": {
+      "start": "ゲーム開始",
+      "restart": "リスタート",
+      "reset": "リセット",
+      "quit": "終了",
+      "undo": "待った",
+      "black_player": "黒プレイヤー",
+    "white_player": "白プレイヤー",
+    "ai_black": "AI（黒）",
+    "ai_white": "AI（白）"
+    }
   }
 }

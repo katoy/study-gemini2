@@ -1,4 +1,4 @@
-from config.agents import AGENT_DEFINITIONS
+from config.agents_config import AGENT_DEFINITIONS
 
 def get_agent_params(agent_id):
     """
