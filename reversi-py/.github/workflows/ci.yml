@@ -30,7 +30,7 @@ jobs:
           libsdl2-mixer-dev libportmidi-dev libfreetype6-dev libavformat-dev \
           libavcodec-dev libswscale-dev libjpeg-dev libpng-dev libx11-dev \
           libxrandr-dev libxss-dev libasound2-dev zlib1g-dev libgl1-mesa-dev \
-          libglu1-mesa-dev
+          libglu1-mesa-dev python3-pygame
 
     - name: Cache uv packages
       uses: actions/cache@v4
@@ -70,7 +70,7 @@ jobs:
           libsdl2-mixer-dev libportmidi-dev libfreetype6-dev libavformat-dev \
           libavcodec-dev libswscale-dev libjpeg-dev libpng-dev libx11-dev \
           libxrandr-dev libxss-dev libasound2-dev zlib1g-dev libgl1-mesa-dev \
-          libglu1-mesa-dev
+          libglu1-mesa-dev python3-pygame
 
     - name: Cache uv packages
       uses: actions/cache@v4
