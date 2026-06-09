@@ -1,6 +1,8 @@
 # board.py
 from typing import List, Tuple
 
+from config.game_constants import CellState, Player
+
 
 class Board:
     """オセロ（リバーシ）の盤面を管理するクラス。
@@ -23,6 +25,31 @@ class Board:
         self.board[self.board_size // 2 - 1][self.board_size // 2 - 1] = self.board[self.board_size // 2][self.board_size // 2] = 1  # 白
         self.board[self.board_size // 2 - 1][self.board_size // 2] = self.board[self.board_size // 2][self.board_size // 2 - 1] = -1  # 黒
 
+    def _get_flipped_in_direction(self, row: int, col: int, dr: int, dc: int, turn: int) -> List[Tuple[int, int]]:
+        """指定方向でひっくり返す石を取得します。
+
+        Args:
+            row: 開始行番号。
+            col: 開始列番号。
+            dr: 行方向（-1, 0, 1）。
+            dc: 列方向（-1, 0, 1）。
+            turn: プレイヤー（-1: 黒、1: 白）。
+
+        Returns:
+            ひっくり返す (row, col) のタプルのリスト。
+        """
+        to_flip: list[tuple[int, int]] = []
+        r, c = row + dr, col + dc
+        while 0 <= r < self.board_size and 0 <= c < self.board_size:
+            if self.board[r][c] == 0:
+                break
+            if self.board[r][c] == turn:
+                return to_flip
+            to_flip.append((r, c))
+            r += dr
+            c += dc
+        return []
+
     def is_valid_move(self, row: int, col: int, turn: int) -> bool:
         """指定位置への石の配置が合法手かを判定します。
 
@@ -41,18 +68,8 @@ class Board:
             for dc in [-1, 0, 1]:
                 if dr == 0 and dc == 0:
                     continue
-                r, c = row + dr, col + dc
-                flipped = False
-                while 0 <= r < self.board_size and 0 <= c < self.board_size:
-                    if self.board[r][c] == 0:
-                        break
-                    if self.board[r][c] == turn:
-                        if flipped:
-                            return True
-                        break
-                    flipped = True
-                    r += dr
-                    c += dc
+                if self._get_flipped_in_direction(row, col, dr, dc, turn):
+                    return True
         return False
 
     def get_valid_moves(self, turn: int) -> List[Tuple[int, int]]:
@@ -90,18 +107,9 @@ class Board:
             for dc in [-1, 0, 1]:
                 if dr == 0 and dc == 0:
                     continue
-                r, c = row + dr, col + dc
-                to_flip: list[tuple[int, int]] = []
-                while 0 <= r < self.board_size and 0 <= c < self.board_size:
-                    if self.board[r][c] == 0:
-                        break
-                    if self.board[r][c] == turn:
-                        for fr, fc in to_flip:
-                            self.board[fr][fc] = turn
-                        break
-                    to_flip.append((r, c))
-                    r += dr
-                    c += dc
+                to_flip = self._get_flipped_in_direction(row, col, dr, dc, turn)
+                for fr, fc in to_flip:
+                    self.board[fr][fc] = turn
         return True
 
     def count_stones(self) -> Tuple[int, int]:
