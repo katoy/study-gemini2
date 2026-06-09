@@ -91,7 +91,8 @@ class TestApiAgent(unittest.TestCase):
         mock_post.assert_called_once_with(
             self.api_url,
             json=expected_payload,
-            timeout=10 # setUp で設定したタイムアウト値
+            timeout=10, # setUp で設定したタイムアウト値
+            verify=True  # SSL 検証を有効化
         )
 
     # --- 追加: デフォルト timeout 使用テスト ---
@@ -116,7 +117,8 @@ class TestApiAgent(unittest.TestCase):
         mock_post.assert_called_once_with(
             self.api_url,
             json=expected_payload,
-            timeout=5 # デフォルトのタイムアウト値
+            timeout=5, # デフォルトのタイムアウト値
+            verify=True  # SSL 検証を有効化
         )
     # --------------------------------------
 
