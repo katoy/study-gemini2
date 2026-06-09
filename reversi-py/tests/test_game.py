@@ -2,9 +2,8 @@
 import unittest
 import sys
 import os
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import patch
 
-# プロジェクトルートへのパスを追加 (test ディレクトリから見て親ディレクトリ)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
@@ -13,12 +12,7 @@ from game import Game
 from board import Board
 from agents.first_agent import FirstAgent
 from agents.random_agent import RandomAgent
-from agents.gain_agent import GainAgent
-from agents.mcts_agent import MonteCarloTreeSearchAgent
-# --- config.agents から必要なものをインポート (create_agent のテストで使用) ---
-# AGENT_DEFINITIONS をインポートして FirstAgent の ID を取得
-from config.agents import AGENT_DEFINITIONS, get_agent_class as original_get_agent_class
-from config.agent_config_utils import get_agent_params
+from config.agents_config import AGENT_DEFINITIONS
 
 class TestGame(unittest.TestCase):
     def setUp(self):
@@ -183,8 +177,6 @@ class TestGame(unittest.TestCase):
         # 3手目: 黒 (3,5)
         self.game.switch_turn()
         self.game.place_stone(3, 5)
-        board3 = [r[:] for r in self.game.get_board()]
-        turn3 = -1
         history3 = self.game.history[2]
 
         self.assertEqual(len(self.game.history), 3)
@@ -226,7 +218,9 @@ class TestGame(unittest.TestCase):
         self.assertEqual(current_hist[2], history2[2]) # 2手目終了時の盤面
 
         # 範囲外の replay (行 127 カバー)
-        self.assertFalse(self.game.replay(-1))
+        self.assertTrue(self.game.replay(-1))
+        self.assertEqual(len(self.game.history), 0)
+        self.assertEqual(self.game.history_index, -1)
         self.assertFalse(self.game.replay(3))
 
     # === カバレッジのためのテスト ===
@@ -285,7 +279,8 @@ class TestGame(unittest.TestCase):
         """エージェント初期化時に一般的な Exception が発生するケースをテスト (行 105-108)"""
         agent_id_to_test = 99 # ダミーID
 
-        class DummyAgentError(Exception): pass
+        class DummyAgentError(Exception):
+            pass
         class AgentWithInitError:
             def __init__(self, **kwargs):
                 raise DummyAgentError("Test Exception during init")

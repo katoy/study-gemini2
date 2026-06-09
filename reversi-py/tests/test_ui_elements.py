@@ -5,16 +5,12 @@ from unittest.mock import MagicMock, call, patch
 import sys
 import os
 
-# --- プロジェクトルートへのパスを追加 ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
-# ------------------------------------
 
-# --- テスト対象と依存モジュールをインポート ---
-from ui_elements import Button
+from ui_elements import Button, RadioButton, Label
 from config.theme import Color, Screen
-# -----------------------------------------
 
 class TestButton(unittest.TestCase):
 
@@ -136,6 +132,67 @@ class TestButton(unittest.TestCase):
         self.assertFalse(self.default_button.is_clicked(border_pos_br_exclusive))
         border_pos_br_inclusive = (self.default_button.rect.right - 1, self.default_button.rect.bottom - 1)
         self.assertTrue(self.default_button.is_clicked(border_pos_br_inclusive))
+
+class TestRadioButton(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        pygame.init()
+
+    @classmethod
+    def tearDownClass(cls):
+        pygame.quit()
+
+    def test_initialization(self):
+        pos = (10, 20)
+        size = 20
+        rb = RadioButton(pos, size, selected=True, enabled=False)
+        self.assertEqual(rb.rect, pygame.Rect(10, 20, 20, 20))
+        self.assertTrue(rb.selected)
+        self.assertFalse(rb.enabled)
+        self.assertEqual(rb.size, size)
+
+    @patch('pygame.draw.circle')
+    def test_draw(self, mock_draw_circle):
+        mock_screen = MagicMock(spec=pygame.Surface)
+        rb = RadioButton((0, 0), 20, selected=True, enabled=True)
+        rb.draw(mock_screen)
+        
+        # 2 calls expected: outer circle and inner circle
+        self.assertEqual(mock_draw_circle.call_count, 2)
+
+    def test_is_clicked(self):
+        rb = RadioButton((10, 10), 20)
+        self.assertTrue(rb.is_clicked((15, 15)))
+        self.assertFalse(rb.is_clicked((5, 5)))
+
+class TestLabel(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        pygame.init()
+        cls.font = pygame.font.Font(None, 24)
+
+    @classmethod
+    def tearDownClass(cls):
+        pygame.quit()
+
+    def test_initialization(self):
+        pos = (10, 20)
+        text = "Hello"
+        label = Label(pos, text, self.font)
+        self.assertEqual(label.pos, pos)
+        self.assertEqual(label.text, text)
+        self.assertFalse(label.is_right_aligned)
+
+    def test_right_aligned(self):
+        pos = (100, 20)
+        label = Label(pos, "Right", self.font, is_right_aligned=True)
+        self.assertEqual(label.rect.right, 100)
+
+    def test_draw(self):
+        mock_screen = MagicMock(spec=pygame.Surface)
+        label = Label((0, 0), "Test", self.font)
+        label.draw(mock_screen)
+        mock_screen.blit.assert_called_once()
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

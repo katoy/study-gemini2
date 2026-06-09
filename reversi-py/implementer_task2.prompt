@@ -1,0 +1,36 @@
+You are implementing Task 2: Integrate into Local Check Script
+
+## Task Description
+
+1. Add a new step to `scripts/check.sh` that runs `scripts/test_gui_init.py`.
+2. Use `xvfb-run` if available, otherwise fallback to `SDL_VIDEODRIVER=dummy`.
+3. Update the total number of steps in the script (e.g., from [4/4] to [5/5]).
+
+## Context
+
+The project is a Reversi game in Python. `scripts/check.sh` is a bash script that runs CI-like checks locally. `scripts/test_gui_init.py` is a GUI integration test that verifies the GUI starts and closes correctly. We need to maintain consistency with existing steps in `scripts/check.sh`.
+
+## Your Job
+
+Once you're clear on requirements:
+1. Implement exactly what the task specifies
+2. Verify implementation works
+3. Report back
+
+Work from: /Users/katoy/github/study-gemini2/reversi-py
+
+## Before Reporting Back: Self-Review
+
+Review your work with fresh eyes. Ask yourself:
+- Did I fully implement everything in the spec?
+- Did I update the step count correctly?
+- Is the `xvfb-run` logic correct and consistent?
+
+## Report Format
+
+When done, report:
+- **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
+- What you implemented
+- What you tested and test results
+- Files changed
+- Self-review findings (if any)

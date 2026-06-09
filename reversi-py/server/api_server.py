@@ -1,3 +1,5 @@
+import logging
+import os
 import random
 import sys
 from pathlib import Path
@@ -6,6 +8,9 @@ from typing import List
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
+# ロギング設定
+logger = logging.getLogger(__name__)
 
 # このファイルの親ディレクトリ (server) のさらに親 (プロジェクトルート) をパスに追加
 project_root = Path(__file__).resolve().parent.parent
@@ -16,9 +21,8 @@ if str(project_root) not in sys.path:
 try:
     from board import Board
 except ImportError:
-    print("エラー: board.py が見つからないか、インポートできません。")
-    print("プロジェクト構造を確認し、必要であれば sys.path を調整してください。")
-    print(f"現在の sys.path: {sys.path}")
+    logger.error("board.py が見つからないか、インポートできません。")
+    logger.debug(f"プロジェクト構造を確認してください。sys.path: {sys.path}")
     sys.exit(1)
 
 app = FastAPI()
@@ -64,14 +68,14 @@ async def play(request: PlayRequest):
             board.board = board_data
 
         except Exception as e:
-            print(f"Error creating Board object or setting state: {e}")
+            logger.error(f"Error creating Board object or setting state: {e}", exc_info=False)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error processing board data.")
 
         # --- 有効な手の取得 ---
         try:
             valid_moves = board.get_valid_moves(turn)
         except Exception as e:
-            print(f"Error getting valid moves: {e}")
+            logger.error(f"Error getting valid moves: {e}", exc_info=False)
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error getting valid moves.")
 
         # --- ランダムな手の選択 ---
@@ -89,23 +93,34 @@ async def play(request: PlayRequest):
         raise http_exception
     except Exception as e:
         # 予期せぬエラー
-        print(f"Unexpected error: {e}")
+        logger.error(f"Unexpected error: {e}", exc_info=False)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error.")
 
 if __name__ == "__main__":
     import uvicorn
-    # debug=True は開発用です。本番環境では False にしてください。
-    # host='0.0.0.0' で外部からのアクセスを許可します（必要に応じて変更）。
-    # ポート番号は 5001 を使用
+    # ホストをセキュアにするため、デフォルトをローカルホストに設定
+    # 環境変数 API_HOST で変更可能（本番環境では慎重に設定）
+    # ポート番号は環境変数 API_PORT または 5001 を使用
+    api_host = os.getenv("API_HOST", "127.0.0.1")
+    api_port = int(os.getenv("API_PORT", "5001"))
+    log_level = os.getenv("LOG_LEVEL", "info").lower()
+
+    # ロギングの基本設定
+    if not logging.getLogger().handlers:
+        logging.basicConfig(
+            level=getattr(logging, log_level.upper(), logging.INFO),
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+
     try:
-        uvicorn.run(app, host="0.0.0.0", port=5001, log_level="info")
+        logger.info(f"Starting API server on {api_host}:{api_port}")
+        uvicorn.run(app, host=api_host, port=api_port, log_level=log_level)
     except OSError as e:
         if "Address already in use" in str(e):
-            print(f"エラー: ポート 5001 は既に使用中です。")
-            print("他のプロセスがポートを使用していないか確認するか、別のポートを指定してください。")
+            logger.error(f"Port {api_port} is already in use.")
         else:
-            print(f"サーバー起動エラー: {e}")
+            logger.error(f"Server startup error: {e}")
         sys.exit(1)
-    except Exception as e:
-        print(f"予期せぬエラーが発生しました: {e}")
+    except Exception:
+        logger.exception("Unexpected error occurred")
         sys.exit(1)

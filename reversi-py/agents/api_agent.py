@@ -1,44 +1,48 @@
 # agents/api_agent.py
-from .base_agent import Agent
-import requests
-import time
 import logging
-import os  # 環境変数を参照するために追加
+from typing import Optional, Tuple, TYPE_CHECKING
 
-# ロギングの設定
-log_level = os.environ.get('LOG_LEVEL', 'INFO').upper()
-numeric_level = getattr(logging, log_level, None)
-if not isinstance(numeric_level, int):
-    print(f"Invalid log level: {log_level}, defaulting to INFO")
-    numeric_level = logging.INFO
-logging.basicConfig(level=numeric_level, format='%(asctime)s - %(levelname)s - %(message)s')
+import requests
+
+from .base_agent import Agent
+
+if TYPE_CHECKING:
+    from game import Game
+
+logger = logging.getLogger(__name__)
+
 
 class ApiAgent(Agent):
-    # --- 修正: __init__ メソッドで timeout 引数を受け取る ---
-    def __init__(self, api_url, timeout=5):
-        """
-        ApiAgentを初期化します。
+    """外部 API サーバーから手を取得する AI エージェント。"""
+
+    def __init__(self, api_url: str, timeout: int = 5) -> None:
+        """ApiAgent を初期化します。
+
         Args:
-            api_url (str): 接続先のAPIサーバーのURL。
-            timeout (int, optional): APIリクエストのタイムアウト時間(秒)。デフォルトは5。
+            api_url: 接続先の API サーバーの URL。
+            timeout: API リクエストのタイムアウト時間（秒）。デフォルトは 5。
+                推奨値は 5 以上。MCTS(time_limit_ms=4000) より大きい値を指定。
+
         Raises:
-            ValueError: api_urlが空の場合。
+            ValueError: api_url が空の場合。
         """
-        if not api_url: # 行 10
+        if not api_url:
             raise ValueError("API URL cannot be empty.")
         self.api_url = api_url
-        # --- 修正: timeout をインスタンス変数に設定 ---
-        self.timeout = timeout # 行 15-18 あたり
-        # -----------------------------------------
+        self.timeout = timeout
 
-    def play(self, game, timeout=None):
-        """
-        APIサーバーに現在の盤面と手番を送信し、次の手を取得します。
+    def play(
+        self, game: 'Game', timeout: Optional[int] = None
+    ) -> Optional[Tuple[int, int]]:
+        """API サーバーから次の手を取得します。
+
         Args:
-            game (Game): 現在のゲーム状態。
-            timeout (int, optional): APIリクエストのタイムアウト時間(秒)。指定しない場合は、__init__で設定された値を使用。
+            game: 現在のゲーム状態。
+            timeout: API リクエストのタイムアウト時間（秒）。
+                指定しない場合は __init__ で設定された値を使用。
+
         Returns:
-            tuple[int, int] | None: APIから取得した手 (row, col)、またはエラー時は None。
+            (row, col) のタプル、またはエラー時は None。
         """
         board_state = game.get_board()
         turn = game.turn
@@ -51,9 +55,16 @@ class ApiAgent(Agent):
 
         try:
             # APIサーバーにPOSTリクエストを送信
+            # SSL 検証を有効化（MitM 攻撃対策）
             # timeout が指定されていればそれを使用し、そうでなければ self.timeout を使用
-            response = requests.post(self.api_url, json=payload, timeout=timeout if timeout is not None else self.timeout)
-            response.raise_for_status()  # ステータスコードが200番台以外ならHTTPErrorを送出
+            response = requests.post(
+                self.api_url,
+                json=payload,
+                timeout=timeout if timeout is not None else self.timeout,
+                verify=True
+            )
+            # ステータスコードが200番台以外ならHTTPErrorを送出
+            response.raise_for_status()
 
             # レスポンスをJSONとして解析
             data = response.json()
@@ -93,22 +104,21 @@ class ApiAgent(Agent):
             return tuple(move) # タプル形式で返す
 
         except requests.exceptions.Timeout:
-            logging.error(f"API request timed out after {self.timeout} seconds.")
+            logger.error(f"API request timed out after {self.timeout} seconds.")
             return None
         except requests.exceptions.ConnectionError:
-            logging.error(f"Failed to connect to API server at {self.api_url}.")
+            logger.error(f"Failed to connect to API server at {self.api_url}.")
             return None
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException:
             # HTTPError を含むその他のリクエスト関連エラー
-            logging.error(f"API request failed: {e}")
+            logger.error("API request failed", exc_info=False)
             return None
-        except ValueError as e:
+        except ValueError:
             # JSONデコードエラーなど
-            logging.error(f"Failed to parse API response: {e}")
+            logger.error("Failed to parse API response", exc_info=False)
             return None
-        # --- 修正: 予期せぬ例外をキャッチ ---
-        except Exception as e: # 行 98-100 あたり
+        except Exception:
             # 予期せぬその他のエラー
-            logging.exception(f"An unexpected error occurred during API call or processing: {e}")
+            logger.error("An unexpected error occurred during API call or processing", exc_info=False)
             return None
         # ---------------------------------

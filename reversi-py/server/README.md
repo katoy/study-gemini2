@@ -46,14 +46,16 @@
 
 ## インストール
 
+プロジェクトのルートディレクトリで次を実行します。
+
 ```bash
-pip install fastapi uvicorn pydantic
+pip install .[server]
 ```
 
 ## 実行方法
 
 ```bash
-python3 api_server.py
+python3 -m server.api_server
 ```
 
 ## テスト

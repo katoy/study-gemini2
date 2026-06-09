@@ -1,6 +1,5 @@
 # test/agents/test_gain_agent.py
 import unittest
-import random # random をインポート (シード固定用、任意)
 from agents.gain_agent import GainAgent # TempGame は不要
 from board import Board
 from game import Game

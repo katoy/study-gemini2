@@ -1,7 +1,10 @@
 import unittest
-import json
+import pytest
+
+pytest.importorskip("fastapi")
+
 from fastapi.testclient import TestClient
-from api_server import app
+from server.api_server import app
 from fastapi import status
 
 class TestApiServer(unittest.TestCase):
@@ -35,7 +38,7 @@ class TestApiServer(unittest.TestCase):
     def test_play_invalid_input_no_data(self):
         # 無効な入力 (データなし) に対するテスト
         response = self.client.post("/play", json=None)
-        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_CONTENT)
         self.assertEqual(
             response.json(),
             {"detail":[{"loc":["body"],"msg":"Field required","type":"missing","input":None}]}
@@ -44,7 +47,7 @@ class TestApiServer(unittest.TestCase):
     def test_play_invalid_input_missing_fields(self):
         # 無効な入力 (必須フィールドの欠落) に対するテスト
         response = self.client.post("/play", json={"board": []})
-        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_CONTENT)
         self.assertEqual(
             response.json(),
             {"detail":[{"loc":["body","turn"],"msg":"Field required","type":"missing","input":{"board":[]}}]}
@@ -53,7 +56,7 @@ class TestApiServer(unittest.TestCase):
     def test_play_invalid_input_invalid_board_type(self):
         # 無効な入力 (無効な盤面タイプ) に対するテスト
         response = self.client.post("/play", json={"board": "not a list", "turn": 1})
-        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_CONTENT)
         self.assertEqual(
             response.json(),
             {"detail":[
@@ -67,7 +70,7 @@ class TestApiServer(unittest.TestCase):
     def test_play_invalid_input_invalid_board_element_type(self):
         # 無効な入力 (無効な盤面要素タイプ) に対するテスト
         response = self.client.post("/play", json={"board":[["not an int"]], "turn": 1})
-        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_CONTENT)
         self.assertEqual(
             response.json(),
             {"detail":[
