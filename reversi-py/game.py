@@ -19,6 +19,9 @@ class Game:
             1: None   # 白のプレイヤー（デフォルトは人間）
         }
         self.message = "" #初期メッセージをクリア
+        # 有効手のキャッシング（毎ターン1回だけ計算）
+        self._valid_moves_cache = None
+        self._valid_moves_turn = None
 
     def reset(self):
         self.board = Board(self.board_size)
@@ -32,6 +35,9 @@ class Game:
             -1: None,  # 黒のプレイヤー（デフォルトは人間）
             1: None   # 白のプレイヤー（デフォルトは人間）
         }
+        # 有効手キャッシュをリセット
+        self._valid_moves_cache = None
+        self._valid_moves_turn = None
 
     def switch_turn(self):
         self.turn *= -1
@@ -62,7 +68,11 @@ class Game:
         return self.board.get_flipped_stones(row, col, turn)
 
     def get_valid_moves(self):
-        return self.board.get_valid_moves(self.turn)
+        # ターンが変わらなければキャッシュを使用
+        if self._valid_moves_turn != self.turn:
+            self._valid_moves_cache = self.board.get_valid_moves(self.turn)
+            self._valid_moves_turn = self.turn
+        return self._valid_moves_cache
 
     def get_board(self):
         return self.board.get_board()
