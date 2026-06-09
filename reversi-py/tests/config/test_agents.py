@@ -126,6 +126,14 @@ class TestConfigAgents(unittest.TestCase):
         # 戻り値がNoneであることを確認
         self.assertIsNone(result, f"get_agent_definition should return None for invalid ID {invalid_id}")
 
+    def test_api_agent_has_agent_type_param(self):
+        """API (Random) エージェント定義の params に agent_type='random' が含まれる"""
+        defn = get_agent_definition(5)
+        self.assertIsNotNone(defn, "Agent definition for ID 5 should exist")
+        self.assertIn("params", defn, "Definition should have 'params' key")
+        self.assertIn("agent_type", defn["params"], "params should contain 'agent_type'")
+        self.assertEqual(defn["params"].get("agent_type"), "random", "agent_type should be 'random'")
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

@@ -61,6 +61,7 @@ AGENT_DEFINITIONS = [
         'display_name': 'API (Random)',
         'params': {
             'api_url': 'http://127.0.0.1:5001/play', # デフォルトのAPIサーバーURL
+            'agent_type': 'random', # API サーバーに送信する戦略種別
             # timeout は ApiAgent のデフォルト値を使うか、必要ならここで指定
             # 'timeout': 10
         }
