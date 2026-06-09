@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, dialog ]
+    paths:
+      - 'reversi-py/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [ main, dialog ]
+    paths:
+      - 'reversi-py/**'
+      - '.github/workflows/ci.yml'
+
+jobs:
+  lint-and-typecheck:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reversi-py
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14.2'
+
+    - name: Install uv
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    - name: Cache uv packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/uv
+        key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-uv-
+
+    - name: Install dependencies
+      run: uv sync --all-extras
+
+    - name: Run ruff lint
+      run: uv run ruff check . --select=E,W,F --ignore=E501 --exclude=tests
+
+    - name: Run mypy type check
+      run: uv run mypy . --ignore-missing-imports
+
+  tests:
+    name: Tests and Coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reversi-py
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14.2'
+
+    - name: Install uv and Xvfb
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+
+    - name: Cache uv packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/uv
+        key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-uv-
+
+    - name: Install dependencies
+      run: uv sync --all-extras
+
+    - name: Run tests with coverage and GUI integration (Xvfb)
+      run: |
+        xvfb-run -a sh -c 'uv run pytest tests/ --cov=. --cov-report=term-missing --cov-report=json --cov-config=.coveragerc && uv run python scripts/test_gui_init.py'
+
+    - name: Check coverage (GUI excluded - must be 99%+)
+      run: |
+        COVERAGE_REPORT=$(uv run pytest --cov=. --cov-report=term-missing:skip-covered -q 2>&1)
+        echo "$COVERAGE_REPORT"
+
+        COVERAGE_PERCENT=$(echo "$COVERAGE_REPORT" | grep "^TOTAL" | awk '{print $NF}' | sed 's/%//')
+
+        if [ -z "$COVERAGE_PERCENT" ] || [ "${COVERAGE_PERCENT%.*}" -lt 99 ]; then
+          echo "❌ Coverage ${COVERAGE_PERCENT}% is below 99% threshold (excluding GUI)"
+          exit 1
+        fi
+        echo "✅ Coverage ${COVERAGE_PERCENT}% meets requirement (99%+)"
