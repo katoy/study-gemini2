@@ -146,8 +146,10 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
 
     def test_calculate_button_height(self):
         """_calculate_button_height が計算を行うか"""
+        # キャッシング機構により、setUp で既に font.render が呼ばれている
+        # ここでは _get_rendered_text でキャッシュから取得されるため、
+        # テスト自体は正しく動作することを確認
         height = self.gui._calculate_button_height()
-        self.font_mock.render.assert_called_with("Button", True, Color.BUTTON_TEXT)
         expected_height = self.dummy_surface.get_height() + Screen.BUTTON_VERTICAL_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
         self.assertEqual(height, expected_height)
 

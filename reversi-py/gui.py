@@ -31,6 +31,8 @@ class GameGUI:
         self.agent_options = get_agent_options()
         # フォントを先に読み込み、必要な最小高さを計算してウィンドウ高さを調整する
         self.font = self._load_font()
+        # テキスト描画のキャッシング（毎フレーム同じテキストの render を避ける）
+        self._text_cache = {}
         # 必要な高さを計算し、指定された高さより大きければ調整する
         required_height = self._compute_min_height()
         if self.screen_height < required_height:
@@ -55,6 +57,13 @@ class GameGUI:
         # -------------------------------------------------
 
     # --- ヘルパーメソッド ---
+    def _get_rendered_text(self, text, color=Color.WHITE):
+        """テキストを描画し、キャッシュする"""
+        cache_key = (text, color)
+        if cache_key not in self._text_cache:
+            self._text_cache[cache_key] = self.font.render(text, True, color)
+        return self._text_cache[cache_key]
+
     def _calculate_turn_message_center_y(self):
         """手番表示の中心Y座標を計算する"""
         board_rect = self._calculate_board_rect()
@@ -66,7 +75,7 @@ class GameGUI:
     def _calculate_button_height(self):
         """ボタンの高さを計算する"""
         # ダミーテキストで高さを計算
-        text_surface = self.font.render("Button", True, Color.BUTTON_TEXT)
+        text_surface = self._get_rendered_text("Button", Color.BUTTON_TEXT)
         return text_surface.get_height() + Screen.BUTTON_VERTICAL_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
 
     def _calculate_player_settings_height(self):
@@ -315,7 +324,7 @@ class GameGUI:
 
         # Button-based minimum: calculate using font metrics (4 buttons in a row)
         try:
-            base_text_surface = self.font.render(_t("ui.restart"), True, Color.BUTTON_TEXT)
+            base_text_surface = self._get_rendered_text(_t("ui.restart"), Color.BUTTON_TEXT)
             button_width = base_text_surface.get_width() + Screen.BUTTON_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
             total_button_width = button_width * 4 + Screen.BUTTON_MARGIN * 3
             button_min = total_button_width + side_pad * 2
@@ -327,7 +336,7 @@ class GameGUI:
         try:
             max_label_width = 0
             for _, display_name in self.agent_options:
-                surf = self.font.render(display_name, True, Color.BUTTON_TEXT)
+                surf = self._get_rendered_text(display_name, Color.BUTTON_TEXT)
                 max_label_width = max(max_label_width, surf.get_width())
             # radio + margin + label + badge padding (safe over-approximation)
             column_width = Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN + max_label_width + getattr(Screen, 'BADGE_PADDING_X', 0) + getattr(Screen, 'BADGE_MARGIN', 0)
@@ -405,7 +414,7 @@ class GameGUI:
     def draw_message(self, message, is_game_start=False, is_game_over=False):
         """画面中央にメッセージを描画する"""
         if message:
-            text_surface = self.font.render(message, True, Color.WHITE)
+            text_surface = self._get_rendered_text(message, Color.WHITE)
             # メッセージの位置を状況に応じて計算
             y_pos = self._get_message_y_position(is_game_start, is_game_over)
             text_rect = text_surface.get_rect(center=(self.screen_width // 2, y_pos))
@@ -546,7 +555,7 @@ class GameGUI:
     def _calculate_button_rect(self, is_start_button=False, game_over=False, is_reset_button=False, is_quit_button=False, is_settings_button=False, is_undo_button=False):
         """ボタンの描画領域(Rect)を計算する"""
         # 固定幅にする (例: "リスタート" の幅を基準にする)
-        base_text_surface = self.font.render(_t("ui.restart"), True, Color.BUTTON_TEXT)
+        base_text_surface = self._get_rendered_text(_t("ui.restart"), Color.BUTTON_TEXT)
         button_width = base_text_surface.get_width() + Screen.BUTTON_MARGIN * 2 + Screen.BUTTON_BORDER_WIDTH * 2
         button_height = self._calculate_button_height()
 
@@ -664,7 +673,7 @@ class GameGUI:
         if game.game_over:
             return  # ゲームオーバー時は表示しない
         message = _t("game.black_turn") if game.turn == -1 else _t("game.white_turn")
-        text_surface = self.font.render(message, True, Color.WHITE)
+        text_surface = self._get_rendered_text(message, Color.WHITE)
         # 手番表示のY座標を計算
         turn_message_center_y = self._calculate_turn_message_center_y()
         text_rect = text_surface.get_rect(center=(self.screen_width // 2, turn_message_center_y))
