@@ -32,12 +32,12 @@ class GameGUI:
         # フォントを先に読み込み、必要な最小高さを計算してウィンドウ高さを調整する
         self.font = self._load_font()
         # テキスト描画のキャッシング（毎フレーム同じテキストの render を避ける）
-        self._text_cache = {}
+        self._text_cache: dict[tuple[str, tuple[int, int, int]], pygame.Surface] = {}
         # 盤面領域計算のキャッシング（ウィンドウサイズが変わらなければ再計算を避ける）
-        self._board_rect_cache = None
-        self._cached_screen_size = None
+        self._board_rect_cache: pygame.Rect | None = None
+        self._cached_screen_size: tuple[int, int] | None = None
         # ボタン領域計算のキャッシング（状態とウィンドウサイズが変わらなければ再計算を避ける）
-        self._button_rect_cache = {}
+        self._button_rect_cache: dict[tuple[bool, ...], pygame.Rect] = {}
         # 必要な高さを計算し、指定された高さより大きければ調整する
         required_height = self._compute_min_height()
         if self.screen_height < required_height:

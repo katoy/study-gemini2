@@ -20,8 +20,8 @@ class ApiAgent(Agent):
 
         Args:
             api_url: 接続先の API サーバーの URL。
-            timeout: API リクエストのタイムアウト時間（秒）。デフォルトは 5。推奨: 5 以上。
-                     MCTS(time_limit_ms=4000) より大きい値を指定してください。
+            timeout: API リクエストのタイムアウト時間（秒）。デフォルトは 5。
+                推奨値は 5 以上。MCTS(time_limit_ms=4000) より大きい値を指定。
 
         Raises:
             ValueError: api_url が空の場合。
@@ -31,12 +31,15 @@ class ApiAgent(Agent):
         self.api_url = api_url
         self.timeout = timeout
 
-    def play(self, game: 'Game', timeout: Optional[int] = None) -> Optional[Tuple[int, int]]:
+    def play(
+        self, game: 'Game', timeout: Optional[int] = None
+    ) -> Optional[Tuple[int, int]]:
         """API サーバーから次の手を取得します。
 
         Args:
             game: 現在のゲーム状態。
-            timeout: API リクエストのタイムアウト時間（秒）。指定しない場合は __init__ で設定された値を使用。
+            timeout: API リクエストのタイムアウト時間（秒）。
+                指定しない場合は __init__ で設定された値を使用。
 
         Returns:
             (row, col) のタプル、またはエラー時は None。
@@ -60,7 +63,8 @@ class ApiAgent(Agent):
                 timeout=timeout if timeout is not None else self.timeout,
                 verify=True
             )
-            response.raise_for_status()  # ステータスコードが200番台以外ならHTTPErrorを送出
+            # ステータスコードが200番台以外ならHTTPErrorを送出
+            response.raise_for_status()
 
             # レスポンスをJSONとして解析
             data = response.json()
@@ -105,16 +109,16 @@ class ApiAgent(Agent):
         except requests.exceptions.ConnectionError:
             logger.error(f"Failed to connect to API server at {self.api_url}.")
             return None
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException:
             # HTTPError を含むその他のリクエスト関連エラー
-            logger.error(f"API request failed", exc_info=False)
+            logger.error("API request failed", exc_info=False)
             return None
-        except ValueError as e:
+        except ValueError:
             # JSONデコードエラーなど
-            logger.error(f"Failed to parse API response", exc_info=False)
+            logger.error("Failed to parse API response", exc_info=False)
             return None
-        except Exception as e:
+        except Exception:
             # 予期せぬその他のエラー
-            logger.error(f"An unexpected error occurred during API call or processing", exc_info=False)
+            logger.error("An unexpected error occurred during API call or processing", exc_info=False)
             return None
         # ---------------------------------
