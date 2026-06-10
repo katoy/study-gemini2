@@ -637,9 +637,9 @@ class GameGUI:
         radio_y_spacing = Screen.RADIO_Y_SPACING
         radio_text_x_offset = Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN
 
-        # 現在選択されているエージェントを取得
-        black_agent = game.agents[-1]
-        white_agent = game.agents[1]
+        # 現在選択されているエージェント ID を取得
+        black_agent_id = game.agent_ids[-1]
+        white_agent_id = game.agent_ids[1]
 
         # 黒プレイヤーのラジオボタンを描画
         for i, (agent_id, display_name) in enumerate(self.agent_options):
@@ -647,16 +647,8 @@ class GameGUI:
             radio_pos = (left_margin, radio_y)
             text_pos = (left_margin + radio_text_x_offset, radio_y)
 
-            # 選択状態の判定
-            is_selected = False
-            if agent_id == 0: # 人間
-                is_selected = (black_agent is None)
-            else: # AIエージェント
-                agent_class = get_agent_class(agent_id)
-                if agent_class and black_agent:
-                    is_selected = isinstance(black_agent, agent_class) # pragma: no cover
-                else: # pragma: no cover
-                    is_selected = False # pragma: no cover
+            # 選択状態の判定 (agent_id を直接比較)
+            is_selected = (agent_id == black_agent_id)
 
             RadioButton(radio_pos, Screen.RADIO_BUTTON_SIZE, is_selected, enabled).draw(self.screen)
             # テキストは常に有効な色で描画 (enabled フラグはボタン自体に適用)
@@ -668,16 +660,8 @@ class GameGUI:
             radio_pos = (white_player_label_x, radio_y)
             text_pos = (white_player_label_x + radio_text_x_offset, radio_y)
 
-            # 選択状態の判定
-            is_selected = False
-            if agent_id == 0: # 人間
-                is_selected = (white_agent is None)
-            else: # AIエージェント
-                agent_class = get_agent_class(agent_id)
-                if agent_class and white_agent:
-                    is_selected = isinstance(white_agent, agent_class)
-                else: # pragma: no cover
-                    is_selected = False # pragma: no cover
+            # 選択状態の判定 (agent_id を直接比較)
+            is_selected = (agent_id == white_agent_id)
 
             RadioButton(radio_pos, Screen.RADIO_BUTTON_SIZE, is_selected, enabled).draw(self.screen)
             # テキストは常に有効な色で描画

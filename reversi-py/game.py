@@ -18,6 +18,10 @@ class Game:
             -1: None,  # 黒のプレイヤー（デフォルトは人間）
             1: None   # 白のプレイヤー（デフォルトは人間）
         }
+        self.agent_ids = {
+            -1: 0,  # 黒のエージェント ID（デフォルトは 0 = 人間）
+            1: 0    # 白のエージェント ID（デフォルトは 0 = 人間）
+        }
         self.message = "" #初期メッセージをクリア
         # 有効手のキャッシング（毎ターン1回だけ計算）
         self._valid_moves_cache = None
@@ -39,6 +43,10 @@ class Game:
         self.agents = {
             -1: None,  # 黒のプレイヤー（デフォルトは人間）
             1: None   # 白のプレイヤー（デフォルトは人間）
+        }
+        self.agent_ids = {
+            -1: 0,  # 黒のエージェント ID（デフォルトは 0 = 人間）
+            1: 0    # 白のエージェント ID（デフォルトは 0 = 人間）
         }
         # 有効手キャッシュをリセット
         self._invalidate_valid_moves_cache()
@@ -92,6 +100,8 @@ class Game:
             black_player_id (int): 黒プレイヤーのエージェントID (config.agents.py で定義)
             white_player_id (int): 白プレイヤーのエージェントID (config.agents.py で定義)
         """
+        self.agent_ids[-1] = black_player_id
+        self.agent_ids[1] = white_player_id
         self.agents[-1] = self.create_agent(black_player_id)
         self.agents[1] = self.create_agent(white_player_id)
 
