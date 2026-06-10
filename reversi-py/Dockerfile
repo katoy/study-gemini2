@@ -41,11 +41,11 @@ RUN pip install --no-cache-dir uv
 # Python の依存関係をインストール（pyproject.toml + uv 使用）
 RUN uv sync --all-extras
 
-# startpoint.sh をコピーして実行権限を付与
+# startpoint.sh に実行権限を付与
 RUN chmod +x /app/startpoint.sh
 
 # VNCサーバーが使用するポートを公開
 EXPOSE 5901
 
 # コンテナ起動時に実行するコマンド
-CMD ["/startpoint.sh"]
+CMD ["/bin/bash", "/app/startpoint.sh"]
