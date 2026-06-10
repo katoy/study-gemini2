@@ -11,7 +11,8 @@ Python と Pygame で作られたリバーシゲームです。
 - 外部 API サーバー経由で着手する `API (Random)` エージェントを用意
 - 履歴の巻き戻し、リスタート、リセット、パス処理に対応
 - 日本語 UI とフォント設定に対応
-- ユニットテストとローカル CI チェックを用意
+- **包括的なテスト体制**: 227 テスト（アプリ + サーバー + 統合）、カバレッジ 99%
+- **GitHub Actions CI**: Lint / 型チェック / テスト / カバレッジ / サーバーテスト / 統合テスト
 
 ## AI エージェント
 
@@ -123,6 +124,8 @@ uv sync --all-extras
 
 ## 実行方法
 
+### アプリのみを起動
+
 ゲーム本体を起動します。
 
 ```bash
@@ -130,6 +133,26 @@ uv run python main.py
 ```
 
 `python main.py` でも起動できます。
+
+### サーバーとアプリを起動して通信させる
+
+`API (Random)` エージェントを使う場合は、API サーバーとアプリを別々のターミナルで起動します。
+
+**ターミナル 1: API サーバーを起動**
+
+```bash
+uv run python -m server.api_server
+```
+
+起動ログで `Uvicorn running on http://127.0.0.1:5001` が表示されたら正常です。API ドキュメントは http://127.0.0.1:5001/docs で確認できます。
+
+**ターミナル 2: アプリを起動**
+
+```bash
+uv run python main.py
+```
+
+アプリの「プレイヤー設定」でプレイヤーを `API (Random)` に設定すると、サーバー経由で AI が着手します。
 
 ## API サーバー
 
@@ -167,19 +190,55 @@ API ドキュメント:
 
 ## テスト
 
+### 全テストを実行
+
 単体テストを実行します。
 
 ```bash
 uv run pytest -q
 ```
 
-ローカルで CI 相当のチェックを実行します。
+期待: `227 passed, 5 subtests passed` （カバレッジ 99%）
+
+### サーバー単体テスト
+
+API サーバーのバリデーションテストを実行します（FastAPI TestClient 使用）。
+
+```bash
+uv run pytest tests/server/ -v
+```
+
+期待: `19 passed` （FastAPI エンドポイント、リクエスト・レスポンスの検証）
+
+### 統合テスト
+
+実際にサーバーを起動してエンドツーエンドテストを実行します。
+
+```bash
+uv run pytest tests/integration/ -v
+```
+
+期待: `9 passed` （API サーバーの実際の起動、ApiAgent との通信）
+
+### ローカル CI チェック
+
+ローカルで GitHub Actions 相当のすべてのチェックを実行します。
 
 ```bash
 ./scripts/ci_check.sh
 ```
 
+実行内容:
+1. Lint チェック (ruff)
+2. 型チェック (mypy)
+3. テスト実行 (pytest)
+4. カバレッジ確認 (99%+)
+5. サーバー単体テスト (FastAPI TestClient)
+6. 統合テスト (実サーバー起動)
+
 ## 主要ファイル
+
+### アプリケーション
 
 - `main.py`: アプリケーションのエントリーポイント
 - `game.py`: ゲーム進行、履歴、パス、勝敗判定
@@ -187,9 +246,18 @@ uv run pytest -q
 - `gui.py`: Pygame GUI
 - `agents/`: AI エージェント実装
 - `config/agents_config.py`: エージェント定義
-- `server/api_server.py`: API サーバー
+
+### サーバー
+
+- `server/api_server.py`: FastAPI REST API サーバー（エンドポイント: POST /play）
+
+### テストと CI
+
 - `tests/`: テストコード
-- `scripts/ci_check.sh`: ローカル CI チェックスクリプト
+  - `tests/server/test_api_server.py`: サーバー単体テスト（19 テスト、FastAPI TestClient）
+  - `tests/integration/test_api_integration.py`: 統合テスト（9 テスト、実サーバー起動）
+- `scripts/ci_check.sh`: ローカル CI チェックスクリプト（6 ステップ）
+- `.github/workflows/ci.yml`: GitHub Actions 定義（4 ジョブ並列）
 
 ## Docker を使用した実行 (VNC 接続)
 
