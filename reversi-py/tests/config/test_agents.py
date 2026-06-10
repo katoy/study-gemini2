@@ -122,8 +122,9 @@ class TestConfigAgents(unittest.TestCase):
         self.assertIsNone(result, f"get_agent_definition should return None for invalid ID {invalid_id}")
 
     def test_api_agent_has_agent_type_param(self):
-        """すべての API エージェント定義の params に agent_type が含まれる"""
-        for defn in AGENT_DEFINITIONS:
+        """すべての API エージェント定義 (人間以外) の params に agent_type が含まれる"""
+        api_agents = [d for d in AGENT_DEFINITIONS if d['id'] != 0]  # 人間 (id=0) を除外
+        for defn in api_agents:
             with self.subTest(agent_id=defn['id']):
                 self.assertIn("params", defn, "Definition should have 'params' key")
                 self.assertIn("agent_type", defn["params"], "params should contain 'agent_type'")
