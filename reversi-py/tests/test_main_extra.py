@@ -47,7 +47,7 @@ def test_update_state_applies_ai_move_from_queue():
     app, mock_game, mock_gui, patcher = make_app()
     try:
         app.is_ai_thinking = True
-        app.ai_queue.put((3, 3))
+        app.ai_queue.put(((3, 3), 0))
         with patch.object(app, '_apply_ai_move') as mock_apply:
             app._update_state(None)
             mock_apply.assert_called_once_with((3, 3))
@@ -99,10 +99,10 @@ def test_run_ai_agent_exception_handling():
             raise RuntimeError('boom')
         agent.play.side_effect = raise_err
 
-        app._run_ai_agent(agent)
-        # queue should have a None put
+        app._run_ai_agent(agent, 0)
+        # queue should have a (None, generation) tuple
         val = app.ai_queue.get_nowait()
-        assert val is None
+        assert val == (None, 0)
     finally:
         patcher.stop()
 
@@ -137,5 +137,121 @@ def test_handle_human_move_ignores_when_ai_thinking():
         # when AI is thinking, get_clicked_cell should not be called
         mock_gui.get_clicked_cell.assert_not_called()
         mock_game.place_stone.assert_not_called()
+    finally:
+        patcher.stop()
+
+
+def test_app_has_ai_generation_attribute():
+    """App は _ai_generation 属性（初期値 0）を持つ"""
+    app, _, _, patcher = make_app()
+    try:
+        assert hasattr(app, "_ai_generation")
+        assert app._ai_generation == 0
+    finally:
+        patcher.stop()
+
+
+def test_invalidate_ai_thinking_increments_generation():
+    """_invalidate_ai_thinking() を呼ぶと _ai_generation が増加する"""
+    app, _, _, patcher = make_app()
+    try:
+        app.is_ai_thinking = True
+        app._invalidate_ai_thinking()
+        assert app._ai_generation == 1
+        assert app.is_ai_thinking is False
+    finally:
+        patcher.stop()
+
+
+def test_invalidate_ai_thinking_drains_queue():
+    """_invalidate_ai_thinking() はキューに積まれた古い結果を捨てる"""
+    app, _, _, patcher = make_app()
+    try:
+        app.ai_queue.put(((3, 2), 0))
+        app._invalidate_ai_thinking()
+        assert app.ai_queue.empty()
+    finally:
+        patcher.stop()
+
+
+def test_stale_ai_result_is_discarded():
+    """世代が一致しない AI 結果は盤面に適用されない"""
+    app, mock_game, _, patcher = make_app()
+    try:
+        app.game_started = True
+        app.game.game_over = False
+        app.is_ai_thinking = True
+        app._ai_generation = 1  # 現在の世代は 1
+        app.ai_queue.put(((3, 2), 0))  # 古い世代 0 の結果
+
+        with patch.object(app, "_apply_ai_move") as mock_apply:
+            app._update_state(None)
+        mock_apply.assert_not_called()
+        assert app.is_ai_thinking is False  # フラグはリセットされる
+    finally:
+        patcher.stop()
+
+
+def test_fresh_ai_result_is_applied():
+    """世代が一致する AI 結果は盤面に適用される"""
+    app, mock_game, _, patcher = make_app()
+    try:
+        app.game_started = True
+        app.game.game_over = False
+        app.is_ai_thinking = True
+        app._ai_generation = 1
+        app.ai_queue.put(((3, 2), 1))  # 現在の世代と一致
+
+        with patch.object(app, "_apply_ai_move") as mock_apply:
+            app._update_state(None)
+        mock_apply.assert_called_once_with((3, 2))
+    finally:
+        patcher.stop()
+
+
+def test_player_change_mid_game_invalidates_ai():
+    """ゲーム中にプレイヤー設定を変更すると AI 思考が無効化される"""
+    app, mock_game, mock_gui, patcher = make_app()
+    try:
+        app.game_started = True
+        app.game.game_over = False
+        app.black_player_id = 0
+        app.is_ai_thinking = True
+
+        # 黒を RandomAgent (id=2) に変更するクリックをシミュレート
+        mock_gui.get_clicked_radio_button.return_value = (-1, 2)
+        app._handle_player_settings_click((0, 0))
+
+        assert app._ai_generation == 1
+        assert app.is_ai_thinking is False
+    finally:
+        patcher.stop()
+
+
+def test_player_change_before_start_does_not_invalidate():
+    """ゲーム開始前のプレイヤー設定変更では _ai_generation が変化しない"""
+    app, mock_game, mock_gui, patcher = make_app()
+    try:
+        app.game_started = False
+        app.black_player_id = 0
+        mock_gui.get_clicked_radio_button.return_value = (-1, 2)
+        app._handle_player_settings_click((0, 0))
+        assert app._ai_generation == 0
+    finally:
+        patcher.stop()
+
+
+def test_run_ai_agent_puts_generation_in_queue():
+    """_run_ai_agent は (move, generation) のタプルをキューに入れる"""
+    app, _, _, patcher = make_app()
+    try:
+        app._ai_generation = 3
+        mock_agent = MagicMock()
+        mock_agent.play.return_value = (2, 5)
+
+        app._run_ai_agent(mock_agent, 3)
+
+        result = app.ai_queue.get_nowait()
+        assert result == ((2, 5), 3)
     finally:
         patcher.stop()
