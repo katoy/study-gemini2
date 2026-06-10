@@ -9,13 +9,19 @@ from agents.api_agent import ApiAgent
 
 logger = logging.getLogger(__name__)
 
-# エージェント定義リスト (API 系のエージェントのみ)
+# エージェント定義リスト (人間 + API 系のエージェント)
 # 各要素は辞書形式:
-#   'id': エージェントを一意に識別する整数ID
-#   'class': 対応するエージェントクラス
+#   'id': エージェントを一意に識別する整数ID (0は人間プレイヤー用に予約)
+#   'class': 対応するエージェントクラス (人間プレイヤーの場合は None)
 #   'display_name': GUIなどで表示される名前
 #   'params': エージェントクラスの初期化時に渡すパラメータ
 AGENT_DEFINITIONS = [
+    {
+        'id': 0,
+        'class': None,
+        'display_name': '人間',
+        'params': {}
+    },
     {
         'id': 1,
         'class': ApiAgent,
