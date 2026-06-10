@@ -92,6 +92,7 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         self.game_mock.game_over = False
         self.game_mock.get_message.return_value = ""
         self.game_mock.agents = {-1: None, 1: None}
+        self.game_mock.agent_ids = {-1: 0, 1: 0}
 
         # --- 修正: gui インスタンスの font は _load_font 経由でモックされるはず ---
         # self.gui.font = self.font_mock # この行は不要
