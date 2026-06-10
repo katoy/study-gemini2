@@ -2,8 +2,6 @@
 # CI チェックスクリプト
 # ローカルで GitHub Actions と同等のチェックを実行
 
-set -e
-
 echo "================================"
 echo "CI チェック スタート"
 echo "================================"
@@ -19,7 +17,7 @@ NC='\033[0m' # No Color
 FAILED=0
 
 # 1. Lint チェック (ruff)
-echo -e "${YELLOW}[1/4] Lint チェック (ruff)${NC}"
+echo -e "${YELLOW}[1/6] Lint チェック (ruff)${NC}"
 if uv run ruff check . --select=E,W,F --ignore=E501 --exclude=tests; then
     echo -e "${GREEN}✅ Lint チェック: 成功${NC}"
 else
@@ -29,7 +27,7 @@ fi
 echo
 
 # 2. 型チェック (mypy)
-echo -e "${YELLOW}[2/4] 型チェック (mypy)${NC}"
+echo -e "${YELLOW}[2/6] 型チェック (mypy)${NC}"
 if uv run mypy . --ignore-missing-imports; then
     echo -e "${GREEN}✅ 型チェック: 成功${NC}"
 else
@@ -39,8 +37,8 @@ fi
 echo
 
 # 3. テスト実行
-echo -e "${YELLOW}[3/4] テスト実行${NC}"
-if uv run pytest -q; then
+echo -e "${YELLOW}[3/6] テスト実行${NC}"
+if uv run pytest --ignore=tests/integration -q; then
     echo -e "${GREEN}✅ テスト: 成功${NC}"
 else
     echo -e "${RED}❌ テスト: 失敗${NC}"
@@ -49,7 +47,7 @@ fi
 echo
 
 # 4. カバレッジ チェック（GUI 除外）
-echo -e "${YELLOW}[4/4] カバレッジ チェック（GUI 除外）${NC}"
+echo -e "${YELLOW}[4/6] カバレッジ チェック（GUI 除外）${NC}"
 echo "計測対象: GUI 以外は 100%"
 
 # カバレッジ計測（GUI を除外）
@@ -74,6 +72,26 @@ elif [ "${COVERAGE_PERCENT%.*}" -lt 99 ]; then
     FAILED=1
 else
     echo -e "${GREEN}✅ カバレッジ: ${COVERAGE_PERCENT}% (99%+ 達成)${NC}"
+fi
+echo
+
+# 5. サーバー単体テスト (FastAPI TestClient)
+echo -e "${YELLOW}[5/6] サーバー単体テスト (FastAPI TestClient)${NC}"
+if SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy uv run pytest tests/server/ -v --tb=short -q; then
+    echo -e "${GREEN}✅ サーバー単体テスト: 成功${NC}"
+else
+    echo -e "${RED}❌ サーバー単体テスト: 失敗${NC}"
+    FAILED=1
+fi
+echo
+
+# 6. 統合テスト (実サーバー起動: port 5002)
+echo -e "${YELLOW}[6/6] 統合テスト (実サーバーと ApiAgent の通信確認)${NC}"
+if SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy uv run pytest tests/integration/ -v --tb=short -x -q; then
+    echo -e "${GREEN}✅ 統合テスト: 成功${NC}"
+else
+    echo -e "${RED}❌ 統合テスト: 失敗${NC}"
+    FAILED=1
 fi
 echo
 
