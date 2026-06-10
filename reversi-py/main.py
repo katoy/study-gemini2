@@ -43,6 +43,7 @@ class App:
         self.ai_thread = None
         self.ai_queue: queue.Queue = queue.Queue()
         self.is_ai_thinking = False
+        self._ai_generation: int = 0
 
     def run(self):
         """
@@ -97,6 +98,16 @@ class App:
                     return mouse_click_pos
         return mouse_click_pos
 
+    def _invalidate_ai_thinking(self) -> None:
+        """AI 思考結果を無効化する。プレイヤー設定変更時に呼ぶ。"""
+        self._ai_generation += 1
+        self.is_ai_thinking = False
+        while not self.ai_queue.empty():
+            try:
+                self.ai_queue.get_nowait()
+            except queue.Empty:
+                break
+
     def _update_state(self, mouse_click_pos: tuple[int, int] | None):
         """
         ゲームの状態を更新する。
@@ -108,11 +119,12 @@ class App:
         # --- AIの思考結果をチェック ---
         if self.is_ai_thinking:
             try:
-                move = self.ai_queue.get_nowait()
+                move, gen = self.ai_queue.get_nowait()
                 self.is_ai_thinking = False
-                self._apply_ai_move(move)
+                if gen == self._ai_generation:
+                    self._apply_ai_move(move)
             except queue.Empty:
-                pass # まだ考え中
+                pass  # まだ考え中
 
         # --- 1. マウスクリックに基づく更新 ---
         if mouse_click_pos:
@@ -186,6 +198,8 @@ class App:
 
         if player_changed:
             self.game.set_players(self.black_player_id, self.white_player_id)
+            if self.game_started and not self.game.game_over:
+                self._invalidate_ai_thinking()
             logging.info(
                 f"Player settings changed: Black={self.black_player_id}, White={self.white_player_id}"
             ) # pragma: no cover
@@ -220,9 +234,16 @@ class App:
                 logging.info("Game state undone.") # pragma: no cover
 
         # ----------------------------------------------------
-        # プレイヤーが人間の手番の場合、盤面クリックを処理
-        elif self.game.agents[self.game.turn] is None:
-            self._handle_human_move(mouse_click_pos)
+        else:
+            # ゲーム中のプレイヤー設定クリックを処理する
+            player_settings_top = self.gui._calculate_player_settings_top()
+            clicked_player, _ = self.gui.get_clicked_radio_button(
+                mouse_click_pos, player_settings_top
+            )
+            if clicked_player is not None:
+                self._handle_player_settings_click(mouse_click_pos)
+            elif self.game.agents[self.game.turn] is None:
+                self._handle_human_move(mouse_click_pos)
 
     def _handle_human_move(self, mouse_click_pos: tuple[int, int]):
         """人間の手番での盤面クリック処理"""
@@ -268,19 +289,22 @@ class App:
             # AIの手番の場合
             self.is_ai_thinking = True
             self.game.set_message(_t("game.thinking", default="Thinking..."))
-            self.ai_thread = threading.Thread(target=self._run_ai_agent, args=(current_agent,))
+            self.ai_thread = threading.Thread(
+                target=self._run_ai_agent,
+                args=(current_agent, self._ai_generation),
+            )
             self.ai_thread.daemon = True
             self.ai_thread.start()
         # else: 人間の手番の場合は何もしない (クリック待ち)
 
-    def _run_ai_agent(self, agent):
+    def _run_ai_agent(self, agent, generation: int) -> None:
         """AIエージェントを実行するスレッドワーカー"""
         try:
             move = agent.play(self.game)
-            self.ai_queue.put(move)
+            self.ai_queue.put((move, generation))
         except Exception as e:
             logging.error(f"Error in AI thread: {e}")
-            self.ai_queue.put(None)
+            self.ai_queue.put((None, generation))
 
     def _handle_pass(self, current_turn: int):
         """パス処理"""
@@ -398,8 +422,8 @@ class App:
         self.gui.draw_quit_button(game_over=False)
         # パスメッセージなどを描画
         self.gui.draw_message(self.game.get_message())
-        # プレイヤー設定UIを描画 (ゲーム中は操作不可 enabled=False)
-        self.gui.draw_player_settings(self.game, player_settings_top, enabled=False)
+        # プレイヤー設定UIを描画 (ゲーム中も操作可能 enabled=True)
+        self.gui.draw_player_settings(self.game, player_settings_top, enabled=True)
         logging.debug("Rendered in-game screen.") # pragma: no cover
 
 
