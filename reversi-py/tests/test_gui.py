@@ -14,7 +14,6 @@ from config.theme import Color, Screen
 from config.i18n import _t
 from game import Game
 from agents.first_agent import FirstAgent
-from agents.random_agent import RandomAgent
 from ui_elements import Button as OriginalButton
 
 # --- App クラスのテストは test_main.py に移動するため、ここからは削除 ---
@@ -102,22 +101,10 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         # ---------------------------------------------
 
         # config.agents のモック設定
-        self.test_agent_options = [(0, '人間'), (1, 'First'), (2, 'Random')]
+        self.test_agent_options = [(0, '人間'), (1, 'API (First)'), (2, 'API (Random)')]
         self.patcher_get_options = patch('gui.get_agent_options', return_value=self.test_agent_options)
         self.mock_get_options = self.patcher_get_options.start()
         self.addCleanup(self.patcher_get_options.stop)
-
-        def mock_get_class(agent_id):
-            if agent_id == 0:
-                return None
-            if agent_id == 1:
-                return FirstAgent
-            if agent_id == 2:
-                return RandomAgent
-            return None
-        self.patcher_get_class = patch('gui.get_agent_class', side_effect=mock_get_class)
-        self.mock_get_class = self.patcher_get_class.start()
-        self.addCleanup(self.patcher_get_class.stop)
 
         # GUIインスタンスの agent_options を上書き
         self.gui.agent_options = self.test_agent_options

@@ -2,7 +2,7 @@
 import pygame
 from pathlib import Path
 # --- config.agents からヘルパー関数をインポート ---
-from config.agents_config import get_agent_options, get_agent_class
+from config.agents_config import get_agent_options
 # --- config.theme からインポート ---
 from config.theme import Color, Screen
 # --- config.i18n からインポート ---
