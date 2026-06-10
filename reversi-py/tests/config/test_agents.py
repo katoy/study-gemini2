@@ -24,11 +24,6 @@ except ImportError as e:
     sys.exit(1)
 
 try:
-    from agents.base_agent import Agent
-    from agents.first_agent import FirstAgent
-    from agents.random_agent import RandomAgent
-    from agents.gain_agent import GainAgent
-    from agents.mcts_agent import MonteCarloTreeSearchAgent
     from agents.api_agent import ApiAgent
 except ImportError as e:
     print(f"エージェントクラスのインポートエラー: {e}")
@@ -127,12 +122,12 @@ class TestConfigAgents(unittest.TestCase):
         self.assertIsNone(result, f"get_agent_definition should return None for invalid ID {invalid_id}")
 
     def test_api_agent_has_agent_type_param(self):
-        """API (Random) エージェント定義の params に agent_type='random' が含まれる"""
-        defn = get_agent_definition(5)
-        self.assertIsNotNone(defn, "Agent definition for ID 5 should exist")
-        self.assertIn("params", defn, "Definition should have 'params' key")
-        self.assertIn("agent_type", defn["params"], "params should contain 'agent_type'")
-        self.assertEqual(defn["params"].get("agent_type"), "random", "agent_type should be 'random'")
+        """すべての API エージェント定義の params に agent_type が含まれる"""
+        for defn in AGENT_DEFINITIONS:
+            with self.subTest(agent_id=defn['id']):
+                self.assertIn("params", defn, "Definition should have 'params' key")
+                self.assertIn("agent_type", defn["params"], "params should contain 'agent_type'")
+                self.assertIn(defn["params"].get("agent_type"), ["first", "random", "gain", "mcts"])
 
 
 if __name__ == '__main__':

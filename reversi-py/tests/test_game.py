@@ -10,8 +10,7 @@ sys.path.append(parent_dir)
 
 from game import Game
 from board import Board
-from agents.first_agent import FirstAgent
-from agents.random_agent import RandomAgent
+from agents.api_agent import ApiAgent
 from config.agents_config import AGENT_DEFINITIONS
 
 class TestGame(unittest.TestCase):
@@ -37,12 +36,12 @@ class TestGame(unittest.TestCase):
         self.game.place_stone(2, 3) # 黒が (2,3) に置く
         self.game.switch_turn()
         self.game.set_message("Test")
-        # config から ID を取得
-        first_agent_id = next((d['id'] for d in AGENT_DEFINITIONS if d['class'] == FirstAgent), None)
-        random_agent_id = next((d['id'] for d in AGENT_DEFINITIONS if d['class'] == RandomAgent), None)
-        self.assertIsNotNone(first_agent_id)
-        self.assertIsNotNone(random_agent_id)
-        self.game.set_players(first_agent_id, random_agent_id) # FirstAgent, RandomAgent
+        # config から API エージェント ID を取得
+        first_api_id = next((d['id'] for d in AGENT_DEFINITIONS if d['display_name'] == 'API (First)'), None)
+        random_api_id = next((d['id'] for d in AGENT_DEFINITIONS if d['display_name'] == 'API (Random)'), None)
+        self.assertIsNotNone(first_api_id)
+        self.assertIsNotNone(random_api_id)
+        self.game.set_players(first_api_id, random_api_id)
         self.game.game_over = True
 
         self.game.reset()
@@ -122,28 +121,17 @@ class TestGame(unittest.TestCase):
         self.assertEqual(self.game.get_winner(), 0)
 
     def test_set_players(self):
-        # config/agents.py の定義に基づいてIDを指定
-        human_id = 0
-        first_agent_id = next((d['id'] for d in AGENT_DEFINITIONS if d['class'] == FirstAgent), None)
-        random_agent_id = next((d['id'] for d in AGENT_DEFINITIONS if d['class'] == RandomAgent), None)
+        # config/agents.py の定義に基づいてIDを指定 (API エージェントのみ)
+        first_api_id = next((d['id'] for d in AGENT_DEFINITIONS if d['display_name'] == 'API (First)'), None)
+        random_api_id = next((d['id'] for d in AGENT_DEFINITIONS if d['display_name'] == 'API (Random)'), None)
 
-        self.assertIsNotNone(first_agent_id, "FirstAgent ID not found in config")
-        self.assertIsNotNone(random_agent_id, "RandomAgent ID not found in config")
+        self.assertIsNotNone(first_api_id, "API (First) ID not found in config")
+        self.assertIsNotNone(random_api_id, "API (Random) ID not found in config")
 
-        # 黒: 人間, 白: FirstAgent
-        self.game.set_players(human_id, first_agent_id)
-        self.assertIsNone(self.game.agents[-1])
-        self.assertIsInstance(self.game.agents[1], FirstAgent)
-
-        # 黒: RandomAgent, 白: 人間
-        self.game.set_players(random_agent_id, human_id)
-        self.assertIsInstance(self.game.agents[-1], RandomAgent)
-        self.assertIsNone(self.game.agents[1])
-
-        # 黒: FirstAgent, 白: RandomAgent
-        self.game.set_players(first_agent_id, random_agent_id)
-        self.assertIsInstance(self.game.agents[-1], FirstAgent)
-        self.assertIsInstance(self.game.agents[1], RandomAgent)
+        # 黒: API (First), 白: API (Random)
+        self.game.set_players(first_api_id, random_api_id)
+        self.assertIsInstance(self.game.agents[-1], ApiAgent)
+        self.assertIsInstance(self.game.agents[1], ApiAgent)
 
     def test_set_message_get_message(self):
         self.assertEqual(self.game.get_message(), "")
@@ -262,23 +250,23 @@ class TestGame(unittest.TestCase):
     @patch('builtins.print')
     def test_create_agent_type_error(self, mock_print, mock_get_params):
         """エージェント初期化時に TypeError が発生するケースをテスト (行 100-104)"""
-        # FirstAgent の ID を取得 (config に依存)
-        first_agent_id = next((d['id'] for d in AGENT_DEFINITIONS if d['class'] == FirstAgent), None)
-        self.assertIsNotNone(first_agent_id, "FirstAgent ID not found in config")
+        # API (First) の ID を取得 (config に依存)
+        first_api_id = next((d['id'] for d in AGENT_DEFINITIONS if d['display_name'] == 'API (First)'), None)
+        self.assertIsNotNone(first_api_id, "API (First) ID not found in config")
 
         mock_get_params.return_value = {'invalid_param': 123}
 
-        agent = self.game.create_agent(first_agent_id)
+        agent = self.game.create_agent(first_api_id)
 
         self.assertIsNone(agent, "TypeError発生時はNoneが返るべき")
-        mock_get_params.assert_called_once_with(first_agent_id)
+        mock_get_params.assert_called_once_with(first_api_id)
 
         # print が呼び出されたことを確認 (最低1回は呼ばれるはず)
         self.assertGreater(mock_print.call_count, 0, "print should have been called on TypeError")
         # 呼び出された print の全テキストを結合
         all_print_output = "".join(str(call_arg[0]) for call_arg, _ in mock_print.call_args_list)
         # 期待されるメッセージの一部が含まれているか確認
-        self.assertIn(f"エージェント FirstAgent (ID: {first_agent_id}) の初期化に失敗しました。", all_print_output)
+        self.assertIn(f"エージェント ApiAgent (ID: {first_api_id}) の初期化に失敗しました。", all_print_output)
         # "TypeError" という文字列ではなく、TypeError に関連するメッセージが含まれているか確認
         # (例: "takes no arguments", "unexpected keyword argument")
         self.assertTrue("takes no arguments" in all_print_output or "unexpected keyword argument" in all_print_output,

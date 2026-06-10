@@ -44,6 +44,7 @@ class TestApp(unittest.TestCase):
         self.mock_gui.is_quit_button_clicked = MagicMock(return_value=False)
         self.mock_gui.is_settings_button_clicked = MagicMock(return_value=False)
         self.mock_gui.is_undo_button_clicked = MagicMock(return_value=False)
+        self.mock_gui.get_clicked_radio_button = MagicMock(return_value=(None, None))
 
         pygame.init()
         # display.set_mode を呼ばないと flip で落ちる場合があるため、パッチを検討
