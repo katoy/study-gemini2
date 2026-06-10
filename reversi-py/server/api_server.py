@@ -15,7 +15,6 @@ if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
 
 try:
-    from board import Board
     from game import Game
     from agents.first_agent import FirstAgent
     from agents.random_agent import RandomAgent
