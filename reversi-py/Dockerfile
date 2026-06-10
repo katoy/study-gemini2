@@ -27,14 +27,14 @@ WORKDIR /app
 # プロジェクトファイルをコンテナの /app にコピー
 COPY . /app
 
-# Pythonの依存関係をインストール
-# requirements.txt を先にコピーしてキャッシュを活用
-COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+# uv をインストール
+RUN pip install --no-cache-dir uv
+
+# Python の依存関係をインストール（pyproject.toml + uv 使用）
+RUN uv sync --all-extras
 
 # startpoint.sh をコピーして実行権限を付与
-COPY startpoint.sh /startpoint.sh
-RUN chmod +x /startpoint.sh
+RUN chmod +x /app/startpoint.sh
 
 # VNCサーバーが使用するポートを公開
 EXPOSE 5901
