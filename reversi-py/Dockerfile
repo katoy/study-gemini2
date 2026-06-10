@@ -19,6 +19,14 @@ RUN apt-get update && \
     dbus-x11 \
     xauth \
     xfonts-base \
+    build-essential \
+    python3-dev \
+    pkg-config \
+    libsdl2-dev \
+    libsdl2-image-dev \
+    libsdl2-mixer-dev \
+    libsdl2-ttf-dev \
+    libfreetype6-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # 作業ディレクトリを作成・設定
