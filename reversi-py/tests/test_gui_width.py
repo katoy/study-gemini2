@@ -65,8 +65,6 @@ class TestGameGUIWidth(unittest.TestCase):
                 self.assertLessEqual(rect.right, g.screen_width)
 
             # Player-setting right column should fit inside window with side padding
-            board_rect = g._calculate_board_rect()
-            left_margin = board_rect.left
             white_player_label_x = g.screen_width // 2 + Screen.RADIO_BUTTON_MARGIN
             # estimate widest label
             max_label_width = max(font_mock.render(name).get_width() for _, name in test_agent_options)
