@@ -97,6 +97,8 @@ class App:
         pygame.quit() # pragma: no cover
         sys.exit() # pragma: no cover
 
+    # === イベント処理 ===
+
     def _handle_events(self) -> tuple[int, int] | None:
         """
         Pygameのイベントを処理する。
@@ -115,6 +117,8 @@ class App:
                     mouse_click_pos = event.pos
                     return mouse_click_pos
         return mouse_click_pos
+
+    # === 状態管理 ===
 
     def _invalidate_ai_thinking(self) -> None:
         """AI 思考結果を無効化する。プレイヤー設定変更時に呼ぶ。"""
@@ -141,7 +145,7 @@ class App:
             except queue.Empty:
                 pass  # まだ考え中
 
-        # --- 1. マウスクリックに基づく更新 ---
+        # === クリック処理のディスパッチ ===
         if mouse_click_pos:
             if not self.game_started:
                 # ゲーム開始前のクリック処理 (スタートボタン、プレイヤー選択)
@@ -153,7 +157,7 @@ class App:
                 # ゲーム中のクリック処理 (リスタート、リセット、終了、盤面クリック)
                 self._handle_click_in_game(mouse_click_pos)
 
-        # --- 2. AIの手番、パス処理 (クリックがない場合でも実行される) ---
+        # === AI・パス処理 ===
         # ゲームが開始していて、かつゲームオーバーでない場合にのみ処理
         if self.game_started and not self.game.game_over:
             self._handle_ai_or_pass()
@@ -287,6 +291,8 @@ class App:
 
         # else: 合法手以外がクリックされた場合は何もしない
 
+    # === AI・パス処理 ===
+
     def _handle_ai_or_pass(self):
         """AIの手番またはパスの処理"""
         # AIが思考中の場合は何もしない
@@ -368,6 +374,8 @@ class App:
             if move is not None: # パス（None）以外で無効な手の場合
                 log_message = f"AI returned invalid move: {move}. Valid moves: {valid_moves}"
                 logging.warning(log_message) # pragma: no cover
+
+    # === 描画 ===
 
     def _render(self):
         """画面を描画する"""
