@@ -78,7 +78,7 @@ class GameGUI:
         # 他のボタン (Restart, Reset, Quit) は描画時に都度生成する方針
         # -------------------------------------------------
 
-    # --- ヘルパーメソッド ---
+    # === ヘルパー ===
     def _get_rendered_text(self, text, color=Color.WHITE):
         """テキストを描画し、キャッシュする"""
         cache_key = (text, color)
@@ -86,6 +86,7 @@ class GameGUI:
             self._text_cache[cache_key] = self.font.render(text, True, color)
         return self._text_cache[cache_key]
 
+    # === レイアウト計算・初期化 ===
     def _calculate_turn_message_center_y(self):
         """手番表示の中心Y座標を計算する"""
         board_rect = self._calculate_board_rect()
@@ -371,7 +372,8 @@ class GameGUI:
 
         min_width = int(max(board_min, button_min, players_min, 8 * 10 + side_pad * 2))
         return min_width
-    # --- 描画メソッド ---
+
+    # === 描画 ===
     def _draw_board_background(self, board_rect):
         """画面背景と盤面の背景を描画する"""
         self.screen.fill(Color.BACKGROUND)
@@ -444,6 +446,7 @@ class GameGUI:
             text_rect = text_surface.get_rect(center=(self.screen_width // 2, y_pos))
             self.screen.blit(text_surface, text_rect)
 
+    # === 入力処理 ===
     def get_clicked_cell(self, pos):
         """クリックされた座標が盤面のどのセルに対応するかを返す"""
         board_rect = self._calculate_board_rect()
