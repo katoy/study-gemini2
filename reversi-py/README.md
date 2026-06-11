@@ -122,37 +122,215 @@ uv sync --extra server
 uv sync --all-extras
 ```
 
+## クイックスタート
+
+最もシンプルな起動方法：
+
+```bash
+./scripts/start.sh
+```
+
+API サーバー付きで起動（API エージェント使用可能）:
+
+```bash
+./scripts/start_with_server.sh
+```
+
+Docker で起動（VNC で操作）:
+
+```bash
+./scripts/docker_start.sh
+```
+
 ## 実行方法
 
-### アプリのみを起動
+### Docker を使わない実行（ローカル環境）
 
-ゲーム本体を起動します。
+#### 方法 1: アプリのみを起動（シンプル）
+
+ゲーム本体をシンプルに起動します。この場合、ローカルの AI エージェント（First、Random、Gain、MCTS）のみが使用可能です。
+
+**スクリプトを使う場合:**
+
+```bash
+./scripts/start.sh
+```
+
+**手動で起動する場合:**
+
+```bash
+# uv がインストール済みの場合
+uv run python main.py
+
+# Python を直接使う場合
+python main.py
+```
+
+#### 方法 2: API サーバーとアプリを一緒に起動（API エージェント使用）
+
+`API (Random)` エージェントを使う場合、API サーバーとアプリを起動します。
+
+**スクリプトを使う場合（推奨）:**
+
+```bash
+./scripts/start_with_server.sh
+```
+
+このスクリプトは以下を自動で行います：
+- API サーバーをバックグラウンドで起動
+- サーバーの起動確認
+- アプリケーションを起動
+- 終了時に API サーバーも自動停止
+
+**手動で起動する場合:**
+
+ターミナル 1（API サーバー）:
+
+```bash
+# 環境設定（オプション）
+export API_HOST=127.0.0.1  # デフォルト: 127.0.0.1
+export API_PORT=5001       # デフォルト: 5001
+
+# サーバー起動
+uv run python -m server.api_server
+```
+
+ターミナル 2（アプリケーション）:
 
 ```bash
 uv run python main.py
-```
-
-`python main.py` でも起動できます。
-
-### サーバーとアプリを起動して通信させる
-
-`API (Random)` エージェントを使う場合は、API サーバーとアプリを別々のターミナルで起動します。
-
-**ターミナル 1: API サーバーを起動**
-
-```bash
-uv run python -m server.api_server
 ```
 
 起動ログで `Uvicorn running on http://127.0.0.1:5001` が表示されたら正常です。API ドキュメントは http://127.0.0.1:5001/docs で確認できます。
 
-**ターミナル 2: アプリを起動**
+アプリの「プレイヤー設定」でプレイヤーを `API (Random)` に設定すると、サーバー経由で AI が着手します。
+
+### Docker を使用した実行（コンテナ環境）
+
+Docker を使うと、依存関係やシステム設定に関わらず、どの環境でも同じ状態で実行できます。VNC を使って GUI を操作できます。
+
+#### Docker イメージのビルド
+
+イメージを構築します（初回のみ）。
 
 ```bash
-uv run python main.py
+docker build -t reversi-py .
 ```
 
-アプリの「プレイヤー設定」でプレイヤーを `API (Random)` に設定すると、サーバー経由で AI が着手します。
+または、スクリプトを使う場合（イメージの存在確認も行う）:
+
+```bash
+./scripts/docker_start.sh
+```
+
+#### Docker コンテナの起動
+
+**スクリプトを使う場合（推奨）:**
+
+```bash
+./scripts/docker_start.sh
+```
+
+スクリプトは以下を行います：
+- イメージを構築（存在しない場合）
+- 既存コンテナを停止・削除
+- コンテナを起動
+- ポート設定情報を表示
+
+**手動で起動する場合:**
+
+```bash
+docker run -d \
+    --name reversi-container \
+    -p 5901:5901 \
+    -p 5001:5001 \
+    -e DISPLAY=:1 \
+    reversi-py
+```
+
+- `-d`: バックグラウンド実行
+- `-p 5901:5901`: VNC ポート（ホスト:コンテナ）
+- `-p 5001:5001`: API サーバーポート
+- `-e DISPLAY=:1`: X11 ディスプレイ設定
+
+#### VNC での GUI 接続
+
+1. **VNC クライアントを起動**
+   - macOS: Finder > 移動 > サーバーへ接続 > `vnc://localhost:5901`
+   - Windows: TightVNC、RealVNC など
+   - Linux: `vncviewer localhost:5901`
+
+2. **接続情報**
+   - ホスト: `localhost` または `127.0.0.1`
+   - ポート: `5901`
+   - パスワード: `reversi`（Dockerfile で設定）
+
+3. **GUI 操作**
+   - VNC 接続後は、ローカル実行と同様にゲームをプレイできます
+   - API サーバーも同時に起動されています
+
+#### コンテナの停止・削除
+
+**スクリプトを使う場合:**
+
+```bash
+./scripts/docker_stop.sh
+```
+
+**手動で停止する場合:**
+
+```bash
+# コンテナを停止
+docker stop reversi-container
+
+# コンテナを削除
+docker rm reversi-container
+```
+
+**すべての reversi コンテナを削除する場合:**
+
+```bash
+docker ps -a | grep reversi | awk '{print $1}' | xargs docker rm -f
+```
+
+#### コンテナ内でのトラブルシューティング
+
+**ログを確認:**
+
+```bash
+docker logs -f reversi-container
+```
+
+**コンテナにシェルでアクセス:**
+
+```bash
+docker exec -it reversi-container bash
+```
+
+**API サーバーが起動しているか確認:**
+
+```bash
+# コンテナ内から
+curl http://localhost:5001/docs
+
+# ホストマシンから
+curl http://localhost:5001/docs
+```
+
+#### 環境変数のカスタマイズ
+
+Docker 起動時に環境変数を指定できます：
+
+```bash
+docker run -d \
+    --name reversi-container \
+    -p 5901:5901 \
+    -p 5001:5001 \
+    -e API_HOST=0.0.0.0 \
+    -e API_PORT=5001 \
+    -e LOG_LEVEL=debug \
+    reversi-py
+```
 
 ## API サーバー
 
@@ -182,11 +360,21 @@ API ドキュメント:
 
 ## 使い方
 
-1. `uv run python main.py` でゲームを起動します。
-2. 画面の「ゲーム開始」ボタンを押します。
-3. 盤面の合法手をクリックして石を置きます。
-4. プレイヤー設定で人間または AI を選べます。`API (Random)` を選ぶ場合は API サーバーを先に起動してください。
-5. `←` / `→` で履歴を戻したり進めたりできます。
+1. ゲームを起動します
+   - シンプル実行: `./scripts/start.sh`
+   - API サーバー付き: `./scripts/start_with_server.sh`
+   - Docker 使用: `./scripts/docker_start.sh`
+
+2. 画面の「ゲーム開始」ボタンを押します
+
+3. 盤面の合法手をクリックして石を置きます
+
+4. プレイヤー設定で以下を選べます
+   - `人間`: 人間が手を指します
+   - `First`, `Random`, `Gain`, `MCTS`: ローカル AI エージェント
+   - `API (Random)`: API サーバー経由の AI（サーバー起動が必要）
+
+5. `←` / `→` で履歴を戻したり進めたりできます
 
 ## テスト
 
@@ -259,23 +447,6 @@ uv run pytest tests/integration/ -v
 - `scripts/ci_check.sh`: ローカル CI チェックスクリプト（6 ステップ）
 - `.github/workflows/ci.yml`: GitHub Actions 定義（4 ジョブ並列）
 
-## Docker を使用した実行 (VNC 接続)
-
-Docker がインストールされていれば、コンテナ内で GUI を起動し、VNC クライアントから操作できます。
-
-```bash
-docker build -t reversi-py .
-docker run -d -p 5901:5901 --name reversi-container reversi-py
-```
-
-接続先は `localhost:5901` または `127.0.0.1:5901` です。
-
-コンテナを停止・削除する場合:
-
-```bash
-docker stop reversi-container
-docker rm reversi-container
-```
 
 ## 補足
 
