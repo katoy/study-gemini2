@@ -8,6 +8,28 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+"""FastAPI ベースのリバーシ AI サーバー。
+
+GUI アプリから ApiAgent 経由で REST API で着手を取得する。
+複数のローカル AI エージェント実装を提供。
+
+アーキテクチャ：
+    GUI (main.py)
+    └→ ApiAgent
+        └→ HTTP POST http://localhost:5001/play
+            └→ api_server.py (_select_agent で着手を計算)
+                └→ ローカルエージェント (FirstAgent, RandomAgent など)
+
+REST API：
+    POST /play
+        Request: board (List[List[int]]), turn (int), agent_type (str)
+        Response: {move: [row, col]} or error
+
+設計：
+- PlayRequest (Pydantic): リクエスト検証
+- _select_agent: agent_type → エージェントインスタンス → 着手
+"""
+
 logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent
