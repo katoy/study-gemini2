@@ -1,7 +1,6 @@
 import sys
 import os
 from unittest.mock import MagicMock
-import queue
 from unittest.mock import patch
 
 # Ensure project root is importable

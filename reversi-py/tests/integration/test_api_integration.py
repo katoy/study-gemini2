@@ -5,7 +5,6 @@
 """
 from unittest.mock import Mock
 
-import pytest
 import requests
 
 from agents.api_agent import ApiAgent

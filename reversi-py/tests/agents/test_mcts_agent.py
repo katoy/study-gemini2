@@ -3,7 +3,7 @@ import unittest
 import sys
 import os
 import copy
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import patch, MagicMock
 import math
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
