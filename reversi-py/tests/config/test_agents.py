@@ -23,12 +23,6 @@ except ImportError as e:
     print(f"現在の sys.path: {sys.path}")
     sys.exit(1)
 
-try:
-    from agents.api_agent import ApiAgent
-except ImportError as e:
-    print(f"エージェントクラスのインポートエラー: {e}")
-    print("agents ディレクトリ内のファイルが見つからないか、インポートできません。")
-    sys.exit(1)
 
 
 class TestConfigAgents(unittest.TestCase):
