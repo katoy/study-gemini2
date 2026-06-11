@@ -1,7 +1,6 @@
 # tests/test_mcts_agent.py
 import unittest
 from agents import mcts_agent
-from unittest.mock import MagicMock
 
 class DummyBoard:
     def __init__(self, moves=None, counts=(2,2)):
