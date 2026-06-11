@@ -255,3 +255,49 @@ def test_run_ai_agent_puts_generation_in_queue():
         assert result == ((2, 5), 3)
     finally:
         patcher.stop()
+
+
+def test_handle_player_settings_click_early_return_when_clicked_player_none():
+    """clicked_player が None のとき _handle_player_settings_click は早期リターン"""
+    app, mock_game, mock_gui, patcher = make_app()
+    try:
+        # 初期化後に set_players の呼び出しをリセット
+        mock_game.set_players.reset_mock()
+
+        # プレイヤー ID を 1, 1 に変更して初期化をクリア
+        app.black_player_id = 1
+        app.white_player_id = 1
+
+        mock_gui.get_clicked_radio_button.return_value = (None, 2)
+        initial_black_id = app.black_player_id
+        initial_white_id = app.white_player_id
+
+        app._handle_player_settings_click((400, 400))
+
+        # プレイヤー ID が変更されていないことを確認
+        assert app.black_player_id == initial_black_id
+        assert app.white_player_id == initial_white_id
+        # set_players が呼ばれていないことを確認
+        mock_game.set_players.assert_not_called()
+    finally:
+        patcher.stop()
+
+
+def test_handle_click_in_game_calls_player_settings_click():
+    """ゲーム中にプレイヤー設定がクリックされた場合、_handle_player_settings_click が呼ばれる"""
+    app, mock_game, mock_gui, patcher = make_app()
+    try:
+        # ゲーム中の設定：プレイヤー設定クリック
+        # get_clicked_radio_button は (-1, "api_first") を返す（黒プレイヤー設定）
+        mock_gui.get_clicked_radio_button.return_value = (-1, "api_first")
+        mock_gui.is_restart_button_clicked.return_value = False
+        mock_gui.is_reset_button_clicked.return_value = False
+        mock_gui.is_quit_button_clicked.return_value = False
+        mock_gui.is_undo_button_clicked.return_value = False
+
+        with patch.object(app, '_handle_player_settings_click') as mock_handle:
+            app._handle_click_in_game((400, 400))
+            # _handle_player_settings_click が呼ばれたことを確認
+            mock_handle.assert_called_once_with((400, 400))
+    finally:
+        patcher.stop()
