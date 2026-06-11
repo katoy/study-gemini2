@@ -12,13 +12,31 @@ from config.i18n import _t
 from config.agents_config import get_agent_definition
 
 class App:
-    """
-    リバーシゲームアプリケーション全体を管理するクラス。
-    イベント処理、状態更新、描画のメインループを担当する。
+    """リバーシゲームアプリケーション。メインループとゲーム制御を担当。
+
+    責務：
+    1. メインループ：イベント処理 → ゲーム更新 → 描画
+    2. ゲーム状態管理：プレイヤー設定、ゲーム開始/終了
+    3. AI 実行管理：スレッド管理、AI 出力キュー、世代 ID で古い出力を破棄
+    4. UI イベント処理：ボタン・ラジオボタン・盤面クリックの処理
+
+    設計上の注記：
+    - 単一責務原則（SRP）に向けて、将来的に以下の分離を検討：
+      * GameController: ゲーム状態管理専用
+      * AIManager: AI 実行スレッド・キュー・世代管理専用
+      * App: メインループのみ
+    - 現在は実装の簡潔性とテスト容易性のため単一クラス
+
+    属性：
+        game (Game): ゲームロジック
+        gui (GameGUI): UI 描画
+        black_player_id, white_player_id: プレイヤー設定
+        game_started: ゲーム開始フラグ
+        ai_thread, ai_queue: AI 非同期実行
+        _ai_generation: 古い AI 出力を破棄するための世代 ID
     """
     def __init__(self, game: Game, gui: GameGUI):
-        """
-        Appクラスのコンストラクタ。
+        """Appクラスのコンストラクタ。
 
         Args:
             game (Game): ゲームロジックを管理するGameインスタンス。

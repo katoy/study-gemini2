@@ -12,6 +12,23 @@ from ui_elements import Button, RadioButton, Label
 # ---------------------------------------------
 
 class GameGUI:
+    """Pygame ベースのリバーシゲーム UI。
+
+    責務：
+    1. レイアウト計算：ウィンドウサイズ、要素の配置座標を計算
+    2. UI描画：盤面、石、ボタン、テキストなどを pygame に描画
+    3. 入力処理：マウスクリックから盤面座標やボタンクリックを検出
+
+    構造：
+    - __init__ 直後：初期化・キャッシュ設定
+    - _calculate_* メソッド：レイアウト計算（座標・サイズ）
+    - draw_* メソッド：UI 要素の描画
+    - get_clicked_* メソッド：入力検出（マウス座標 → 盤面/UI 要素）
+
+    注記：
+    将来的に GameLayout クラスに計算ロジックを分離予定。
+    現在は単一クラスで管理し、メソッドを責務別にグループ化。
+    """
     def __init__(self, screen_width=Screen.WIDTH, screen_height=Screen.HEIGHT, allow_width_shrink: bool = False):
         """Game GUI initializer.
 

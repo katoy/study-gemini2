@@ -6,6 +6,28 @@ from config.agent_config_utils import get_agent_params
 
 
 class Game:
+    """リバーシゲームの制御。ゲームロジックと盤面管理を担当。
+
+    責務：
+    - 盤面管理：Board インスタンスを保有、石の配置
+    - ターン管理：手番（黒=-1, 白=1）の切り替え
+    - プレイヤー管理：各プレイヤーのエージェント（AI または人間）
+    - ゲーム状態：勝敗判定、パス判定、ゲームオーバー
+    - 履歴管理：巻き戻し機能用の手数履歴
+
+    設計上の注記：
+    - Board と Game を分離することで責務が明確（ボード操作 vs ゲーム流れ）
+    - agents 辞書でプレイヤーの AI インスタンスを保有
+    - agent_ids で現在選択中のエージェント ID を管理
+
+    属性：
+        board (Board): 盤面
+        turn: 現在の手番（-1=黒, 1=白）
+        agents: エージェントインスタンス {-1: agent_black, 1: agent_white}
+        agent_ids: エージェント ID {-1: id_black, 1: id_white}
+        history: 手数履歴（盤面状態の列）
+        history_index: 履歴内の現在位置
+    """
     def __init__(self, board_size=8):
         self.board = Board(board_size)
         self.turn = -1  # 黒から開始
