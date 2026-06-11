@@ -192,6 +192,27 @@ class TestApiServer(unittest.TestCase):
                          "input": "not an int"}]},
         )
 
+    # ── board バリデーション───────────────────────────────
+    def test_play_invalid_board_not_list_of_lists(self):
+        """board が list of lists でない場合 422 を返す"""
+        response = self.client.post(
+            "/play",
+            json={"board": "not a list", "turn": 1},
+        )
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        detail = response.json()["detail"]
+        self.assertTrue(any("board" in err.get("loc", []) for err in detail))
+
+    def test_play_invalid_board_contains_non_list(self):
+        """board の要素が list でない場合 422 を返す"""
+        response = self.client.post(
+            "/play",
+            json={"board": [1, 2, 3], "turn": 1},
+        )
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        detail = response.json()["detail"]
+        self.assertTrue(any("board" in err.get("loc", []) for err in detail))
+
     # ── 500 系エラーハンドリング（カバレッジ確保）───────────
     def test_play_agent_raises_exception_returns_500(self):
         """agent.play() が例外を投げると 500 を返す"""

@@ -103,10 +103,7 @@ class App:
         self._ai_generation += 1
         self.is_ai_thinking = False
         while not self.ai_queue.empty():
-            try:
-                self.ai_queue.get_nowait()
-            except queue.Empty:
-                break
+            self.ai_queue.get_nowait()
 
     def _update_state(self, mouse_click_pos: tuple[int, int] | None):
         """
