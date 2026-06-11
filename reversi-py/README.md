@@ -463,6 +463,61 @@ uv run pytest tests/integration/ -v
 
 現在の実装は テスト容易性 と 保守性 のバランスを優先しています。
 
+### ゲーム進行シーケンス
+
+各ターンの処理フローを以下に示します。
+
+```mermaid
+sequenceDiagram
+    participant User as ユーザー
+    participant Main as App<br/>(メインループ)
+    participant GUI as GameGUI<br/>(UI)
+    participant Game as Game<br/>(ゲーム進行)
+    participant Agent as Agent<br/>(AI)
+    participant Board as Board<br/>(盤面)
+
+    rect rgb(200, 220, 255)
+        Note over User,Board: ターンループ（フレームごと）
+    end
+
+    rect rgb(220, 240, 220)
+        Note over Main,GUI: 1. イベント処理
+        User->>GUI: マウスクリック
+        GUI->>Main: クリック位置を返す
+        alt ゲーム開始前
+            Main->>Game: 盤面クリック or ボタン押下
+        else ゲーム中・ゲームオーバー
+            Main->>Game: プレイヤー設定変更 or 石を配置
+        end
+    end
+
+    rect rgb(240, 220, 240)
+        Note over Main,Agent: 2. ゲーム状態更新
+        alt プレイヤーが人間
+            Game->>Game: クリック位置から着手を適用
+            Game->>Board: place_stone()
+        else プレイヤーが AI
+            Main->>Agent: AI エージェントを実行
+            Agent->>Board: get_valid_moves()
+            Agent->>Board: 最適な着手を選択
+            Game->>Board: place_stone()
+        end
+        Game->>Game: ターン切り替え
+    end
+
+    rect rgb(240, 240, 220)
+        Note over Main,GUI: 3. 描画処理
+        Main->>GUI: draw_board()
+        GUI->>GUI: 盤面 + 石を描画
+        Main->>GUI: draw_valid_moves()
+        GUI->>GUI: 有効手を表示
+        Main->>GUI: draw_message()
+        GUI->>GUI: ターン情報・メッセージを表示
+    end
+
+    Note over Main,Board: このフローが 60fps で繰り返される
+```
+
 ## 主要ファイル
 
 ### アプリケーション
