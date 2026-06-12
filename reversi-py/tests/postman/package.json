@@ -1,0 +1,11 @@
+{
+  "name": "reversi-postman",
+  "version": "0.1.0",
+  "private": true,
+  "devDependencies": {
+    "newman": "^5.3.0"
+  },
+  "scripts": {
+    "newman:run": "newman run reversi-api.postman_collection.json -e reversi-api.postman_environment.json --timeout-request 20000"
+  }
+}
