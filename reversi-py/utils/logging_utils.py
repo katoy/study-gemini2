@@ -18,9 +18,11 @@ class ThrottlingFilter(logging.Filter):
     message) that occur within `interval_seconds` of the previous occurrence.
     """
 
-    def __init__(self, name: str = "", interval_seconds: float = 1.0):
+    def __init__(self, name: str = "", interval_seconds: float = 1.0, max_entries: int = 1000):
         super().__init__(name)
         self.interval_seconds = float(interval_seconds)
+        # エントリ数の上限。可変メッセージによる無制限なメモリ増加を防ぐ
+        self.max_entries = int(max_entries)
         # map: (logger_name, levelno, message) -> last_timestamp
         self._last: dict[tuple[str, int, str], float] = {}
         self._lock = threading.Lock()
@@ -35,6 +37,14 @@ class ThrottlingFilter(logging.Filter):
         key = (record.name, record.levelno, message)
         now = time.time()
         with self._lock:
+            if key not in self._last and len(self._last) >= self.max_entries:
+                # 上限到達時は期限切れエントリを掃除する
+                cutoff = now - self.interval_seconds
+                self._last = {k: t for k, t in self._last.items() if t > cutoff}
+                if len(self._last) >= self.max_entries:
+                    # すべて期限内なら全消去（一時的にスロットリングが
+                    # 効かなくなるだけで、ログ消失などの実害はない）
+                    self._last.clear()
             last = self._last.get(key)
             if last is None or (now - last) >= self.interval_seconds:
                 self._last[key] = now

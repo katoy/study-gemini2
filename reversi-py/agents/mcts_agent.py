@@ -1,5 +1,6 @@
 # agents/mcts_agent.py
 import copy  # ゲーム状態のコピーに使用
+import logging
 import math
 import random
 import time
@@ -9,6 +10,8 @@ from .base_agent import Agent
 
 if TYPE_CHECKING:
     from game import Game
+
+logger = logging.getLogger(__name__)
 
 class Node:
     """モンテカルロ木探索のノード"""
@@ -22,6 +25,13 @@ class Node:
         self.visits = 0
         # このノードの状態で有効な手を取得（展開用）
         self.untried_moves = self.board.get_valid_moves(self.turn)
+        if not self.untried_moves:
+            # 手番プレイヤーに合法手がない（パス）場合、相手に手番を渡して
+            # 探索を継続できるようにする。両者とも合法手がなければ終端ノード。
+            opponent_moves = self.board.get_valid_moves(-self.turn)
+            if opponent_moves:
+                self.turn = -self.turn
+                self.untried_moves = opponent_moves
         random.shuffle(self.untried_moves) # 探索の偏りを減らすためシャッフル
 
     def ucb1(self, exploration_weight=1.41):
@@ -30,8 +40,9 @@ class Node:
             # 未訪問ノードは優先度を高くする（無限大とする）
             return float('inf')
         # UCB1 = (勝利数 / 訪問回数) + C * sqrt(log(親の総訪問回数) / 自分の訪問回数)
-        # ここでの「勝利数」は、このノードからプレイアウトした結果、
-        # このノードの手番プレイヤーが勝利した回数とする
+        # ここでの「勝利数」は、このノードへの着手を選んだプレイヤー（親ノードの
+        # 手番プレイヤー）が勝利した回数とする。親は自分が勝ちやすい子を選ぶため、
+        # この視点で保持することで select_child の最大化が正しくなる
         return (self.wins / self.visits) + exploration_weight * math.sqrt(
             math.log(self.parent.visits) / self.visits
         )
@@ -63,7 +74,8 @@ class Node:
     def update(self, result):
         """訪問回数と勝利数を更新する"""
         self.visits += 1
-        # result は、このノードの手番プレイヤーから見た結果 (1:勝ち, 0:負け, 0.5:引き分け)
+        # result は、このノードへの着手を選んだプレイヤー（親ノードの手番）から
+        # 見た結果 (1:勝ち, 0:負け, 0.5:引き分け)
         self.wins += result
 
     def is_fully_expanded(self):
@@ -120,26 +132,23 @@ class MonteCarloTreeSearchAgent(Agent):
                 if node is None: # 選択で問題発生 or 探索完了?
                     break
 
+                # 終端ノードでなければ展開してからプレイアウトする
                 winner = self._check_terminal_state(node)
-                if winner is None and not node.is_terminal_node():
-                    node = self._expand(node)
-                    if node is None: # 展開できなかった場合 (ありえないはずだが念のため)
-                        node = root # ルートに戻るか、親に戻るべきか？ 親に戻るのが自然
-                        if node.parent:
-                             node = node.parent
-
-                # シミュレーション (展開されたノード or 選択された終端ノードから)
-                if node: # nodeがNoneでないことを確認
-                     winner = self._simulate(node)
+                if winner is None:
+                    expanded = self._expand(node)
+                    if expanded is not None:
+                        node = expanded
+                    winner = self._simulate(node)
 
                 # バックプロパゲーション
-                if node: # nodeがNoneでないことを確認
-                     self._backpropagate(node, winner)
+                self._backpropagate(node, winner)
 
                 iteration_count += 1
                 elapsed_time_ms = (time.time() - start_time) * 1000
-        except Exception as e:
-            print(f"MCTS search interrupted by exception: {e}")
+        except Exception:
+            # 探索途中の例外は致命的ではないため、ログに記録してそれまでの
+            # 探索結果から着手を選ぶ（例外は握りつぶさず必ず記録する）
+            logger.exception("MCTS search interrupted by exception")
 
         # 探索終了後、最も訪問回数が多い手を選択
         best_move = None
@@ -173,10 +182,9 @@ class MonteCarloTreeSearchAgent(Agent):
         return node.expand()
 
     def _simulate(self, node):
-        """ランダムプレイアウトを実行し、勝者を返す"""
+        """ランダムプレイアウトを実行し、勝者 (-1: 黒, 1: 白, 0: 引き分け) を返す"""
         current_board = copy.deepcopy(node.board)
         current_turn = node.turn
-        original_turn = node.turn # シミュレーション開始時の手番を記録
 
         while True:
             valid_moves = current_board.get_valid_moves(current_turn)
@@ -192,49 +200,40 @@ class MonteCarloTreeSearchAgent(Agent):
             current_board.place_stone(move[0], move[1], current_turn)
             current_turn *= -1
 
-        # ゲーム終了、勝敗判定
+        # ゲーム終了、勝敗判定（絶対的な勝者を返す）
         black_count, white_count = current_board.count_stones()
         if black_count > white_count:
-            winner = -1
+            return -1
         elif white_count > black_count:
-            winner = 1
-        else:
-            winner = 0
+            return 1
+        return 0
 
-        # シミュレーション開始時のプレイヤー視点での結果を返す
-        if original_turn == -1:  # Black's perspective
-            if winner == -1:  # Black wins
-                return 1.0
-            elif winner == 1:  # White wins
-                return 0.0
-            else:  # Draw
-                return 0.5
-        elif original_turn == 1:  # White's perspective
-            if winner == 1:  # White wins
-                return 1.0
-            elif winner == -1:  # Black wins
-                return 0.0
-            else:  # Draw
-                return 0.5
+    def _backpropagate(self, node, winner):
+        """勝者 (-1/1/0) をルートまで伝播させる。
 
-    def _backpropagate(self, node, result):
-        """結果をルートまで伝播させる"""
+        各ノードの wins は「そのノードへの着手を選んだプレイヤー（親ノードの
+        手番）」視点で記録する。パスにより手番が連続するノードがあっても、
+        絶対的な勝者から各ノードごとに視点を計算するため正しく更新できる。
+        """
         current_node = node
-        current_result = result
-        while current_node is not None:  # pragma: no cover
-            # 親ノードの手番プレイヤーから見た結果に変換して更新
-            # (現在のノードの手番プレイヤーが勝ったなら、親は負けたことになる)
-            current_node.update(current_result)
-            current_result = 1.0 - current_result # 親視点の結果に反転
+        while current_node is not None:
+            # 視点プレイヤー: 親の手番（ルートは自身の手番。値は選択に使われない）
+            perspective = (
+                current_node.parent.turn if current_node.parent is not None
+                else current_node.turn
+            )
+            if winner == 0:
+                result = 0.5
+            else:
+                result = 1.0 if winner == perspective else 0.0
+            current_node.update(result)
             current_node = current_node.parent
 
     def _check_terminal_state(self, node):
-        """ノードが終端状態かチェックし、勝者を返す (シミュレーション不要な場合)"""
+        """ノードが終端状態かチェックし、勝者 (-1/1/0) を返す。終端でなければ None。"""
         if node.is_terminal_node():
             black_count, white_count = node.board.count_stones()
             if black_count == white_count:
-                return 0.5
-            winner = -1 if black_count > white_count else 1
-            # このノードの手番プレイヤー視点での結果を返す
-            return 1.0 if winner == node.turn else 0.0
+                return 0
+            return -1 if black_count > white_count else 1
         return None # 終端状態ではない

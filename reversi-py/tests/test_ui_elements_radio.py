@@ -1,7 +1,8 @@
 # tests/test_ui_elements_radio.py
 import unittest
 from unittest.mock import patch, MagicMock
-import sys, os
+import sys
+import os
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)

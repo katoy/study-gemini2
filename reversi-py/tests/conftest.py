@@ -1,7 +1,7 @@
 # tests/conftest.py
 import sys
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # GUI テスト用の環境変数を先に設定
 os.environ['SDL_VIDEODRIVER'] = 'dummy'
@@ -37,5 +37,4 @@ _FONT_MOCK = _font_instance_mock
 def pytest_configure(config):
     """pytest セッション開始時に実行"""
     # テスト用のグローバル設定
-    import sys
     sys.modules['test_gui_mocks'] = sys.modules[__name__]

@@ -3,7 +3,7 @@ import unittest
 import sys
 import os
 import copy
-from unittest.mock import patch, MagicMock, Mock
+from unittest.mock import patch, MagicMock
 import math
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -332,15 +332,19 @@ class TestMonteCarloTreeSearchAgent(unittest.TestCase):
         if grandchild is None:
              self.fail(f"Failed to expand child node. Child state: turn={child.turn}, board=\n{child.board.board}")
 
-        result_from_grandchild_perspective = 1.0
-        agent._backpropagate(grandchild, result_from_grandchild_perspective)
+        # 黒 (-1) が勝った場合を伝播させる
+        winner = -1
+        agent._backpropagate(grandchild, winner)
 
+        # grandchild の視点は親 (child, 白の手番) → 黒勝ちなので 0.0
         self.assertEqual(grandchild.visits, 1)
-        self.assertEqual(grandchild.wins, 1.0)
+        self.assertEqual(grandchild.wins, 0.0)
 
+        # child の視点は親 (root, 黒の手番) → 黒勝ちなので 1.0
         self.assertEqual(child.visits, 2)
-        self.assertEqual(child.wins, 0.0)
+        self.assertEqual(child.wins, 1.0)
 
+        # root の視点は自身の手番 (黒) → 黒勝ちなので 1.0
         self.assertEqual(root.visits, 2)
         self.assertEqual(root.wins, 1.0)
 
@@ -366,11 +370,11 @@ class TestMonteCarloTreeSearchAgent(unittest.TestCase):
         result = agent._simulate(node)
         black_count, white_count = node.board.count_stones()
         if black_count > white_count:
-            self.assertEqual(result, 0.0, "黒が多い場合、白視点では負け (0.0) になるはず")
+            self.assertEqual(result, -1, "黒が多い場合、勝者は黒 (-1) になるはず")
         elif white_count > black_count:
-            self.assertEqual(result, 1.0, "白が多い場合、白視点では勝ち (1.0) になるはず")
+            self.assertEqual(result, 1, "白が多い場合、勝者は白 (1) になるはず")
         else:
-            self.assertEqual(result, 0.5, "同数の場合、引き分け (0.5) になるはず")
+            self.assertEqual(result, 0, "同数の場合、引き分け (0) になるはず")
 
     # --- _check_terminal_state() が終端状態を正しく判定し、勝者を返すテスト ---
     def test_check_terminal_state_returns_winner(self, mock_post):
@@ -380,19 +384,19 @@ class TestMonteCarloTreeSearchAgent(unittest.TestCase):
         board.board = [[-1] * 8 for _ in range(8)]
         node = Node(board, turn=1)
         result = agent._check_terminal_state(node)
-        self.assertEqual(result, 0.0, "黒勝ちの場合、白視点では負け (0.0) になるはず")
+        self.assertEqual(result, -1, "黒勝ちの場合、勝者は黒 (-1) になるはず")
 
         board = Board()
         board.board = [[1] * 8 for _ in range(8)]
         node = Node(board, turn=-1)
         result = agent._check_terminal_state(node)
-        self.assertEqual(result, 0.0, "白勝ちの場合、黒視点では負け (0.0) になるはず")
+        self.assertEqual(result, 1, "白勝ちの場合、勝者は白 (1) になるはず")
 
         board = Board()
         board.board = [[0] * 8 for _ in range(8)]
         node = Node(board, turn=-1)
         result = agent._check_terminal_state(node)
-        self.assertEqual(result, 0.5, "引き分けの場合、0.5を返すはず")
+        self.assertEqual(result, 0, "引き分けの場合、0 を返すはず")
 
     # --- play() 内で _select() が None を返す場合のテスト ---
     @patch('agents.mcts_agent.MonteCarloTreeSearchAgent._select')

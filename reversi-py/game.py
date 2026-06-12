@@ -6,6 +6,28 @@ from config.agent_config_utils import get_agent_params
 
 
 class Game:
+    """リバーシゲームの制御。ゲームロジックと盤面管理を担当。
+
+    責務：
+    - 盤面管理：Board インスタンスを保有、石の配置
+    - ターン管理：手番（黒=-1, 白=1）の切り替え
+    - プレイヤー管理：各プレイヤーのエージェント（AI または人間）
+    - ゲーム状態：勝敗判定、パス判定、ゲームオーバー
+    - 履歴管理：巻き戻し機能用の手数履歴
+
+    設計上の注記：
+    - Board と Game を分離することで責務が明確（ボード操作 vs ゲーム流れ）
+    - agents 辞書でプレイヤーの AI インスタンスを保有
+    - agent_ids で現在選択中のエージェント ID を管理
+
+    属性：
+        board (Board): 盤面
+        turn: 現在の手番（-1=黒, 1=白）
+        agents: エージェントインスタンス {-1: agent_black, 1: agent_white}
+        agent_ids: エージェント ID {-1: id_black, 1: id_white}
+        history: 手数履歴（盤面状態の列）
+        history_index: 履歴内の現在位置
+    """
     def __init__(self, board_size=8):
         self.board = Board(board_size)
         self.turn = -1  # 黒から開始
@@ -18,8 +40,17 @@ class Game:
             -1: None,  # 黒のプレイヤー（デフォルトは人間）
             1: None   # 白のプレイヤー（デフォルトは人間）
         }
+        self.agent_ids = {
+            -1: 0,  # 黒のエージェント ID（デフォルトは 0 = 人間）
+            1: 0    # 白のエージェント ID（デフォルトは 0 = 人間）
+        }
         self.message = "" #初期メッセージをクリア
         # 有効手のキャッシング（毎ターン1回だけ計算）
+        self._valid_moves_cache = None
+        self._valid_moves_turn = None
+
+    def _invalidate_valid_moves_cache(self):
+        """合法手キャッシュを無効化する。"""
         self._valid_moves_cache = None
         self._valid_moves_turn = None
 
@@ -35,9 +66,12 @@ class Game:
             -1: None,  # 黒のプレイヤー（デフォルトは人間）
             1: None   # 白のプレイヤー（デフォルトは人間）
         }
+        self.agent_ids = {
+            -1: 0,  # 黒のエージェント ID（デフォルトは 0 = 人間）
+            1: 0    # 白のエージェント ID（デフォルトは 0 = 人間）
+        }
         # 有効手キャッシュをリセット
-        self._valid_moves_cache = None
-        self._valid_moves_turn = None
+        self._invalidate_valid_moves_cache()
 
     def switch_turn(self):
         self.turn *= -1
@@ -57,10 +91,13 @@ class Game:
 
     def place_stone(self, row, col):
         if self.board.place_stone(row, col, self.turn):
+            self._invalidate_valid_moves_cache()
+            # Undo 後に新しい手を打った場合、巻き戻した先の古い履歴を切り捨てる
+            del self.history[self.history_index + 1:]
             # 履歴には盤面のコピーを保存する
             board_copy = [r[:] for r in self.board.get_board()] # ディープコピーを作成
             self.history.append(((row, col), self.turn, board_copy)) # コピーを履歴に追加
-            self.history_index += 1
+            self.history_index = len(self.history) - 1
             return True
         return False
 
@@ -69,10 +106,14 @@ class Game:
 
     def get_valid_moves(self):
         # ターンが変わらなければキャッシュを使用
-        if self._valid_moves_turn != self.turn:
-            self._valid_moves_cache = self.board.get_valid_moves(self.turn)
+        # ローカル変数経由で返すことで、別スレッドからのキャッシュ無効化と
+        # 競合しても None を返さないようにする
+        moves = self._valid_moves_cache
+        if self._valid_moves_turn != self.turn or moves is None:
+            moves = self.board.get_valid_moves(self.turn)
+            self._valid_moves_cache = moves
             self._valid_moves_turn = self.turn
-        return self._valid_moves_cache
+        return moves
 
     def get_board(self):
         return self.board.get_board()
@@ -87,6 +128,8 @@ class Game:
             black_player_id (int): 黒プレイヤーのエージェントID (config.agents.py で定義)
             white_player_id (int): 白プレイヤーのエージェントID (config.agents.py で定義)
         """
+        self.agent_ids[-1] = black_player_id
+        self.agent_ids[1] = white_player_id
         self.agents[-1] = self.create_agent(black_player_id)
         self.agents[1] = self.create_agent(white_player_id)
 
@@ -129,18 +172,23 @@ class Game:
         if index == -1:
             # 初期状態に戻す
             agents_backup = self.agents.copy() # プレイヤー設定は維持
+            agent_ids_backup = self.agent_ids.copy() # エージェント ID も維持
+            history_backup = [entry for entry in self.history] # 履歴はやり直し用に維持
             self.reset()
             self.agents = agents_backup
+            self.agent_ids = agent_ids_backup
+            self.history = history_backup
             return True
 
         if 0 <= index < len(self.history):
             # 履歴から盤面状態を復元 (コピーを渡す)
             self.board.board = [row[:] for row in self.history[index][2]]
-            # 履歴から手番を復元
-            self.turn = self.history[index][1]
+            # 履歴の手番はその手を打ったプレイヤーなので、次に打つのは相手
+            self.turn = -self.history[index][1]
             self.history_index = index
             # ゲームオーバー状態もリセットしておく（履歴再生時は通常ゲームオーバーではない）
             self.game_over = False
+            self._invalidate_valid_moves_cache()
             return True
         return False
 

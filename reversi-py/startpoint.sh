@@ -26,9 +26,9 @@ export DISPLAY=:1
 echo "Waiting for VNC server and desktop environment to start..."
 sleep 5 # 少し待機時間を延ばしてみる (念のため)
 echo "Starting Reversi application..."
-# python:slim ベースイメージを使用する場合は python コマンドを使用
+# uv run で main.py を実行
 # 標準出力と標準エラー出力を /app/app.log にリダイレクト
-python main.py > /app/app.log 2>&1 & # <-- この行を変更
+uv run python main.py > /app/app.log 2>&1 &
 
 # --- コンテナの維持 ---
 echo "Container is running. Keep alive with tail -f /dev/null"

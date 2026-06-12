@@ -23,17 +23,6 @@ except ImportError as e:
     print(f"現在の sys.path: {sys.path}")
     sys.exit(1)
 
-try:
-    from agents.base_agent import Agent
-    from agents.first_agent import FirstAgent
-    from agents.random_agent import RandomAgent
-    from agents.gain_agent import GainAgent
-    from agents.mcts_agent import MonteCarloTreeSearchAgent
-    from agents.api_agent import ApiAgent
-except ImportError as e:
-    print(f"エージェントクラスのインポートエラー: {e}")
-    print("agents ディレクトリ内のファイルが見つからないか、インポートできません。")
-    sys.exit(1)
 
 
 class TestConfigAgents(unittest.TestCase):
@@ -125,6 +114,15 @@ class TestConfigAgents(unittest.TestCase):
 
         # 戻り値がNoneであることを確認
         self.assertIsNone(result, f"get_agent_definition should return None for invalid ID {invalid_id}")
+
+    def test_api_agent_has_agent_type_param(self):
+        """すべての API エージェント定義 (人間以外) の params に agent_type が含まれる"""
+        api_agents = [d for d in AGENT_DEFINITIONS if d['id'] != 0]  # 人間 (id=0) を除外
+        for defn in api_agents:
+            with self.subTest(agent_id=defn['id']):
+                self.assertIn("params", defn, "Definition should have 'params' key")
+                self.assertIn("agent_type", defn["params"], "params should contain 'agent_type'")
+                self.assertIn(defn["params"].get("agent_type"), ["first", "random", "gain", "mcts"])
 
 
 if __name__ == '__main__':

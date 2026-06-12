@@ -4,7 +4,7 @@ import logging
 import pygame
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 # ensure repo package import works
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -13,8 +13,6 @@ sys.path.append(parent_dir)
 
 from main import App
 from game import Game
-from config.theme import Screen
-from config.agents_config import AGENT_DEFINITIONS
 
 class TestAILogging(unittest.TestCase):
     @classmethod

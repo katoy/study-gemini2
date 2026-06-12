@@ -1,7 +1,6 @@
 # tests/test_mcts_agent.py
 import unittest
 from agents import mcts_agent
-from unittest.mock import MagicMock
 
 class DummyBoard:
     def __init__(self, moves=None, counts=(2,2)):
@@ -16,11 +15,32 @@ class DummyBoard:
     def count_stones(self):
         return self._counts
 
+class PassBoard:
+    """手番側に合法手がなく、相手側にだけ合法手がある盤面スタブ"""
+    def __init__(self, mover_turn, moves):
+        self._mover_turn = mover_turn
+        self._moves = moves
+    def get_valid_moves(self, turn):
+        return list(self._moves) if turn == self._mover_turn else []
+    def place_stone(self, r, c, turn):
+        pass
+    def count_stones(self):
+        return (2, 2)
+
+
 class TestMCTSNode(unittest.TestCase):
     def test_ucb1_unvisited(self):
         board = DummyBoard([])
         node = mcts_agent.Node(board, turn=1)
         self.assertEqual(node.ucb1(), float('inf'))
+
+    def test_node_switches_turn_on_pass(self):
+        """手番側に合法手がない（パス）場合、相手手番のノードとして扱う"""
+        # 白 (1) には合法手がなく、黒 (-1) には (0,0) がある
+        board = PassBoard(mover_turn=-1, moves=[(0, 0)])
+        node = mcts_agent.Node(board, turn=1)
+        self.assertEqual(node.turn, -1)
+        self.assertEqual(node.untried_moves, [(0, 0)])
 
     def test_expand_no_moves(self):
         board = DummyBoard([])
@@ -57,15 +77,16 @@ class TestMCTSNode(unittest.TestCase):
         node = mcts_agent.Node(draw_board, turn=1)
         agent = mcts_agent.MonteCarloTreeSearchAgent(iterations=1, time_limit_ms=1)
         result = agent._simulate(node)
-        self.assertEqual(result, 0.5)
+        # _simulate は絶対的な勝者を返す（引き分けは 0）
+        self.assertEqual(result, 0)
 
     def test_simulate_draw_for_black_perspective(self):
-        # Ensure draw from black's perspective also returns 0.5
+        # 黒手番開始でも引き分けは 0（絶対的な勝者表現）を返す
         draw_board = DummyBoard(moves=[], counts=(20,20))
         node = mcts_agent.Node(draw_board, turn=-1)
         agent = mcts_agent.MonteCarloTreeSearchAgent(iterations=1, time_limit_ms=1)
         result = agent._simulate(node)
-        self.assertEqual(result, 0.5)
+        self.assertEqual(result, 0)
 
 if __name__ == '__main__':
     unittest.main()
