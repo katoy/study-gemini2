@@ -731,49 +731,25 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         """is_start_button_clicked が正しく判定するか"""
         expected_rect = pygame.Rect(100, 100, 150, 50)
         original_calc_rect = self.gui._calculate_button_rect
-        self.gui._calculate_button_rect = MagicMock(wraps=original_calc_rect)
-        self.gui._calculate_button_rect.return_value = expected_rect
+        self.gui._calculate_button_rect = MagicMock(return_value=expected_rect)
 
-        mock_temp_button_instance = MagicMock(spec=OriginalButton)
-        mock_temp_button_instance.is_clicked.return_value = True
-        # --- 修正: MockButton は setUp で開始済み ---
-        self.MockButton.return_value = mock_temp_button_instance
-        # -----------------------------------------
-        click_pos_inside = expected_rect.center
-        self.assertTrue(self.gui.is_start_button_clicked(click_pos_inside))
+        # Rect 内のクリックは True、Rect 外のクリックは False
+        self.assertTrue(self.gui.is_start_button_clicked(expected_rect.center))
         self.gui._calculate_button_rect.assert_called_once_with(is_start_button=True)
-        self.MockButton.assert_called_with(expected_rect, "", self.gui.font)
-        mock_temp_button_instance.is_clicked.assert_called_with(click_pos_inside)
+        self.assertFalse(self.gui.is_start_button_clicked((0, 0)))
 
-        mock_temp_button_instance.is_clicked.return_value = False
-        click_pos_outside = (0, 0)
-        self.assertFalse(self.gui.is_start_button_clicked(click_pos_outside))
-        self.assertEqual(mock_temp_button_instance.is_clicked.call_count, 2)
-        mock_temp_button_instance.is_clicked.assert_called_with(click_pos_outside)
-
-        # --- 修正: モックの return_value を元に戻す ---
-        self.MockButton.return_value = self.mock_button_instance
-        # -----------------------------------------
         self.gui._calculate_button_rect = original_calc_rect
 
     def test_is_undo_button_clicked(self):
         """is_undo_button_clicked が正しく判定するか"""
         expected_rect = pygame.Rect(10, 200, 100, 40)
         original_calc_rect = self.gui._calculate_button_rect
-        self.gui._calculate_button_rect = MagicMock(wraps=original_calc_rect)
-        self.gui._calculate_button_rect.return_value = expected_rect
+        self.gui._calculate_button_rect = MagicMock(return_value=expected_rect)
 
-        mock_temp_button_instance = MagicMock(spec=OriginalButton)
-        mock_temp_button_instance.is_clicked.return_value = True
-        self.MockButton.return_value = mock_temp_button_instance
-
-        click_pos = expected_rect.center
-        self.assertTrue(self.gui.is_undo_button_clicked(click_pos, game_over=False))
+        self.assertTrue(self.gui.is_undo_button_clicked(expected_rect.center, game_over=False))
         self.gui._calculate_button_rect.assert_called_with(False, False, False, False, is_undo_button=True)
-        self.MockButton.assert_called_with(expected_rect, "", self.gui.font)
-        mock_temp_button_instance.is_clicked.assert_called_with(click_pos)
+        self.assertFalse(self.gui.is_undo_button_clicked((0, 0), game_over=False))
 
-        self.MockButton.return_value = self.mock_button_instance
         self.gui._calculate_button_rect = original_calc_rect
 
     def test_is_restart_button_clicked(self):
@@ -781,41 +757,20 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         expected_rect_game_over = pygame.Rect(50, 200, 100, 40)
         expected_rect_in_game = pygame.Rect(60, 210, 110, 45)
         original_calc_rect = self.gui._calculate_button_rect
-        self.gui._calculate_button_rect = MagicMock(wraps=original_calc_rect)
+        self.gui._calculate_button_rect = MagicMock()
 
-        mock_temp_button_instance = MagicMock(spec=OriginalButton)
-        # --- 修正: MockButton は setUp で開始済み ---
-        self.MockButton.return_value = mock_temp_button_instance
-        # -----------------------------------------
         # --- game_over = True ---
         self.gui._calculate_button_rect.return_value = expected_rect_game_over
-        mock_temp_button_instance.is_clicked.return_value = True
-        click_pos_inside_go = expected_rect_game_over.center
-        self.assertTrue(self.gui.is_restart_button_clicked(click_pos_inside_go, game_over=True))
+        self.assertTrue(self.gui.is_restart_button_clicked(expected_rect_game_over.center, game_over=True))
         self.gui._calculate_button_rect.assert_called_with(False, True, False, False)
-        self.MockButton.assert_called_with(expected_rect_game_over, "", self.gui.font)
-        mock_temp_button_instance.is_clicked.assert_called_with(click_pos_inside_go)
-
-        mock_temp_button_instance.is_clicked.return_value = False
-        click_pos_outside_go = (0, 0)
-        self.assertFalse(self.gui.is_restart_button_clicked(click_pos_outside_go, game_over=True))
+        self.assertFalse(self.gui.is_restart_button_clicked((0, 0), game_over=True))
 
         # --- game_over = False ---
         self.gui._calculate_button_rect.return_value = expected_rect_in_game
-        mock_temp_button_instance.is_clicked.return_value = True
-        click_pos_inside_ig = expected_rect_in_game.center
-        self.assertTrue(self.gui.is_restart_button_clicked(click_pos_inside_ig, game_over=False))
+        self.assertTrue(self.gui.is_restart_button_clicked(expected_rect_in_game.center, game_over=False))
         self.gui._calculate_button_rect.assert_called_with(False, False, False, False)
-        self.MockButton.assert_called_with(expected_rect_in_game, "", self.gui.font)
-        mock_temp_button_instance.is_clicked.assert_called_with(click_pos_inside_ig)
+        self.assertFalse(self.gui.is_restart_button_clicked((1, 1), game_over=False))
 
-        mock_temp_button_instance.is_clicked.return_value = False
-        click_pos_outside_ig = (1, 1)
-        self.assertFalse(self.gui.is_restart_button_clicked(click_pos_outside_ig, game_over=False))
-
-        # --- 修正: モックの return_value を元に戻す ---
-        self.MockButton.return_value = self.mock_button_instance
-        # -----------------------------------------
         self.gui._calculate_button_rect = original_calc_rect
 
     def test_is_reset_button_clicked(self):
@@ -823,41 +778,20 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         expected_rect_game_over = pygame.Rect(160, 200, 100, 40)
         expected_rect_in_game = pygame.Rect(180, 210, 110, 45)
         original_calc_rect = self.gui._calculate_button_rect
-        self.gui._calculate_button_rect = MagicMock(wraps=original_calc_rect)
+        self.gui._calculate_button_rect = MagicMock()
 
-        mock_temp_button_instance = MagicMock(spec=OriginalButton)
-        # --- 修正: MockButton は setUp で開始済み ---
-        self.MockButton.return_value = mock_temp_button_instance
-        # -----------------------------------------
         # --- game_over = True ---
         self.gui._calculate_button_rect.return_value = expected_rect_game_over
-        mock_temp_button_instance.is_clicked.return_value = True
-        click_pos_inside_go = expected_rect_game_over.center
-        self.assertTrue(self.gui.is_reset_button_clicked(click_pos_inside_go, game_over=True))
+        self.assertTrue(self.gui.is_reset_button_clicked(expected_rect_game_over.center, game_over=True))
         self.gui._calculate_button_rect.assert_called_with(False, True, True, False)
-        self.MockButton.assert_called_with(expected_rect_game_over, "", self.gui.font)
-        mock_temp_button_instance.is_clicked.assert_called_with(click_pos_inside_go)
-
-        mock_temp_button_instance.is_clicked.return_value = False
-        click_pos_outside_go = (0, 0)
-        self.assertFalse(self.gui.is_reset_button_clicked(click_pos_outside_go, game_over=True))
+        self.assertFalse(self.gui.is_reset_button_clicked((0, 0), game_over=True))
 
         # --- game_over = False ---
         self.gui._calculate_button_rect.return_value = expected_rect_in_game
-        mock_temp_button_instance.is_clicked.return_value = True
-        click_pos_inside_ig = expected_rect_in_game.center
-        self.assertTrue(self.gui.is_reset_button_clicked(click_pos_inside_ig, game_over=False))
+        self.assertTrue(self.gui.is_reset_button_clicked(expected_rect_in_game.center, game_over=False))
         self.gui._calculate_button_rect.assert_called_with(False, False, True, False)
-        self.MockButton.assert_called_with(expected_rect_in_game, "", self.gui.font)
-        mock_temp_button_instance.is_clicked.assert_called_with(click_pos_inside_ig)
+        self.assertFalse(self.gui.is_reset_button_clicked((1, 1), game_over=False))
 
-        mock_temp_button_instance.is_clicked.return_value = False
-        click_pos_outside_ig = (1, 1)
-        self.assertFalse(self.gui.is_reset_button_clicked(click_pos_outside_ig, game_over=False))
-
-        # --- 修正: モックの return_value を元に戻す ---
-        self.MockButton.return_value = self.mock_button_instance
-        # -----------------------------------------
         self.gui._calculate_button_rect = original_calc_rect
 
     def test_is_quit_button_clicked(self):
@@ -865,57 +799,20 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         expected_rect_game_over = pygame.Rect(270, 200, 100, 40)
         expected_rect_in_game = pygame.Rect(300, 210, 110, 45)
         original_calc_rect = self.gui._calculate_button_rect
-        self.gui._calculate_button_rect = MagicMock(wraps=original_calc_rect)
+        self.gui._calculate_button_rect = MagicMock()
 
-        mock_temp_button_instance = MagicMock(spec=OriginalButton)
-        # --- 修正: MockButton は setUp で開始済み ---
-        self.MockButton.return_value = mock_temp_button_instance
-        # -----------------------------------------
         # --- game_over = True ---
         self.gui._calculate_button_rect.return_value = expected_rect_game_over
-        mock_temp_button_instance.is_clicked.return_value = True
-        click_pos_inside_go = expected_rect_game_over.center
-        self.assertTrue(self.gui.is_quit_button_clicked(click_pos_inside_go, game_over=True))
+        self.assertTrue(self.gui.is_quit_button_clicked(expected_rect_game_over.center, game_over=True))
         self.gui._calculate_button_rect.assert_called_with(False, True, False, True)
-        self.MockButton.assert_called_with(expected_rect_game_over, "", self.gui.font)
-        mock_temp_button_instance.is_clicked.assert_called_with(click_pos_inside_go)
-
-        mock_temp_button_instance.is_clicked.return_value = False
-        click_pos_outside_go = (0, 0)
-        self.assertFalse(self.gui.is_quit_button_clicked(click_pos_outside_go, game_over=True))
+        self.assertFalse(self.gui.is_quit_button_clicked((0, 0), game_over=True))
 
         # --- game_over = False ---
         self.gui._calculate_button_rect.return_value = expected_rect_in_game
-        mock_temp_button_instance.is_clicked.return_value = True
-        click_pos_inside_ig = expected_rect_in_game.center
-        self.assertTrue(self.gui.is_quit_button_clicked(click_pos_inside_ig, game_over=False))
+        self.assertTrue(self.gui.is_quit_button_clicked(expected_rect_in_game.center, game_over=False))
         self.gui._calculate_button_rect.assert_called_with(False, False, False, True)
-        self.MockButton.assert_called_with(expected_rect_in_game, "", self.gui.font)
-        mock_temp_button_instance.is_clicked.assert_called_with(click_pos_inside_ig)
+        self.assertFalse(self.gui.is_quit_button_clicked((1, 1), game_over=False))
 
-        mock_temp_button_instance.is_clicked.return_value = False
-        click_pos_outside_ig = (1, 1)
-        self.assertFalse(self.gui.is_quit_button_clicked(click_pos_outside_ig, game_over=False))
-
-        # --- 修正: モックの return_value を元に戻す ---
-        self.MockButton.return_value = self.mock_button_instance
-        # -----------------------------------------
-        self.gui._calculate_button_rect = original_calc_rect
-
-    def test_is_settings_button_clicked(self):
-        """is_settings_button_clicked が正しく判定するか"""
-        expected_rect = pygame.Rect(10, 10, 50, 50)
-        original_calc_rect = self.gui._calculate_button_rect
-        self.gui._calculate_button_rect = MagicMock(return_value=expected_rect)
-
-        mock_temp_button_instance = MagicMock(spec=OriginalButton)
-        mock_temp_button_instance.is_clicked.return_value = True
-        self.MockButton.return_value = mock_temp_button_instance
-        
-        self.assertTrue(self.gui.is_settings_button_clicked((15, 15)))
-        self.gui._calculate_button_rect.assert_called_once_with(is_settings_button=True)
-        
-        self.MockButton.return_value = self.mock_button_instance
         self.gui._calculate_button_rect = original_calc_rect
 
 

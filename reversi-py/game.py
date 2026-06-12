@@ -92,10 +92,12 @@ class Game:
     def place_stone(self, row, col):
         if self.board.place_stone(row, col, self.turn):
             self._invalidate_valid_moves_cache()
+            # Undo 後に新しい手を打った場合、巻き戻した先の古い履歴を切り捨てる
+            del self.history[self.history_index + 1:]
             # 履歴には盤面のコピーを保存する
             board_copy = [r[:] for r in self.board.get_board()] # ディープコピーを作成
             self.history.append(((row, col), self.turn, board_copy)) # コピーを履歴に追加
-            self.history_index += 1
+            self.history_index = len(self.history) - 1
             return True
         return False
 
@@ -104,10 +106,14 @@ class Game:
 
     def get_valid_moves(self):
         # ターンが変わらなければキャッシュを使用
-        if self._valid_moves_turn != self.turn:
-            self._valid_moves_cache = self.board.get_valid_moves(self.turn)
+        # ローカル変数経由で返すことで、別スレッドからのキャッシュ無効化と
+        # 競合しても None を返さないようにする
+        moves = self._valid_moves_cache
+        if self._valid_moves_turn != self.turn or moves is None:
+            moves = self.board.get_valid_moves(self.turn)
+            self._valid_moves_cache = moves
             self._valid_moves_turn = self.turn
-        return self._valid_moves_cache
+        return moves
 
     def get_board(self):
         return self.board.get_board()
@@ -166,15 +172,19 @@ class Game:
         if index == -1:
             # 初期状態に戻す
             agents_backup = self.agents.copy() # プレイヤー設定は維持
+            agent_ids_backup = self.agent_ids.copy() # エージェント ID も維持
+            history_backup = [entry for entry in self.history] # 履歴はやり直し用に維持
             self.reset()
             self.agents = agents_backup
+            self.agent_ids = agent_ids_backup
+            self.history = history_backup
             return True
 
         if 0 <= index < len(self.history):
             # 履歴から盤面状態を復元 (コピーを渡す)
             self.board.board = [row[:] for row in self.history[index][2]]
-            # 履歴から手番を復元
-            self.turn = self.history[index][1]
+            # 履歴の手番はその手を打ったプレイヤーなので、次に打つのは相手
+            self.turn = -self.history[index][1]
             self.history_index = index
             # ゲームオーバー状態もリセットしておく（履歴再生時は通常ゲームオーバーではない）
             self.game_over = False

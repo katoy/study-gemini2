@@ -162,8 +162,10 @@ class TestApiServer(unittest.TestCase):
         )
 
     def test_play_invalid_input_non_square_board(self):
+        # サイズチェック (4-16) を通過する行数で、行の長さだけ不正にする
+        non_square = [[0, 0, 0, 0], [0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
         response = self.client.post(
-            "/play", json={"board": [[0, 0], [0]], "turn": 1}
+            "/play", json={"board": non_square, "turn": 1}
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(
@@ -172,7 +174,12 @@ class TestApiServer(unittest.TestCase):
         )
 
     def test_play_invalid_input_invalid_board_value(self):
-        response = self.client.post("/play", json={"board": [[2]], "turn": 1})
+        # サイズチェック (4-16) を通過する 4×4 盤面で不正な値 (2) を含める
+        invalid_value_board = [[0] * 4 for _ in range(4)]
+        invalid_value_board[0][0] = 2
+        response = self.client.post(
+            "/play", json={"board": invalid_value_board, "turn": 1}
+        )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(
             response.json(),
@@ -212,6 +219,27 @@ class TestApiServer(unittest.TestCase):
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_CONTENT)
         detail = response.json()["detail"]
         self.assertTrue(any("board" in err.get("loc", []) for err in detail))
+
+    def test_play_board_too_large_is_rejected(self):
+        """巨大盤面（DoS 防止の上限超え）は 400 を返す"""
+        size = 32
+        huge_board = [[0] * size for _ in range(size)]
+        response = self.client.post(
+            "/play",
+            json={"board": huge_board, "turn": 1},
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("size", response.json()["detail"])
+
+    def test_play_board_too_small_is_rejected(self):
+        """下限（4）未満の盤面は 400 を返す"""
+        tiny_board = [[0, 0], [0, 0]]
+        response = self.client.post(
+            "/play",
+            json={"board": tiny_board, "turn": 1},
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("size", response.json()["detail"])
 
     # ── 500 系エラーハンドリング（カバレッジ確保）───────────
     def test_play_agent_raises_exception_returns_500(self):

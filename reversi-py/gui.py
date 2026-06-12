@@ -55,6 +55,10 @@ class GameGUI:
         self._cached_screen_size: tuple[int, int] | None = None
         # ボタン領域計算のキャッシング（状態とウィンドウサイズが変わらなければ再計算を避ける）
         self._button_rect_cache: dict[tuple[bool, ...], pygame.Rect] = {}
+        # Button / Label インスタンスのキャッシング
+        # （毎フレームの生成は font.render を伴い高コストなため）
+        self._button_cache: dict[tuple, Button] = {}
+        self._label_cache: dict[tuple, Label] = {}
         # 必要な高さを計算し、指定された高さより大きければ調整する
         required_height = self._compute_min_height()
         if self.screen_height < required_height:
@@ -85,6 +89,20 @@ class GameGUI:
         if cache_key not in self._text_cache:
             self._text_cache[cache_key] = self.font.render(text, True, color)
         return self._text_cache[cache_key]
+
+    def _get_button(self, rect: pygame.Rect, text: str) -> Button:
+        """Button インスタンスをキャッシュから取得する（なければ生成）"""
+        cache_key = (rect.x, rect.y, rect.width, rect.height, text)
+        if cache_key not in self._button_cache:
+            self._button_cache[cache_key] = Button(rect, text, self.font)
+        return self._button_cache[cache_key]
+
+    def _get_label(self, pos, text, color=Color.WHITE, is_right_aligned=False) -> Label:
+        """Label インスタンスをキャッシュから取得する（なければ生成）"""
+        cache_key = (pos, text, color, is_right_aligned)
+        if cache_key not in self._label_cache:
+            self._label_cache[cache_key] = Label(pos, text, self.font, color, is_right_aligned)
+        return self._label_cache[cache_key]
 
     # === レイアウト計算・初期化 ===
     def _calculate_turn_message_center_y(self):
@@ -400,13 +418,17 @@ class GameGUI:
                 elif board[row][col] == -1: # 黒石
                     self._draw_stone(board_rect, row, col, Color.BLACK)
 
+    def _stone_radius(self) -> int:
+        """石の描画半径を返す。極小セルでも見えなくならないよう下限を設ける"""
+        return max(2, self.cell_size // 2 - 5)
+
     def _draw_stone(self, board_rect, row, col, color):
         """指定された位置に石を描画する"""
         center = (
             board_rect.left + col * self.cell_size + self.cell_size // 2,
             board_rect.top + row * self.cell_size + self.cell_size // 2
         )
-        pygame.draw.circle(self.screen, color, center, self.cell_size // 2 - 5) # 石の半径
+        pygame.draw.circle(self.screen, color, center, self._stone_radius()) # 石の半径
 
     def draw_board(self, game):
         """盤面全体を描画する（背景、グリッド、石、石数）"""
@@ -422,9 +444,9 @@ class GameGUI:
         stone_count_y = board_rect.bottom + Screen.TURN_MESSAGE_TOP_MARGIN
         left_margin = board_rect.left
         # 黒石数 (左寄せ)
-        Label((left_margin, stone_count_y), _t("game.black_stones", count=black_count), self.font, Color.BLACK).draw(self.screen)
+        self._get_label((left_margin, stone_count_y), _t("game.black_stones", count=black_count), Color.BLACK).draw(self.screen)
         # 白石数 (右寄せ)
-        Label((self.screen_width - left_margin, stone_count_y), _t("game.white_stones", count=white_count), self.font, Color.WHITE, is_right_aligned=True).draw(self.screen)
+        self._get_label((self.screen_width - left_margin, stone_count_y), _t("game.white_stones", count=white_count), Color.WHITE, is_right_aligned=True).draw(self.screen)
 
     def draw_valid_moves(self, game):
         """合法手を示すマーカーを描画する"""
@@ -465,7 +487,7 @@ class GameGUI:
             board_rect.left + col * self.cell_size + self.cell_size // 2,
             board_rect.top + row * self.cell_size + self.cell_size // 2
         )
-        max_radius = self.cell_size // 2 - 5
+        max_radius = self._stone_radius()
 
         # 徐々に大きくなる円を描画
         for radius in range(0, max_radius, 5): # 半径を5ずつ増やす
@@ -489,7 +511,7 @@ class GameGUI:
         """石が裏返るアニメーションを描画する"""
         board_rect = self._calculate_board_rect()
         other_color = Color.WHITE if color == Color.BLACK else Color.BLACK
-        max_radius = self.cell_size // 2 - 5
+        max_radius = self._stone_radius()
 
         # アニメーションのステップ数
         steps = 10
@@ -556,33 +578,28 @@ class GameGUI:
     def draw_undo_button(self, game_over=False):
         """待ったボタンを描画する"""
         button_rect = self._calculate_button_rect(False, game_over, False, False, is_undo_button=True)
-        button = Button(button_rect, _t("ui.undo"), self.font)
-        button.draw(self.screen)
+        self._get_button(button_rect, _t("ui.undo")).draw(self.screen)
 
     def draw_restart_button(self, game_over=False):
         """リスタートボタンを描画する"""
-        # 描画時に Button インスタンスを生成して描画
         button_rect = self._calculate_button_rect(False, game_over, False, False)
-        button = Button(button_rect, _t("ui.restart"), self.font)
-        button.draw(self.screen)
+        self._get_button(button_rect, _t("ui.restart")).draw(self.screen)
 
     def draw_reset_button(self, game_over=False):
         """リセットボタンを描画する"""
         button_rect = self._calculate_button_rect(False, game_over, True, False)
-        button = Button(button_rect, _t("ui.reset"), self.font)
-        button.draw(self.screen)
+        self._get_button(button_rect, _t("ui.reset")).draw(self.screen)
 
     def draw_quit_button(self, game_over=False):
         """終了ボタンを描画する"""
         button_rect = self._calculate_button_rect(False, game_over, False, True)
-        button = Button(button_rect, _t("ui.quit"), self.font)
-        button.draw(self.screen)
+        self._get_button(button_rect, _t("ui.quit")).draw(self.screen)
     # ---------------------------------
 
-    def _calculate_button_rect(self, is_start_button=False, game_over=False, is_reset_button=False, is_quit_button=False, is_settings_button=False, is_undo_button=False):
+    def _calculate_button_rect(self, is_start_button=False, game_over=False, is_reset_button=False, is_quit_button=False, is_undo_button=False):
         """ボタンの描画領域(Rect)を計算する"""
         # キャッシュキーを作成（パラメータとウィンドウサイズを含む）
-        cache_key = (is_start_button, game_over, is_reset_button, is_quit_button, is_settings_button, is_undo_button, self.screen_width, self.screen_height)
+        cache_key = (is_start_button, game_over, is_reset_button, is_quit_button, is_undo_button, self.screen_width, self.screen_height)
         if cache_key in self._button_rect_cache:
             return self._button_rect_cache[cache_key]
 
@@ -597,12 +614,6 @@ class GameGUI:
             # プレイヤー設定の上に配置
             player_settings_top = self._calculate_player_settings_top()
             button_y = player_settings_top - button_height - Screen.BUTTON_BOTTOM_MARGIN
-
-        elif is_settings_button: # 設定ボタン (右上)
-            # 右上に配置
-            button_x = self.screen_width - button_width - Screen.MARGIN # pragma: no cover
-            button_y = Screen.MARGIN # pragma: no cover
-            # (将来的に設定ダイアログなどを出すためのボタン)
 
         else: # 待った・リスタート・リセット・終了ボタン
             # 4つのボタンを横に並べる
@@ -642,10 +653,8 @@ class GameGUI:
         white_player_label_x = self.screen_width // 2 + Screen.RADIO_BUTTON_MARGIN
 
         # Header labels for player columns (keep objects to compute badge placement)
-        header_label_black = Label((left_margin, player_settings_top), _t("ui.black_player"), self.font)
-        header_label_white = Label((white_player_label_x, player_settings_top), _t("ui.white_player"), self.font)
-        header_label_black.draw(self.screen)
-        header_label_white.draw(self.screen)
+        self._get_label((left_margin, player_settings_top), _t("ui.black_player")).draw(self.screen)
+        self._get_label((white_player_label_x, player_settings_top), _t("ui.white_player")).draw(self.screen)
 
         # ラジオボタンの垂直位置オフセットと間隔
         radio_y_offset = Screen.RADIO_Y_OFFSET
@@ -667,7 +676,7 @@ class GameGUI:
 
             RadioButton(radio_pos, Screen.RADIO_BUTTON_SIZE, is_selected, enabled).draw(self.screen)
             # テキストは常に有効な色で描画 (enabled フラグはボタン自体に適用)
-            Label(text_pos, display_name, self.font).draw(self.screen)
+            self._get_label(text_pos, display_name).draw(self.screen)
 
         # 白プレイヤーのラジオボタンを描画
         for i, (agent_id, display_name) in enumerate(self.agent_options):
@@ -680,7 +689,7 @@ class GameGUI:
 
             RadioButton(radio_pos, Screen.RADIO_BUTTON_SIZE, is_selected, enabled).draw(self.screen)
             # テキストは常に有効な色で描画
-            Label(text_pos, display_name, self.font).draw(self.screen)
+            self._get_label(text_pos, display_name).draw(self.screen)
 
     def draw_turn_message(self, game):
         """手番表示を描画する"""
@@ -735,37 +744,28 @@ class GameGUI:
     # --- <<< 追加: ボタンクリック判定メソッド >>> ---
     def is_start_button_clicked(self, pos: tuple[int, int]) -> bool:
         """スタートボタンがクリックされたか判定"""
-        # start_button は __init__ で生成され、draw_start_button で Rect が更新される
         # draw_start_button が呼ばれる前にクリックされる可能性があるので、ここで Rect を計算する方が安全
         start_rect = self._calculate_button_rect(is_start_button=True)
-        # start_button インスタンスの is_clicked を使うのではなく、一時的な Button で判定
-        return Button(start_rect, "", self.font).is_clicked(pos)
-        # または、self.start_button.rect が常に最新であると仮定するなら以下でも可
-        # return self.start_button.is_clicked(pos)
+        return bool(start_rect.collidepoint(pos))
 
     def is_restart_button_clicked(self, pos: tuple[int, int], game_over: bool) -> bool:
         """リスタートボタンがクリックされたか判定"""
         button_rect = self._calculate_button_rect(False, game_over, False, False)
-        # 一時的な Button インスタンスで判定
-        return Button(button_rect, "", self.font).is_clicked(pos)
+        return bool(button_rect.collidepoint(pos))
 
     def is_reset_button_clicked(self, pos: tuple[int, int], game_over: bool) -> bool:
         """リセットボタンがクリックされたか判定"""
         button_rect = self._calculate_button_rect(False, game_over, True, False)
-        return Button(button_rect, "", self.font).is_clicked(pos)
+        return bool(button_rect.collidepoint(pos))
 
     def is_quit_button_clicked(self, pos: tuple[int, int], game_over: bool) -> bool:
         """終了ボタンがクリックされたか判定"""
         button_rect = self._calculate_button_rect(False, game_over, False, True)
-        return Button(button_rect, "", self.font).is_clicked(pos)
+        return bool(button_rect.collidepoint(pos))
 
     def is_undo_button_clicked(self, pos: tuple[int, int], game_over: bool) -> bool:
         """待ったボタンがクリックされたか判定"""
         button_rect = self._calculate_button_rect(False, game_over, False, False, is_undo_button=True)
-        return Button(button_rect, "", self.font).is_clicked(pos)
+        return bool(button_rect.collidepoint(pos))
 
-    def is_settings_button_clicked(self, pos: tuple[int, int]) -> bool:
-        """設定ボタンがクリックされたか判定"""
-        settings_rect = self._calculate_button_rect(is_settings_button=True)
-        return Button(settings_rect, "", self.font).is_clicked(pos)
     # ---------------------------------------------

@@ -43,7 +43,9 @@ jobs:
       run: |
         # Create uv virtual environment for subsequent uv pip installs
         uv venv
-        uv pip install ruff>=0.15.16 mypy>=2.1.0
+        # バージョン指定はクォート必須（クォートなしだと > がシェルのリダイレクトと解釈され、
+        # バージョン制約が適用されないまま最新版がインストールされる）
+        uv pip install "ruff>=0.15.16" "mypy>=2.1.0"
 
     - name: Run ruff lint
       run: uv run ruff check . --select=E,W,F --ignore=E501 --exclude=tests

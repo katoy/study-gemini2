@@ -50,6 +50,10 @@ app = FastAPI()
 
 VALID_AGENT_TYPES = frozenset({"first", "random", "gain", "mcts"})
 
+# 盤面サイズの許容範囲。巨大盤面による CPU/メモリ枯渇（DoS）を防ぐ
+MIN_BOARD_SIZE = 4
+MAX_BOARD_SIZE = 16
+
 
 class PlayRequest(BaseModel):
     board: List[List[int]]
@@ -79,9 +83,12 @@ def _select_agent(agent_type: str):
 
 
 @app.post("/play")
-async def play(request: PlayRequest) -> JSONResponse:
+def play(request: PlayRequest) -> JSONResponse:
     """
     ゲームの盤面・手番・エージェント種別を受け取り、選択された戦略で着手を返すAPIエンドポイント。
+
+    注記: CPU バウンドな探索（MCTS など）でイベントループをブロックしないよう、
+    あえて同期関数 (def) として定義し、FastAPI のスレッドプールで実行させる。
     """
     try:
         data = request.model_dump()
@@ -118,6 +125,14 @@ async def play(request: PlayRequest) -> JSONResponse:
                     detail="Invalid input: 'board' cannot be empty."
                 )
             board_size = len(board_data)
+            if not (MIN_BOARD_SIZE <= board_size <= MAX_BOARD_SIZE):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Invalid input: 'board' size must be between "
+                        f"{MIN_BOARD_SIZE} and {MAX_BOARD_SIZE}."
+                    )
+                )
             if not all(len(row) == board_size for row in board_data):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
