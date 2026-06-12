@@ -10,6 +10,9 @@ jobs:
   postman-tests:
     name: Run Postman/Newman external API tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reversi-py
 
     steps:
       - name: Checkout
