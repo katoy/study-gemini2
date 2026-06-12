@@ -134,6 +134,18 @@ API サーバー付きで起動（API エージェント使用可能）:
 ./scripts/start_with_server.sh
 ```
 
+停止用:
+
+```bash
+./scripts/stop_with_server.sh
+```
+
+API サーバーのみ再起動する場合:
+
+```bash
+./scripts/restart_server.sh
+```
+
 Docker で起動（VNC で操作）:
 
 ```bash
@@ -179,6 +191,10 @@ AI エージェント（`API (First)` / `API (Random)` / `API (Gain)` / `API (MC
 - サーバーの起動確認
 - アプリケーションを起動
 - 終了時に API サーバーも自動停止
+
+別ターミナルで `uv run python -m server.api_server` と `uv run python main.py` を
+個別に起動している場合は、`./scripts/stop_with_server.sh` で両方を停止できます。
+API サーバーだけを入れ直したい場合は `./scripts/restart_server.sh` を使ってください。
 
 **手動で起動する場合:**
 
