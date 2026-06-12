@@ -1,8 +1,5 @@
-import pytest
-import os
-import json
 import locale
-from config.i18n import Translator, _t, _get_translator
+from config.i18n import Translator, _get_translator
 import config.i18n as i18n_module
 
 

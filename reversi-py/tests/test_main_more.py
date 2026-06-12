@@ -47,8 +47,8 @@ def test_run_ai_agent_puts_move_on_queue():
     try:
         agent = MagicMock()
         agent.play.return_value = (4, 4)
-        app._run_ai_agent(agent)
+        app._run_ai_agent(agent, app.game, 0)
         val = app.ai_queue.get_nowait()
-        assert val == (4, 4)
+        assert val == ((4, 4), 0)
     finally:
         patcher.stop()

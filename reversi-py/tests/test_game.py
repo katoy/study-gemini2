@@ -10,8 +10,7 @@ sys.path.append(parent_dir)
 
 from game import Game
 from board import Board
-from agents.first_agent import FirstAgent
-from agents.random_agent import RandomAgent
+from agents.api_agent import ApiAgent
 from config.agents_config import AGENT_DEFINITIONS
 
 class TestGame(unittest.TestCase):
@@ -37,12 +36,12 @@ class TestGame(unittest.TestCase):
         self.game.place_stone(2, 3) # 黒が (2,3) に置く
         self.game.switch_turn()
         self.game.set_message("Test")
-        # config から ID を取得
-        first_agent_id = next((d['id'] for d in AGENT_DEFINITIONS if d['class'] == FirstAgent), None)
-        random_agent_id = next((d['id'] for d in AGENT_DEFINITIONS if d['class'] == RandomAgent), None)
-        self.assertIsNotNone(first_agent_id)
-        self.assertIsNotNone(random_agent_id)
-        self.game.set_players(first_agent_id, random_agent_id) # FirstAgent, RandomAgent
+        # config から API エージェント ID を取得
+        first_api_id = next((d['id'] for d in AGENT_DEFINITIONS if d['display_name'] == 'API (First)'), None)
+        random_api_id = next((d['id'] for d in AGENT_DEFINITIONS if d['display_name'] == 'API (Random)'), None)
+        self.assertIsNotNone(first_api_id)
+        self.assertIsNotNone(random_api_id)
+        self.game.set_players(first_api_id, random_api_id)
         self.game.game_over = True
 
         self.game.reset()
@@ -122,28 +121,17 @@ class TestGame(unittest.TestCase):
         self.assertEqual(self.game.get_winner(), 0)
 
     def test_set_players(self):
-        # config/agents.py の定義に基づいてIDを指定
-        human_id = 0
-        first_agent_id = next((d['id'] for d in AGENT_DEFINITIONS if d['class'] == FirstAgent), None)
-        random_agent_id = next((d['id'] for d in AGENT_DEFINITIONS if d['class'] == RandomAgent), None)
+        # config/agents.py の定義に基づいてIDを指定 (API エージェントのみ)
+        first_api_id = next((d['id'] for d in AGENT_DEFINITIONS if d['display_name'] == 'API (First)'), None)
+        random_api_id = next((d['id'] for d in AGENT_DEFINITIONS if d['display_name'] == 'API (Random)'), None)
 
-        self.assertIsNotNone(first_agent_id, "FirstAgent ID not found in config")
-        self.assertIsNotNone(random_agent_id, "RandomAgent ID not found in config")
+        self.assertIsNotNone(first_api_id, "API (First) ID not found in config")
+        self.assertIsNotNone(random_api_id, "API (Random) ID not found in config")
 
-        # 黒: 人間, 白: FirstAgent
-        self.game.set_players(human_id, first_agent_id)
-        self.assertIsNone(self.game.agents[-1])
-        self.assertIsInstance(self.game.agents[1], FirstAgent)
-
-        # 黒: RandomAgent, 白: 人間
-        self.game.set_players(random_agent_id, human_id)
-        self.assertIsInstance(self.game.agents[-1], RandomAgent)
-        self.assertIsNone(self.game.agents[1])
-
-        # 黒: FirstAgent, 白: RandomAgent
-        self.game.set_players(first_agent_id, random_agent_id)
-        self.assertIsInstance(self.game.agents[-1], FirstAgent)
-        self.assertIsInstance(self.game.agents[1], RandomAgent)
+        # 黒: API (First), 白: API (Random)
+        self.game.set_players(first_api_id, random_api_id)
+        self.assertIsInstance(self.game.agents[-1], ApiAgent)
+        self.assertIsInstance(self.game.agents[1], ApiAgent)
 
     def test_set_message_get_message(self):
         self.assertEqual(self.game.get_message(), "")
@@ -163,15 +151,11 @@ class TestGame(unittest.TestCase):
     def test_history_navigation(self):
         # 1手目: 黒 (2,3)
         self.game.place_stone(2, 3)
-        board1 = [r[:] for r in self.game.get_board()]
-        turn1 = -1 # place_stone 後の手番は変わらないが、履歴には打った手番が記録される
         history1 = self.game.history[0]
 
         # 2手目: 白 (2,4) - place_stoneの前に手番を変える必要がある
         self.game.switch_turn()
         self.game.place_stone(2, 4)
-        board2 = [r[:] for r in self.game.get_board()]
-        turn2 = 1
         history2 = self.game.history[1]
 
         # 3手目: 黒 (3,5)
@@ -187,27 +171,27 @@ class TestGame(unittest.TestCase):
         self.assertTrue(self.game.replay(0))
         self.assertEqual(self.game.history_index, 0)
         self.assertEqual(self.game.get_board(), history1[2]) # 1手目終了時の盤面
-        self.assertEqual(self.game.turn, history1[1]) # 1手目を打ったプレイヤーの手番 (-1)
+        self.assertEqual(self.game.turn, -history1[1]) # 次に打つのは 1 手目を打った側の相手 (1)
         self.assertFalse(self.game.game_over) # replay で game_over=False になること確認
 
         # 3手目 (最新) の状態に戻る
         self.assertTrue(self.game.replay(2))
         self.assertEqual(self.game.history_index, 2)
         self.assertEqual(self.game.get_board(), history3[2]) # 3手目終了時の盤面
-        self.assertEqual(self.game.turn, history3[1]) # 3手目を打ったプレイヤーの手番 (-1)
+        self.assertEqual(self.game.turn, -history3[1]) # 次に打つのは 3 手目を打った側の相手 (1)
 
         # --- history_top / history_last テスト (行 131-141 カバー) ---
         # 履歴の最初に移動
         self.assertTrue(self.game.history_top())
         self.assertEqual(self.game.history_index, 0)
         self.assertEqual(self.game.get_board(), history1[2])
-        self.assertEqual(self.game.turn, history1[1])
+        self.assertEqual(self.game.turn, -history1[1]) # 次に打つ側の手番
 
         # 履歴の最後に移動
         self.assertTrue(self.game.history_last())
         self.assertEqual(self.game.history_index, 2)
         self.assertEqual(self.game.get_board(), history3[2])
-        self.assertEqual(self.game.turn, history3[1])
+        self.assertEqual(self.game.turn, -history3[1]) # 次に打つ側の手番
 
         # --- get_current_history テスト (行 145-147 カバー) ---
         self.game.replay(1) # 2手目の状態へ
@@ -219,9 +203,27 @@ class TestGame(unittest.TestCase):
 
         # 範囲外の replay (行 127 カバー)
         self.assertTrue(self.game.replay(-1))
-        self.assertEqual(len(self.game.history), 0)
+        # replay(-1) は初期状態に戻すが、やり直し用に履歴は維持される
+        self.assertEqual(len(self.game.history), 3)
         self.assertEqual(self.game.history_index, -1)
         self.assertFalse(self.game.replay(3))
+
+    def test_replay_invalidates_valid_move_cache(self):
+        self.game.place_stone(2, 3)
+        self.game.switch_turn()
+        self.game.place_stone(2, 4)
+        self.game.switch_turn()
+
+        # キャッシュを作ってから、同じ手番の別盤面へ戻す
+        cached_moves = self.game.get_valid_moves()
+        self.assertTrue(cached_moves)
+
+        self.assertTrue(self.game.replay(0))
+
+        # replay 後の合法手が、盤面の実体と一致することを確認する
+        fresh_moves = self.game.board.get_valid_moves(self.game.turn)
+        self.assertEqual(self.game.get_valid_moves(), fresh_moves)
+        self.assertNotEqual(cached_moves, fresh_moves)
 
     # === カバレッジのためのテスト ===
 
@@ -249,23 +251,23 @@ class TestGame(unittest.TestCase):
     @patch('builtins.print')
     def test_create_agent_type_error(self, mock_print, mock_get_params):
         """エージェント初期化時に TypeError が発生するケースをテスト (行 100-104)"""
-        # FirstAgent の ID を取得 (config に依存)
-        first_agent_id = next((d['id'] for d in AGENT_DEFINITIONS if d['class'] == FirstAgent), None)
-        self.assertIsNotNone(first_agent_id, "FirstAgent ID not found in config")
+        # API (First) の ID を取得 (config に依存)
+        first_api_id = next((d['id'] for d in AGENT_DEFINITIONS if d['display_name'] == 'API (First)'), None)
+        self.assertIsNotNone(first_api_id, "API (First) ID not found in config")
 
         mock_get_params.return_value = {'invalid_param': 123}
 
-        agent = self.game.create_agent(first_agent_id)
+        agent = self.game.create_agent(first_api_id)
 
         self.assertIsNone(agent, "TypeError発生時はNoneが返るべき")
-        mock_get_params.assert_called_once_with(first_agent_id)
+        mock_get_params.assert_called_once_with(first_api_id)
 
         # print が呼び出されたことを確認 (最低1回は呼ばれるはず)
         self.assertGreater(mock_print.call_count, 0, "print should have been called on TypeError")
         # 呼び出された print の全テキストを結合
         all_print_output = "".join(str(call_arg[0]) for call_arg, _ in mock_print.call_args_list)
         # 期待されるメッセージの一部が含まれているか確認
-        self.assertIn(f"エージェント FirstAgent (ID: {first_agent_id}) の初期化に失敗しました。", all_print_output)
+        self.assertIn(f"エージェント ApiAgent (ID: {first_api_id}) の初期化に失敗しました。", all_print_output)
         # "TypeError" という文字列ではなく、TypeError に関連するメッセージが含まれているか確認
         # (例: "takes no arguments", "unexpected keyword argument")
         self.assertTrue("takes no arguments" in all_print_output or "unexpected keyword argument" in all_print_output,

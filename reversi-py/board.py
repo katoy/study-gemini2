@@ -3,9 +3,20 @@ from typing import List, Tuple
 
 
 class Board:
-    """オセロ（リバーシ）の盤面を管理するクラス。
+    """オセロ（リバーシ）の盤面管理。盤操作に特化した責務分離クラス。
 
-    盤の初期化、石の配置、有効手の判定、石の反転などを行う。
+    責務：
+    - 盤面データ管理：石の配置状態（-1=黒, 0=空, 1=白）
+    - ルール実装：有効手判定、石の反転ロジック
+    - 状態クエリ：石数カウント、有効手一覧
+
+    設計原則：
+    - Board は盤面データと操作のみ。ゲームフロー（手番管理）は Game に委譲
+    - ルール（反転ロジック）を集約。Game ロジックと分離
+    - テスト容易性：ボード操作だけで検証可能
+
+    注記：
+    board_size は 4-8 推奨（制限なし）。Game.board_size と同期。
     """
 
     def __init__(self, board_size: int = 8) -> None:
@@ -139,20 +150,13 @@ class Board:
         Returns:
             反転する (row, col) のタプルのリスト。
         """
-        flipped_stones = []
+        # 方向ごとの走査ロジックは _get_flipped_in_direction に集約し、重複を避ける
+        flipped_stones: list[tuple[int, int]] = []
         for dr in [-1, 0, 1]:
             for dc in [-1, 0, 1]:
                 if dr == 0 and dc == 0:
                     continue
-                r, c = row + dr, col + dc
-                to_flip: list[tuple[int, int]] = []
-                while 0 <= r < self.board_size and 0 <= c < self.board_size:
-                    if self.board[r][c] == 0:
-                        break
-                    if self.board[r][c] == turn:
-                        flipped_stones.extend(to_flip)
-                        break
-                    to_flip.append((r, c))
-                    r += dr
-                    c += dc
+                flipped_stones.extend(
+                    self._get_flipped_in_direction(row, col, dr, dc, turn)
+                )
         return flipped_stones

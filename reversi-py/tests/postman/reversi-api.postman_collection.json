@@ -1,0 +1,340 @@
+{
+  "info": {
+    "name": "Reversi API - Play endpoint",
+    "_postman_id": "reversi-api-collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Play - Happy path",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"board\": [\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,1,-1,0,0,0],\n    [0,0,0,-1,1,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0]\n  ],\n  \"turn\": 1\n}"
+        },
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "var json = pm.response.json();",
+              "pm.test(\"Has move property\", function () { pm.expect(json).to.have.property('move'); });",
+              "pm.test(\"Move shape is valid\", function () { var m = json.move; pm.expect(m === null || (Array.isArray(m) && m.length === 2 && typeof m[0] === 'number' && typeof m[1] === 'number')).to.be.true; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Play - agent_type=first",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"board\": [\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,1,-1,0,0,0],\n    [0,0,0,-1,1,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0]\n  ],\n  \"turn\": 1,\n  \"agent_type\": \"first\"\n}"
+        },
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "var json = pm.response.json();",
+              "pm.test(\"Has move property\", function () { pm.expect(json).to.have.property('move'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Play - agent_type=random",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"board\": [\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,1,-1,0,0,0],\n    [0,0,0,-1,1,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0]\n  ],\n  \"turn\": 1,\n  \"agent_type\": \"random\"\n}"
+        },
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "var json = pm.response.json();",
+              "pm.test(\"Has move property\", function () { pm.expect(json).to.have.property('move'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Play - agent_type=gain",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"board\": [\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,1,-1,0,0,0],\n    [0,0,0,-1,1,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0]\n  ],\n  \"turn\": 1,\n  \"agent_type\": \"gain\"\n}"
+        },
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "var json = pm.response.json();",
+              "pm.test(\"Has move property\", function () { pm.expect(json).to.have.property('move'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Play - invalid agent_type",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"board\": [\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,1,-1,0,0,0],\n    [0,0,0,-1,1,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0]\n  ],\n  \"turn\": 1,\n  \"agent_type\": \"unknown\"\n}"
+        },
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });",
+              "var json = pm.response.json();",
+              "pm.test(\"Detail mentions agent_type\", function () { var d = json.detail; if (typeof d === 'string') { pm.expect(d).to.include('agent_type'); } else { pm.expect(JSON.stringify(d)).to.include('agent_type'); } });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Play - invalid turn (0)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"board\": [[0]],\n  \"turn\": 0\n}" },
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });",
+              "var json = pm.response.json();",
+              "pm.test(\"Detail mentions turn\", function () { var d = json.detail; if (typeof d === 'string') { pm.expect(d).to.include('turn'); } else { pm.expect(JSON.stringify(d)).to.include('turn'); } });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Play - missing body",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "" },
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 422\", function () { pm.response.to.have.status(422); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Play - non-square board",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"board\": [[0,0,0,0],[0,0,0],[0,0,0,0],[0,0,0,0]],\n  \"turn\": 1\n}"
+        },
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });",
+              "var json = pm.response.json();",
+              "pm.test(\"Detail mentions square\", function () { pm.expect(JSON.stringify(json)).to.include('square'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Play - tiny board (2x2)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"board\": [[0,0],[0,0]],\n  \"turn\": 1\n}" },
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });",
+              "var json = pm.response.json();",
+              "pm.test(\"Detail mentions size\", function () { pm.expect(JSON.stringify(json)).to.include('size'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Play - huge board (32x32)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"board\": [\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]\n  ],\n  \"turn\": 1\n}"
+        },
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });",
+              "var json = pm.response.json();",
+              "pm.test(\"Detail mentions size\", function () { pm.expect(JSON.stringify(json)).to.include('size'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Play - invalid board value (contains 2)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"board\": [[2,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]],\n  \"turn\": 1\n}" },
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400\", function () { pm.response.to.have.status(400); });",
+              "var json = pm.response.json();",
+              "pm.test(\"Detail mentions board value\", function () { pm.expect(JSON.stringify(json)).to.include('must contain only'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Play - invalid board element type (string)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"board\": [[\"not an int\"]],\n  \"turn\": 1\n}" },
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 422\", function () { pm.response.to.have.status(422); });",
+              "var json = pm.response.json();",
+              "pm.test(\"Detail mentions integer\", function () { pm.expect(JSON.stringify(json)).to.include('integer'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Play - missing Content-Type header",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": { "mode": "raw", "raw": "{\n  \"board\": [\n    [0,0,0,0],\n    [0,0,0,0],\n    [0,0,0,0],\n    [0,0,0,0]\n  ],\n  \"turn\": 1\n}" },
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 422\", function () { pm.response.to.have.status(422); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Play - GET method returns 405",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 405\", function () { pm.response.to.have.status(405); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Play - response Content-Type is application/json",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"board\": [\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,1,-1,0,0,0],\n    [0,0,0,-1,1,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0],\n    [0,0,0,0,0,0,0,0]\n  ],\n  \"turn\": 1\n}" },
+        "url": { "raw": "{{API_BASE}}/play" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Content-Type is JSON\", function () { pm.expect(pm.response.headers.get('content-type')).to.include('application/json'); });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

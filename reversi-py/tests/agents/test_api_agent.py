@@ -71,6 +71,18 @@ class TestApiAgent(unittest.TestCase):
         self.assertEqual(agent.timeout, 20)
     # ---------------------------------
 
+    # --- agent_type 初期化テスト ---
+    def test_init_stores_agent_type(self):
+        """__init__ で指定した agent_type が属性に保存される"""
+        agent = ApiAgent(api_url=self.api_url, agent_type="gain")
+        self.assertEqual(agent.agent_type, "gain")
+
+    def test_init_default_agent_type_is_random(self):
+        """agent_type 省略時のデフォルトは 'random'"""
+        agent = ApiAgent(api_url=self.api_url)
+        self.assertEqual(agent.agent_type, "random")
+    # ------------------------------------
+
     # --- playメソッドのテスト ---
     @patch('agents.api_agent.requests.post')
     def test_play_returns_valid_move(self, mock_post):
@@ -87,7 +99,7 @@ class TestApiAgent(unittest.TestCase):
         # 検証
         self.assertEqual(move, (3, 4))
         # requests.post が正しい引数で呼び出されたか確認
-        expected_payload = {'board': [[0]*8]*8, 'turn': -1}
+        expected_payload = {'board': [[0]*8]*8, 'turn': -1, 'agent_type': 'random'}
         mock_post.assert_called_once_with(
             self.api_url,
             json=expected_payload,
@@ -113,7 +125,7 @@ class TestApiAgent(unittest.TestCase):
         agent_default_timeout.play(self.mock_game)
 
         # requests.post がデフォルトのtimeout値(5)で呼び出されたか確認
-        expected_payload = {'board': [[0]*8]*8, 'turn': -1}
+        expected_payload = {'board': [[0]*8]*8, 'turn': -1, 'agent_type': 'random'}
         mock_post.assert_called_once_with(
             self.api_url,
             json=expected_payload,
@@ -121,6 +133,43 @@ class TestApiAgent(unittest.TestCase):
             verify=True  # SSL 検証を有効化
         )
     # --------------------------------------
+
+    # --- agent_type payload テスト ---
+    @patch('agents.api_agent.requests.post')
+    def test_play_sends_agent_type_in_payload(self, mock_post):
+        """play() が agent_type を JSON ペイロードに含めて送信する"""
+        agent = ApiAgent(api_url=self.api_url, agent_type="first")
+        mock_response = Mock()
+        mock_response.json.return_value = {"move": [3, 2]}
+        mock_response.raise_for_status = Mock()
+        mock_post.return_value = mock_response
+
+        agent.play(self.mock_game)
+
+        called_json = mock_post.call_args.kwargs.get(
+            "json", mock_post.call_args[1].get("json")
+        )
+        self.assertIn("agent_type", called_json)
+        self.assertEqual(called_json["agent_type"], "first")
+
+    @patch('agents.api_agent.requests.post')
+    def test_play_sends_updated_agent_type_after_reassignment(self, mock_post):
+        """agent_type を変更後の次回 play() に新しい値が反映される"""
+        agent = ApiAgent(api_url=self.api_url, agent_type="random")
+        agent.agent_type = "mcts"
+
+        mock_response = Mock()
+        mock_response.json.return_value = {"move": [3, 2]}
+        mock_response.raise_for_status = Mock()
+        mock_post.return_value = mock_response
+
+        agent.play(self.mock_game)
+
+        called_json = mock_post.call_args.kwargs.get(
+            "json", mock_post.call_args[1].get("json")
+        )
+        self.assertEqual(called_json["agent_type"], "mcts")
+    # ------------------------------------
 
     @patch('agents.api_agent.requests.post')
     def test_play_returns_none_when_api_returns_null(self, mock_post):
