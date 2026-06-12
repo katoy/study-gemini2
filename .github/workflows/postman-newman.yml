@@ -1,0 +1,53 @@
+name: Postman Newman Tests
+
+on:
+  push:
+    branches: [ main, dialog, work ]
+  pull_request:
+    branches: [ main, dialog ]
+
+jobs:
+  postman-tests:
+    name: Run Postman/Newman external API tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14.2'
+
+      - name: Install uv helper
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install Python dependencies (server)
+        run: |
+          uv sync --all-extras || python -m pip install fastapi uvicorn pydantic
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Newman
+        run: npm ci --prefix tests/postman
+
+      - name: Start API server
+        run: |
+          python -m uvicorn server.api_server:app --host 127.0.0.1 --port 5001 --log-level warning &
+          echo $! > server.pid
+          for i in $(seq 1 30); do
+            nc -z 127.0.0.1 5001 && break
+            sleep 1
+          done
+
+      - name: Run Newman collection
+        run: npx newman run tests/postman/reversi-api.postman_collection.fixed.json -e tests/postman/reversi-api.postman_environment.json --timeout-request 20000
+
+      - name: Stop API server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then kill $(cat server.pid) || true; fi
