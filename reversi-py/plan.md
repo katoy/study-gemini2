@@ -109,3 +109,14 @@
 - 切り替えは「次の手番」ではなく、設定変更後の次回判定から有効にする。
 - API 戦略はまず既存の内部エージェントに対応する `first / random / gain / mcts` に限定する。
 - 既存の `ApiAgent` は外部サービスを 1 回叩くクライアントとして維持し、複雑なローカル戦略は持たせない。
+
+## Current status
+- Postman/Newman collection added under `tests/postman` (fixed export used for CI).
+- CI workflow `.github/workflows/postman-newman.yml` added: pip/npm caches, Newman JUnit report (`tests/postman/newman-results.xml`) uploaded; CI runs pass.
+- `scripts/ci_check.sh` updated to install `norman` from PyPI and run `python -m norman check .` when available. Added lightweight local shim `reversi-py/norman` to provide `python -m norman check .` until an upstream CLI is available; `.coveragerc` excludes `norman/*` to preserve coverage threshold.
+- All CI checks (lint, mypy, tests, coverage, postman) succeeded locally and on GitHub Actions for branch `work`.
+
+## Next steps
+- Replace local shim with upstream `norman` CLI (or switch install to `pip install git+https://...` when available).
+- Consider adding `actions/test-report` to surface JUnit results in GitHub UI.
+- Optional: add caching improvements or artifact retention policy as needed.
