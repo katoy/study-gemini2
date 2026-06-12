@@ -4,6 +4,7 @@ omit =
     */test_*.py
     gui.py
     config/game_constants.py
+    norman/*
 
 [report]
 exclude_lines =
