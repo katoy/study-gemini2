@@ -1,0 +1,554 @@
+{
+  "info": {
+    "_postman_id": "2a6f7b58-2a86-4e44-b4cf-7a2b77e58d71",
+    "name": "Reversi API - POST /play",
+    "description": "FastAPI の /play 契約を Postman/Newman で確認するコレクションです。pytest のサーバー単体テストとは別に、公開 API の入力検証・正常系・null 応答を外形から検証します。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "200 OK",
+      "item": [
+        {
+          "name": "200 - first agent returns a move",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"board\": {{standardBoard}},\n  \"turn\": 1,\n  \"agent_type\": \"first\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/play",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "play"
+              ]
+            }
+          }
+        },
+        {
+          "name": "200 - random agent returns a move",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"board\": {{standardBoard}},\n  \"turn\": 1,\n  \"agent_type\": \"random\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/play",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "play"
+              ]
+            }
+          }
+        },
+        {
+          "name": "200 - gain agent returns a move",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"board\": {{standardBoard}},\n  \"turn\": 1,\n  \"agent_type\": \"gain\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/play",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "play"
+              ]
+            }
+          }
+        },
+        {
+          "name": "200 - mcts agent returns a move",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"board\": {{standardBoard}},\n  \"turn\": 1,\n  \"agent_type\": \"mcts\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/play",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "play"
+              ]
+            }
+          }
+        },
+        {
+          "name": "200 - no legal moves returns null",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"board\": {{emptyBoard}},\n  \"turn\": 1,\n  \"agent_type\": \"random\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/play",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "play"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "400 Validation",
+      "item": [
+        {
+          "name": "400 - invalid turn is rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"board\": {{standardBoard}},\n  \"turn\": 0,\n  \"agent_type\": \"random\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/play",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "play"
+              ]
+            }
+          }
+        },
+        {
+          "name": "400 - invalid agent_type is rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"board\": {{standardBoard}},\n  \"turn\": 1,\n  \"agent_type\": \"cheating\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/play",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "play"
+              ]
+            }
+          }
+        },
+        {
+          "name": "400 - empty board is rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"board\": [],\n  \"turn\": 1,\n  \"agent_type\": \"random\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/play",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "play"
+              ]
+            }
+          }
+        },
+        {
+          "name": "400 - board too small is rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"board\": {{smallBoard}},\n  \"turn\": 1,\n  \"agent_type\": \"random\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/play",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "play"
+              ]
+            }
+          }
+        },
+        {
+          "name": "400 - board too large is rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"board\": {{largeBoard}},\n  \"turn\": 1,\n  \"agent_type\": \"random\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/play",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "play"
+              ]
+            }
+          }
+        },
+        {
+          "name": "400 - non-square board is rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"board\": {{nonSquareBoard}},\n  \"turn\": 1,\n  \"agent_type\": \"random\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/play",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "play"
+              ]
+            }
+          }
+        },
+        {
+          "name": "400 - invalid board cell is rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"board\": {{invalidCellBoard}},\n  \"turn\": 1,\n  \"agent_type\": \"random\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/play",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "play"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "422 Parsing",
+      "item": [
+        {
+          "name": "422 - malformed JSON is rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"board\": {{standardBoard}},\n  \"turn\": 1,\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/play",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "play"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "function zeroBoard(size) {",
+          "  return Array.from({ length: size }, function () {",
+          "    return Array(size).fill(0);",
+          "  });",
+          "}",
+          "",
+          "pm.collectionVariables.set(",
+          "  \"standardBoard\",",
+          "  JSON.stringify([",
+          "    [0, 0, 0, 0, 0, 0, 0, 0],",
+          "    [0, 0, 0, 0, 0, 0, 0, 0],",
+          "    [0, 0, 0, 0, 0, 0, 0, 0],",
+          "    [0, 0, 0, 1, -1, 0, 0, 0],",
+          "    [0, 0, 0, -1, 1, 0, 0, 0],",
+          "    [0, 0, 0, 0, 0, 0, 0, 0],",
+          "    [0, 0, 0, 0, 0, 0, 0, 0],",
+          "    [0, 0, 0, 0, 0, 0, 0, 0]",
+          "  ])",
+          ");",
+          "pm.collectionVariables.set(\"emptyBoard\", JSON.stringify(zeroBoard(8)));",
+          "pm.collectionVariables.set(\"smallBoard\", JSON.stringify(zeroBoard(2)));",
+          "pm.collectionVariables.set(\"largeBoard\", JSON.stringify(zeroBoard(17)));",
+          "",
+          "var nonSquareBoard = zeroBoard(4);",
+          "nonSquareBoard[1] = [0, 0, 0];",
+          "pm.collectionVariables.set(\"nonSquareBoard\", JSON.stringify(nonSquareBoard));",
+          "",
+          "var invalidCellBoard = zeroBoard(4);",
+          "invalidCellBoard[0][0] = 2;",
+          "pm.collectionVariables.set(\"invalidCellBoard\", JSON.stringify(invalidCellBoard));"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "function assertStatus(expectedCode) {",
+          "  pm.test(\"status is \" + expectedCode, function () {",
+          "    pm.response.to.have.status(expectedCode);",
+          "  });",
+          "}",
+          "",
+          "function assertMoveArray(body) {",
+          "  pm.test(\"move is an integer coordinate pair\", function () {",
+          "    pm.expect(body).to.have.property(\"move\");",
+          "    pm.expect(body.move).to.be.an(\"array\");",
+          "    pm.expect(body.move).to.have.length(2);",
+          "    pm.expect(body.move[0]).to.be.a(\"number\");",
+          "    pm.expect(body.move[1]).to.be.a(\"number\");",
+          "    pm.expect(Number.isInteger(body.move[0])).to.be.true;",
+          "    pm.expect(Number.isInteger(body.move[1])).to.be.true;",
+          "  });",
+          "}",
+          "",
+          "function assertNullMove(body) {",
+          "  pm.test(\"move is null\", function () {",
+          "    pm.expect(body).to.have.property(\"move\");",
+          "    pm.expect(body.move).to.equal(null);",
+          "  });",
+          "}",
+          "",
+          "function assertErrorContains(fragment) {",
+          "  pm.test(\"error message mentions \" + fragment, function () {",
+          "    var body = pm.response.json();",
+          "    pm.expect(body).to.have.property(\"detail\");",
+          "    pm.expect(body.detail).to.be.a(\"string\");",
+          "    pm.expect(body.detail).to.include(fragment);",
+          "  });",
+          "}",
+          "",
+          "function assertValidation422() {",
+          "  pm.test(\"validation status is 422\", function () {",
+          "    pm.response.to.have.status(422);",
+          "  });",
+          "  pm.test(\"validation detail is an array\", function () {",
+          "    var body = pm.response.json();",
+          "    pm.expect(body).to.have.property(\"detail\");",
+          "    pm.expect(body.detail).to.be.an(\"array\");",
+          "  });",
+          "}",
+          "",
+          "var body = pm.response.json();",
+          "switch (pm.info.requestName) {",
+          "  case \"200 - first agent returns a move\":",
+          "  case \"200 - random agent returns a move\":",
+          "  case \"200 - gain agent returns a move\":",
+          "  case \"200 - mcts agent returns a move\":",
+          "    assertStatus(200);",
+          "    assertMoveArray(body);",
+          "    break;",
+          "  case \"200 - no legal moves returns null\":",
+          "    assertStatus(200);",
+          "    assertNullMove(body);",
+          "    break;",
+          "  case \"400 - invalid turn is rejected\":",
+          "    assertStatus(400);",
+          "    assertErrorContains(\"turn\");",
+          "    break;",
+          "  case \"400 - invalid agent_type is rejected\":",
+          "    assertStatus(400);",
+          "    assertErrorContains(\"agent_type\");",
+          "    break;",
+          "  case \"400 - empty board is rejected\":",
+          "    assertStatus(400);",
+          "    assertErrorContains(\"empty\");",
+          "    break;",
+          "  case \"400 - board too small is rejected\":",
+          "  case \"400 - board too large is rejected\":",
+          "    assertStatus(400);",
+          "    assertErrorContains(\"size\");",
+          "    break;",
+          "  case \"400 - non-square board is rejected\":",
+          "    assertStatus(400);",
+          "    assertErrorContains(\"square\");",
+          "    break;",
+          "  case \"400 - invalid board cell is rejected\":",
+          "    assertStatus(400);",
+          "    assertErrorContains(\"-1, 0, or 1\");",
+          "    break;",
+          "  case \"422 - malformed JSON is rejected\":",
+          "    assertValidation422();",
+          "    break;",
+          "  default:",
+          "    pm.test(\"unexpected request name\", function () {",
+          "      pm.expect.fail(\"No assertion rule defined for \" + pm.info.requestName);",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ]
+}
