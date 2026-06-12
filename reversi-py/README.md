@@ -7,11 +7,10 @@
 Python と Pygame で作られたリバーシゲームです。
 
 - 人間 vs 人間、人間 vs AI、AI vs AI に対応
-- 4 種類の AI エージェントを搭載
-- 外部 API サーバー経由で着手する `API (Random)` エージェントを用意
-- 履歴の巻き戻し、リスタート、リセット、パス処理に対応
+- 4 種類の AI 戦略（First / Random / Gain / MCTS）を API サーバー経由で提供
+- 「待った」（Undo）、リスタート、リセット、パス処理に対応
 - 日本語 UI とフォント設定に対応
-- **包括的なテスト体制**: 227 テスト（アプリ + サーバー + 統合）、カバレッジ 99%
+- **包括的なテスト体制**: 244 テスト（アプリ + サーバー + 統合）、カバレッジ 99%
 - **GitHub Actions CI**: Lint / 型チェック / テスト / カバレッジ / サーバーテスト / 統合テスト
 
 ## AI エージェント
@@ -19,13 +18,13 @@ Python と Pygame で作られたリバーシゲームです。
 プレイヤー設定では、次の選択肢を使えます。
 
 - `人間`
-- `First`
-- `Random`
-- `Gain`
-- `MCTS`
-- `API (Random)`
+- `API (First)`: 最初に見つかった合法手を選ぶ
+- `API (Random)`: 合法手からランダムに選ぶ
+- `API (Gain)`: 獲得石数が最大の手を選ぶ
+- `API (MCTS)`: モンテカルロ木探索で手を選ぶ
 
-`API (Random)` は、`server/api_server.py` で起動する API サーバーから手を取得します。
+`API (...)` エージェントはいずれも、`server/api_server.py` で起動する API サーバーから手を取得します。
+AI を使う場合は API サーバーの起動が必要です（`./scripts/start_with_server.sh` を推奨）。
 
 ## 構成図
 
@@ -46,10 +45,6 @@ flowchart LR
 
     subgraph Agents["AI Agents"]
         Base["agents/base_agent.py<br/>Agent"]
-        First["FirstAgent"]
-        Random["RandomAgent"]
-        Gain["GainAgent"]
-        MCTS["MonteCarloTreeSearchAgent"]
         API["ApiAgent"]
     end
 
@@ -62,6 +57,10 @@ flowchart LR
 
     subgraph Server["API Server"]
         APIServer["server/api_server.py"]
+        First["FirstAgent"]
+        Random["RandomAgent"]
+        Gain["GainAgent"]
+        MCTS["MonteCarloTreeSearchAgent"]
     end
 
     User --> Main
@@ -80,15 +79,14 @@ flowchart LR
     Game --> Params
 
     AgentsCfg --> Base
-    AgentsCfg --> First
-    AgentsCfg --> Random
-    AgentsCfg --> Gain
-    AgentsCfg --> MCTS
     AgentsCfg --> API
 
-    API --> APIServer
-    APIServer --> Board
     API -.->|HTTP POST /play| APIServer
+    APIServer --> First
+    APIServer --> Random
+    APIServer --> Gain
+    APIServer --> MCTS
+    APIServer --> Board
 ```
 
 ## 動作環境
@@ -148,7 +146,7 @@ Docker で起動（VNC で操作）:
 
 #### 方法 1: アプリのみを起動（シンプル）
 
-ゲーム本体をシンプルに起動します。この場合、ローカルの AI エージェント（First、Random、Gain、MCTS）のみが使用可能です。
+ゲーム本体をシンプルに起動します。AI エージェントはすべて API サーバー経由のため、この方法では人間 vs 人間のプレイのみが可能です（AI を選択した場合は接続エラーになり、1 秒間隔で再試行します）。
 
 **スクリプトを使う場合:**
 
@@ -166,9 +164,9 @@ uv run python main.py
 python main.py
 ```
 
-#### 方法 2: API サーバーとアプリを一緒に起動（API エージェント使用）
+#### 方法 2: API サーバーとアプリを一緒に起動（AI エージェント使用）
 
-`API (Random)` エージェントを使う場合、API サーバーとアプリを起動します。
+AI エージェント（`API (First)` / `API (Random)` / `API (Gain)` / `API (MCTS)`）を使う場合、API サーバーとアプリを起動します。
 
 **スクリプトを使う場合（推奨）:**
 
@@ -203,7 +201,7 @@ uv run python main.py
 
 起動ログで `Uvicorn running on http://127.0.0.1:5001` が表示されたら正常です。API ドキュメントは http://127.0.0.1:5001/docs で確認できます。
 
-アプリの「プレイヤー設定」でプレイヤーを `API (Random)` に設定すると、サーバー経由で AI が着手します。
+アプリの「プレイヤー設定」でプレイヤーを `API (...)` のいずれかに設定すると、サーバー経由で AI が着手します。
 
 ### Docker を使用した実行（コンテナ環境）
 
@@ -334,7 +332,7 @@ docker run -d \
 
 ## API サーバー
 
-API サーバーを起動すると、`API (Random)` エージェントが使えるようになります。
+API サーバーを起動すると、`API (...)` エージェントが使えるようになります。
 
 ```bash
 uv run python -m server.api_server
@@ -358,6 +356,22 @@ API ドキュメント:
 - OpenAPI JSON: `http://127.0.0.1:5001/openapi.json`
 - エンドポイント: `POST /play`
 
+### POST /play のリクエスト仕様
+
+```json
+{
+  "board": [[0, 0, ...], ...],
+  "turn": -1,
+  "agent_type": "mcts"
+}
+```
+
+- `board`: 正方形の 2 次元配列（各セルは -1: 黒、0: 空、1: 白）。サイズは 4〜16（DoS 防止の上限あり）
+- `turn`: 手番（-1: 黒、1: 白）
+- `agent_type`: `first` / `random` / `gain` / `mcts` のいずれか（省略時は `random`）
+
+レスポンスは `{"move": [row, col]}`、合法手がない場合は `{"move": null}` です。
+
 ## 使い方
 
 1. ゲームを起動します
@@ -371,22 +385,21 @@ API ドキュメント:
 
 4. プレイヤー設定で以下を選べます
    - `人間`: 人間が手を指します
-   - `First`, `Random`, `Gain`, `MCTS`: ローカル AI エージェント
-   - `API (Random)`: API サーバー経由の AI（サーバー起動が必要）
+   - `API (First)`, `API (Random)`, `API (Gain)`, `API (MCTS)`: API サーバー経由の AI（サーバー起動が必要）
 
-5. `←` / `→` で履歴を戻したり進めたりできます
+5. 「待った」ボタンで手を戻せます（AI 対戦時は自分が打つ直前の状態まで戻ります）
 
 ## テスト
 
-### 全テストを実行
+### 単体テストを実行
 
-単体テストを実行します。
+統合テストを除く単体テスト（サーバー単体テスト含む）を実行します。
 
 ```bash
-uv run pytest -q
+uv run pytest --ignore=tests/integration -q
 ```
 
-期待: `227 passed, 5 subtests passed` （カバレッジ 99%）
+期待: `235 passed, 9 subtests passed` （カバレッジ 99%）
 
 ### サーバー単体テスト
 
@@ -396,7 +409,7 @@ API サーバーのバリデーションテストを実行します（FastAPI Te
 uv run pytest tests/server/ -v
 ```
 
-期待: `19 passed` （FastAPI エンドポイント、リクエスト・レスポンスの検証）
+期待: `23 passed` （FastAPI エンドポイント、リクエスト・レスポンスの検証）
 
 ### 統合テスト
 
@@ -456,10 +469,18 @@ uv run pytest tests/integration/ -v
 
 セクション化により、メソッド検索効率が向上し、新規開発者が各責務を一目で理解できます。
 
+### AI 非同期実行の安全機構
+
+AI の思考は UI を固めないようワーカースレッドで実行されます。並行処理に伴う不整合を防ぐため、以下の機構を備えています。
+
+- **世代 ID**: プレイヤー変更・リスタート・リセット・「待った」の際に世代をインクリメントし、古い世代の AI 結果は破棄します
+- **状態スナップショット**: AI スレッドにはゲーム状態のディープコピーを渡し、メインスレッドの盤面操作と競合しないようにします
+- **再試行バックオフ**: API サーバーに接続できないなど AI が手を返せない場合、1 秒待ってから再試行します（接続ストーム防止）
+
 ### 将来の最適化
 
 - **App**: GameController と AIManager への分離を検討
-- **GameGUI**: GameLayout クラスの抽出を検討（751 行を 3 セクション化）
+- **GameGUI**: GameLayout クラスの抽出を検討
 
 現在の実装は テスト容易性 と 保守性 のバランスを優先しています。
 
@@ -497,9 +518,11 @@ sequenceDiagram
             Game->>Game: クリック位置から着手を適用
             Game->>Board: place_stone()
         else プレイヤーが AI
-            Main->>Agent: AI エージェントを実行
-            Agent->>Board: get_valid_moves()
-            Agent->>Board: 最適な着手を選択
+            Main->>Main: ゲーム状態をディープコピー
+            Main->>Agent: ワーカースレッドで AI を実行（世代 ID 付き）
+            Note over Agent: API サーバーへ HTTP POST /play
+            Agent-->>Main: 結果をキューへ (move, 世代 ID)
+            Main->>Main: 世代 ID が一致する結果のみ採用
             Game->>Board: place_stone()
         end
         Game->>Game: ターン切り替え
@@ -536,7 +559,7 @@ sequenceDiagram
 ### テストと CI
 
 - `tests/`: テストコード
-  - `tests/server/test_api_server.py`: サーバー単体テスト（19 テスト、FastAPI TestClient）
+  - `tests/server/test_api_server.py`: サーバー単体テスト（23 テスト、FastAPI TestClient）
   - `tests/integration/test_api_integration.py`: 統合テスト（9 テスト、実サーバー起動）
 - `scripts/ci_check.sh`: ローカル CI チェックスクリプト（6 ステップ）
 - `.github/workflows/ci.yml`: GitHub Actions 定義（4 ジョブ並列）
