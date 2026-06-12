@@ -50,6 +50,40 @@ class TestThrottlingFilter(unittest.TestCase):
             mock_time.return_value = 100.5
             self.assertFalse(f.filter(r))
 
+    def test_max_entries_evicts_expired_entries(self):
+        """上限到達時、期限切れエントリが掃除され新エントリが登録される"""
+        f = ThrottlingFilter(interval_seconds=1.0, max_entries=2)
+        with patch('utils.logging_utils.time.time') as mock_time:
+            mock_time.return_value = 100.0
+            r1 = logging.LogRecord('test', logging.INFO, __file__, 1, 'a', (), None)
+            r2 = logging.LogRecord('test', logging.INFO, __file__, 2, 'b', (), None)
+            self.assertTrue(f.filter(r1))
+            self.assertTrue(f.filter(r2))
+            self.assertEqual(len(f._last), 2)
+
+            # 時間を進めて既存エントリを期限切れにしてから 3 件目を投入
+            mock_time.return_value = 102.0
+            r3 = logging.LogRecord('test', logging.INFO, __file__, 3, 'c', (), None)
+            self.assertTrue(f.filter(r3))
+            # 期限切れの a / b は掃除され、c のみ残る
+            self.assertEqual(len(f._last), 1)
+
+    def test_max_entries_clears_all_when_no_expired_entries(self):
+        """上限到達時に全エントリが期限内なら全消去して新エントリを登録する"""
+        f = ThrottlingFilter(interval_seconds=10.0, max_entries=2)
+        with patch('utils.logging_utils.time.time') as mock_time:
+            mock_time.return_value = 100.0
+            r1 = logging.LogRecord('test', logging.INFO, __file__, 1, 'a', (), None)
+            r2 = logging.LogRecord('test', logging.INFO, __file__, 2, 'b', (), None)
+            self.assertTrue(f.filter(r1))
+            self.assertTrue(f.filter(r2))
+
+            # 全エントリが期限内のまま 3 件目を投入 → 全消去して登録
+            mock_time.return_value = 100.5
+            r3 = logging.LogRecord('test', logging.INFO, __file__, 3, 'c', (), None)
+            self.assertTrue(f.filter(r3))
+            self.assertEqual(len(f._last), 1)
+
 
 if __name__ == '__main__':
     unittest.main()

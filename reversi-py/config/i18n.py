@@ -24,22 +24,26 @@ class Translator:
     def load_translations(self):
         filename = f"main.{self.locale}.json"
         path = os.path.join(self.translations_dir, filename)
+        translations: Dict[str, Any] = {}
         if os.path.exists(path):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    translations = data.get(self.locale)
-                    if isinstance(translations, dict):
-                        self.translations = translations
-                    else:
-                        self.translations = {}
-            except (json.JSONDecodeError, IOError):
-                self.translations = {}
-        else:
-            # Fallback to ja if requested locale not found
-            if self.locale != "ja":
-                self.locale = "ja"
-                self.load_translations()
+                loaded = data.get(self.locale)
+                if isinstance(loaded, dict):
+                    translations = loaded
+            except (ValueError, OSError):
+                # ValueError は JSONDecodeError / UnicodeDecodeError を含む。
+                # 破損ファイルでもアプリを落とさず、空のまま下のフォールバックに進む
+                translations = {}
+
+        if not translations and self.locale != "ja":
+            # ファイル欠落・破損・キー欠落のいずれの場合も ja にフォールバック
+            self.locale = "ja"
+            self.load_translations()
+            return
+
+        self.translations = translations
 
     def translate(self, key: str, default: Optional[str] = None, **kwargs) -> str:
         keys = key.split('.')
@@ -57,7 +61,8 @@ class Translator:
         if kwargs:
             try:
                 return str(value).format(**kwargs)
-            except (KeyError, ValueError):
+            except (KeyError, ValueError, IndexError):
+                # IndexError: 翻訳文字列に位置プレースホルダ {} が混入した場合
                 return str(value)
         return str(value)
 

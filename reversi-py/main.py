@@ -1,4 +1,5 @@
 # main.py
+import copy
 import pygame
 import sys
 import logging
@@ -10,6 +11,9 @@ from gui import GameGUI
 from config.i18n import _t
 # For resolving agent display names in logs
 from config.agents_config import get_agent_definition
+
+# AI が手を返せなかった場合（API 障害など）に再試行するまでの待機時間（ミリ秒）
+AI_RETRY_DELAY_MS = 1000
 
 class App:
     """リバーシゲームアプリケーション。メインループとゲーム制御を担当。
@@ -62,6 +66,8 @@ class App:
         self.ai_queue: queue.Queue = queue.Queue()
         self.is_ai_thinking = False
         self._ai_generation: int = 0
+        # AI が手を返せなかった場合の再試行抑制（この時刻まで再起動しない）
+        self._ai_retry_not_before: int = 0
 
     def run(self):
         """
@@ -108,14 +114,15 @@ class App:
             tuple[int, int] | None: 左クリックがあった場合はその座標、なければ None。
         """
         mouse_click_pos = None
+        # 同一フレームに QUIT とクリックが混在しても取りこぼさないよう、
+        # 途中で return せずキュー内の全イベントを処理する
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                # 左クリック (ボタン番号 1) のみ処理
-                if event.button == 1:
+                # 左クリック (ボタン番号 1) のみ処理（最初のクリックを採用）
+                if event.button == 1 and mouse_click_pos is None:
                     mouse_click_pos = event.pos
-                    return mouse_click_pos
         return mouse_click_pos
 
     # === 状態管理 ===
@@ -138,10 +145,16 @@ class App:
         # --- AIの思考結果をチェック ---
         if self.is_ai_thinking:
             try:
-                move, gen = self.ai_queue.get_nowait()
-                self.is_ai_thinking = False
-                if gen == self._ai_generation:
-                    self._apply_ai_move(move)
+                while True:
+                    move, gen = self.ai_queue.get_nowait()
+                    if gen == self._ai_generation:
+                        # 現行世代の結果のみ適用。古い世代の結果で
+                        # is_ai_thinking を解除すると同一世代のスレッドが
+                        # 二重起動するため、世代一致時だけ解除する
+                        self.is_ai_thinking = False
+                        self._apply_ai_move(move)
+                        break
+                    # 古い世代の結果は破棄して次のエントリを確認
             except queue.Empty:
                 pass  # まだ考え中
 
@@ -177,12 +190,14 @@ class App:
         """ゲームオーバー時のクリック処理"""
         # --- 修正: gui の is_*_button_clicked を呼び出す ---
         if self.gui.is_restart_button_clicked(mouse_click_pos, game_over=True):
+            self._invalidate_ai_thinking() # 思考中の古い AI 結果を無効化
             self.game.reset()
             # 現在のプレイヤー設定を引き継いでリセット
             self.game.set_players(self.black_player_id, self.white_player_id)
             self.game_started = True # ゲーム開始状態にする
             logging.info("Game restarted.") # pragma: no cover
         elif self.gui.is_reset_button_clicked(mouse_click_pos, game_over=True):
+            self._invalidate_ai_thinking() # 思考中の古い AI 結果を無効化
             self.game.reset()
             # プレイヤー設定も初期化 (両者人間)
             self.black_player_id = 0
@@ -227,11 +242,13 @@ class App:
         """ゲーム中のクリック処理"""
         # --- 修正: gui の is_*_button_clicked を呼び出す ---
         if self.gui.is_restart_button_clicked(mouse_click_pos, game_over=False):
+            self._invalidate_ai_thinking() # 思考中の古い AI 結果を無効化
             self.game.reset()
             self.game.set_players(self.black_player_id, self.white_player_id) # 設定引き継ぎ
             self.game_started = True # ゲームは開始状態のまま
             logging.info("Game restarted.") # pragma: no cover
         elif self.gui.is_reset_button_clicked(mouse_click_pos, game_over=False):
+            self._invalidate_ai_thinking() # 思考中の古い AI 結果を無効化
             self.game.reset()
             self.black_player_id = 0 # 設定リセット
             self.white_player_id = 0
@@ -244,6 +261,7 @@ class App:
         elif self.gui.is_undo_button_clicked(mouse_click_pos, game_over=False):
             # 1手戻る
             if self.game.history_index >= 0:
+                self._invalidate_ai_thinking() # 思考中の古い AI 結果を無効化
                 current_index = self.game.history_index
                 self.game.replay(current_index - 1)
                 # AIが相手ならもう1手戻る (自分が打つ直前の状態に戻す)
@@ -307,21 +325,27 @@ class App:
             # 合法手がない場合はパス
             self._handle_pass(current_turn)
         elif current_agent is not None:
+            # AI 失敗直後の再試行抑制期間中は起動しない（リトライストーム防止）
+            if pygame.time.get_ticks() < self._ai_retry_not_before:
+                return
             # AIの手番の場合
             self.is_ai_thinking = True
             self.game.set_message(_t("game.thinking", default="Thinking..."))
+            # メインスレッドが Undo / Reset で盤面を書き換えても影響しないよう、
+            # ゲーム状態のスナップショットを渡す
+            game_snapshot = copy.deepcopy(self.game)
             self.ai_thread = threading.Thread(
                 target=self._run_ai_agent,
-                args=(current_agent, self._ai_generation),
+                args=(current_agent, game_snapshot, self._ai_generation),
             )
             self.ai_thread.daemon = True
             self.ai_thread.start()
         # else: 人間の手番の場合は何もしない (クリック待ち)
 
-    def _run_ai_agent(self, agent, generation: int) -> None:
+    def _run_ai_agent(self, agent, game_snapshot, generation: int) -> None:
         """AIエージェントを実行するスレッドワーカー"""
         try:
-            move = agent.play(self.game)
+            move = agent.play(game_snapshot)
             self.ai_queue.put((move, generation))
         except Exception as e:
             logging.error(f"Error in AI thread: {e}")
@@ -374,14 +398,20 @@ class App:
             if move is not None: # パス（None）以外で無効な手の場合
                 log_message = f"AI returned invalid move: {move}. Valid moves: {valid_moves}"
                 logging.warning(log_message) # pragma: no cover
+            # 合法手があるのに手を返せなかった場合は API 障害などの失敗。
+            # 毎フレーム再起動するリトライストームを防ぐため、一定時間待ってから再試行する
+            if valid_moves:
+                self._ai_retry_not_before = pygame.time.get_ticks() + AI_RETRY_DELAY_MS
+                self.game.set_message(
+                    _t("game.ai_error", default="AI エラー: 再試行します...")
+                )
 
     # === 描画 ===
 
     def _render(self):
         """画面を描画する"""
-        from config.theme import Color
-        # 背景色で画面をクリア
-        self.gui.screen.fill(Color.BACKGROUND)
+        # 背景クリアは draw_board (_draw_board_background) が全画面 fill で行うため、
+        # ここでの fill は二重描画になるので行わない
         # プレイヤー設定UIの上端Y座標を計算 (描画要素の位置決めに使う)
         player_settings_top = self.gui._calculate_player_settings_top()
 

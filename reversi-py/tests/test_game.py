@@ -171,27 +171,27 @@ class TestGame(unittest.TestCase):
         self.assertTrue(self.game.replay(0))
         self.assertEqual(self.game.history_index, 0)
         self.assertEqual(self.game.get_board(), history1[2]) # 1手目終了時の盤面
-        self.assertEqual(self.game.turn, history1[1]) # 1手目を打ったプレイヤーの手番 (-1)
+        self.assertEqual(self.game.turn, -history1[1]) # 次に打つのは 1 手目を打った側の相手 (1)
         self.assertFalse(self.game.game_over) # replay で game_over=False になること確認
 
         # 3手目 (最新) の状態に戻る
         self.assertTrue(self.game.replay(2))
         self.assertEqual(self.game.history_index, 2)
         self.assertEqual(self.game.get_board(), history3[2]) # 3手目終了時の盤面
-        self.assertEqual(self.game.turn, history3[1]) # 3手目を打ったプレイヤーの手番 (-1)
+        self.assertEqual(self.game.turn, -history3[1]) # 次に打つのは 3 手目を打った側の相手 (1)
 
         # --- history_top / history_last テスト (行 131-141 カバー) ---
         # 履歴の最初に移動
         self.assertTrue(self.game.history_top())
         self.assertEqual(self.game.history_index, 0)
         self.assertEqual(self.game.get_board(), history1[2])
-        self.assertEqual(self.game.turn, history1[1])
+        self.assertEqual(self.game.turn, -history1[1]) # 次に打つ側の手番
 
         # 履歴の最後に移動
         self.assertTrue(self.game.history_last())
         self.assertEqual(self.game.history_index, 2)
         self.assertEqual(self.game.get_board(), history3[2])
-        self.assertEqual(self.game.turn, history3[1])
+        self.assertEqual(self.game.turn, -history3[1]) # 次に打つ側の手番
 
         # --- get_current_history テスト (行 145-147 カバー) ---
         self.game.replay(1) # 2手目の状態へ
@@ -203,7 +203,8 @@ class TestGame(unittest.TestCase):
 
         # 範囲外の replay (行 127 カバー)
         self.assertTrue(self.game.replay(-1))
-        self.assertEqual(len(self.game.history), 0)
+        # replay(-1) は初期状態に戻すが、やり直し用に履歴は維持される
+        self.assertEqual(len(self.game.history), 3)
         self.assertEqual(self.game.history_index, -1)
         self.assertFalse(self.game.replay(3))
 

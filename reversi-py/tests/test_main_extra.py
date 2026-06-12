@@ -42,6 +42,23 @@ def make_app():
     return app, mock_game, mock_gui, patcher
 
 
+def test_handle_ai_or_pass_respects_retry_backoff():
+    """AI 失敗直後の再試行抑制期間中は AI スレッドを起動しない"""
+    app, mock_game, _, patcher = make_app()
+    try:
+        mock_game.agents = {-1: MagicMock(), 1: None}  # 黒は AI
+        mock_game.turn = -1
+        # 再試行抑制期間を未来に設定
+        app._ai_retry_not_before = pygame.time.get_ticks() + 60_000
+
+        app._handle_ai_or_pass()
+
+        assert app.is_ai_thinking is False
+        assert app.ai_thread is None
+    finally:
+        patcher.stop()
+
+
 def test_update_state_applies_ai_move_from_queue():
     app, mock_game, mock_gui, patcher = make_app()
     try:
@@ -98,7 +115,7 @@ def test_run_ai_agent_exception_handling():
             raise RuntimeError('boom')
         agent.play.side_effect = raise_err
 
-        app._run_ai_agent(agent, 0)
+        app._run_ai_agent(agent, app.game, 0)
         # queue should have a (None, generation) tuple
         val = app.ai_queue.get_nowait()
         assert val == (None, 0)
@@ -186,7 +203,9 @@ def test_stale_ai_result_is_discarded():
         with patch.object(app, "_apply_ai_move") as mock_apply:
             app._update_state(None)
         mock_apply.assert_not_called()
-        assert app.is_ai_thinking is False  # フラグはリセットされる
+        # 古い世代の結果ではフラグを解除しない（現行世代のスレッドが
+        # まだ実行中の可能性があり、解除すると二重起動するため）
+        assert app.is_ai_thinking is True
     finally:
         patcher.stop()
 
@@ -248,7 +267,7 @@ def test_run_ai_agent_puts_generation_in_queue():
         mock_agent = MagicMock()
         mock_agent.play.return_value = (2, 5)
 
-        app._run_ai_agent(mock_agent, 3)
+        app._run_ai_agent(mock_agent, app.game, 3)
 
         result = app.ai_queue.get_nowait()
         assert result == ((2, 5), 3)

@@ -58,7 +58,7 @@ class TestGameGUIWidth(unittest.TestCase):
                 dict(is_start_button=False, game_over=False, is_reset_button=False, is_quit_button=False),
                 dict(is_start_button=False, game_over=False, is_reset_button=True, is_quit_button=False),
                 dict(is_start_button=False, game_over=False, is_reset_button=False, is_quit_button=True),
-                dict(is_start_button=False, game_over=False, is_reset_button=False, is_quit_button=False, is_settings_button=False, is_undo_button=True),
+                dict(is_start_button=False, game_over=False, is_reset_button=False, is_quit_button=False, is_undo_button=True),
             ]:
                 rect = g._calculate_button_rect(**args)
                 self.assertGreaterEqual(rect.left, 0)

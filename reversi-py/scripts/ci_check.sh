@@ -47,14 +47,11 @@ fi
 echo
 
 # 4. カバレッジ チェック（GUI 除外）
-echo -e "${YELLOW}[4/6] カバレッジ チェック（GUI 除外）${NC}"
-echo "計測対象: GUI 以外は 100%"
+echo -e "${YELLOW}[4/6] カバレッジ チェック（GUI 除外: 99%+）${NC}"
 
-# カバレッジ計測（GUI を除外）
-COVERAGE_REPORT=$(uv run pytest --cov=. --cov-report=term-missing:skip-covered \
-    --ignore=tests/test_gui.py \
-    --ignore=tests/test_gui_regression.py \
-    --ignore=tests/test_gui_width.py \
+# カバレッジ計測（CI の Check coverage ステップと同一条件で計測する）
+COVERAGE_REPORT=$(uv run pytest tests/ --ignore=tests/integration \
+    --cov=. --cov-report=term-missing:skip-covered --cov-config=.coveragerc \
     -q 2>&1)
 
 echo "$COVERAGE_REPORT" | tail -30

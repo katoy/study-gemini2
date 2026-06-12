@@ -42,7 +42,6 @@ class TestApp(unittest.TestCase):
         self.mock_gui.is_restart_button_clicked = MagicMock(return_value=False)
         self.mock_gui.is_reset_button_clicked = MagicMock(return_value=False)
         self.mock_gui.is_quit_button_clicked = MagicMock(return_value=False)
-        self.mock_gui.is_settings_button_clicked = MagicMock(return_value=False)
         self.mock_gui.is_undo_button_clicked = MagicMock(return_value=False)
         self.mock_gui.get_clicked_radio_button = MagicMock(return_value=(None, None))
 
@@ -291,15 +290,6 @@ class TestApp(unittest.TestCase):
         self.app._handle_click_in_game((100, 100))
         self.assertFalse(self.app.running)
 
-    def test_handle_click_in_game_settings_button(self):
-        """ゲーム中の設定ボタンクリック"""
-        self.mock_gui.is_restart_button_clicked.return_value = False
-        self.mock_gui.is_reset_button_clicked.return_value = False
-        self.mock_gui.is_quit_button_clicked.return_value = False
-        self.mock_gui.is_settings_button_clicked.return_value = True
-        self.app._handle_click_in_game((100, 100))
-        # 現状、ログ出力のみ
-        
     def test_render_winner_white(self):
         """白の勝ちの描画テスト"""
         self.app.game_started = True

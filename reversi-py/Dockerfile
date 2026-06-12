@@ -1,5 +1,6 @@
 # ベースイメージとして Python slim (Debianベース) を使用
-FROM python:3.10-slim-bullseye
+# pyproject.toml の requires-python (>=3.14.2) と CI (3.14.2) に合わせる
+FROM python:3.14-slim
 
 # 環境変数を設定 (非対話モードでパッケージインストール)
 ENV DEBIAN_FRONTEND=noninteractive
