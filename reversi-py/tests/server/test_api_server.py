@@ -199,7 +199,7 @@ class TestApiServer(unittest.TestCase):
             "/play",
             json={"board": "not a list", "turn": 1},
         )
-        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_CONTENT)
         detail = response.json()["detail"]
         self.assertTrue(any("board" in err.get("loc", []) for err in detail))
 
@@ -209,7 +209,7 @@ class TestApiServer(unittest.TestCase):
             "/play",
             json={"board": [1, 2, 3], "turn": 1},
         )
-        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_CONTENT)
         detail = response.json()["detail"]
         self.assertTrue(any("board" in err.get("loc", []) for err in detail))
 
