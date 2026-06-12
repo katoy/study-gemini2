@@ -28,7 +28,8 @@ jobs:
 
       - name: Install Python dependencies (server)
         run: |
-          uv sync --all-extras || python -m pip install fastapi uvicorn pydantic
+          python -m pip install --upgrade pip
+          python -m pip install fastapi uvicorn pydantic
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
