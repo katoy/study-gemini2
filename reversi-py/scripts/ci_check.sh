@@ -16,6 +16,44 @@ NC='\033[0m' # No Color
 # チェック結果
 FAILED=0
 
+# 0. norman のインストール確認と実行（ローカルで自動インストールしてチェック）
+#   uv 環境で確認: uv run python -m pip show -f norman を使い、未インストール時は uv pip install norman を実行する。
+echo -e "${YELLOW}[0/??] norman: install & check (if available)${NC}"
+# norman がインストールされているか確認
+if uv run python -m pip show -f norman >/dev/null 2>&1; then
+    echo -e "${GREEN}norman is already installed${NC}"
+else
+    echo "norman not found; attempting to install via uv pip install norman..."
+    if uv pip install norman; then
+        echo -e "${GREEN}✅ norman installed${NC}"
+    else
+        echo -e "${YELLOW}⚠️ norman install failed; continuing without norman check${NC}"
+    fi
+fi
+
+# norman モジュール / CLI が動くか試す（ある場合はチェックを実行し、失敗時は CI 失敗にする）
+if uv run python -m norman --version >/dev/null 2>&1; then
+    echo "Running norman check (python -m norman)..."
+    if uv run python -m norman check .; then
+        echo -e "${GREEN}✅ norman: check passed${NC}"
+    else
+        echo -e "${RED}❌ norman: check failed${NC}"
+        FAILED=1
+    fi
+elif uv run norman --version >/dev/null 2>&1; then
+    echo "Running norman check (norman CLI)..."
+    if uv run norman check .; then
+        echo -e "${GREEN}✅ norman: check passed${NC}"
+    else
+        echo -e "${RED}❌ norman: check failed${NC}"
+        FAILED=1
+    fi
+else
+    echo -e "${YELLOW}⚠️ norman command or module not found; skipping norman check (local pass)${NC}"
+fi
+
+echo
+
 # 1. Lint チェック (ruff)
 echo -e "${YELLOW}[1/6] Lint チェック (ruff)${NC}"
 if uv run ruff check . --select=E,W,F --ignore=E501 --exclude=tests; then
