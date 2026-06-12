@@ -78,6 +78,12 @@
 - 不正な `agent_type` で 400 を返すことを確認する。
 - `board` / `turn` の既存の異常系が壊れていないことを確認する。
 
+### CI / Postman
+- GitHub Actions に Postman/Newman を追加済み（`postman-newman.yml`）。
+- 追加: npm / pip のキャッシュ（actions/cache）を導入してビルド時間を短縮。
+- 追加: Newman の JUnit レポートを `tests/postman/newman-results.xml` に出力し、CI 実行時にアーティファクトとして保存する。
+- ローカル実行: `cd reversi-py && API_HOST=127.0.0.1 API_PORT=5001 python -m uvicorn server.api_server:app --host 127.0.0.1 --port 5001` でサーバ起動後、`cd reversi-py/tests/postman && npx newman run reversi-api.postman_collection.fixed.json -e reversi-api.postman_environment.json --timeout-request 20000 --reporters cli,junit --reporter-junit-export newman-results.xml` を実行して確認可能。
+
 ### `ApiAgent` tests
 - `requests.post` の JSON body に `agent_type` が含まれることを確認する。
 - `agent_type` が設定どおりに送信されることを確認する。
