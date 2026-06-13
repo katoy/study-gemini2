@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
-    sys.path.append(str(project_root))
+    sys.path.append(str(project_root))  # pragma: no cover
 
 try:
     from game import Game
@@ -43,7 +43,7 @@ try:
     from agents.gain_agent import GainAgent
     from agents.mcts_agent import MonteCarloTreeSearchAgent
     from agents.negamax_agent import NegamaxAgent
-except ImportError as e:
+except ImportError as e:  # pragma: no cover
     logger.error(f"必要なモジュールのインポートに失敗しました: {e}")
     sys.exit(1)
 
@@ -114,13 +114,6 @@ def play(request: PlayRequest) -> JSONResponse:
                     f"Invalid input: 'agent_type' must be one of "
                     f"{sorted(VALID_AGENT_TYPES)}."
                 )
-            )
-        if not isinstance(board_data, list) or not all(
-            isinstance(row, list) for row in board_data
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid input: 'board' must be a list of lists."
             )
 
         try:

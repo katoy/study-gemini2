@@ -233,6 +233,29 @@ class TestEndgameAndPass:
                                endgame=False, passed=False)
         assert value == 10000.0   # 黒視点: 石差 +1 × 10000
 
+    def test_play_breaks_when_depth_reaches_empties(self) -> None:
+        """depth が空きマス数に達したら完全読み切り済みとして break する（行 354 カバー）。
+
+        board: 4x4、空きマス 2 つ（(2,2) と (3,2)）、黒 (-1) に合法手が 2 つ。
+        depth_cap = min(max_depth=10, empties=2) = 2。
+        depth=1 で完了 → 1 >= 2? No → depth=2 で完了 → 2 >= 2? Yes → break (行 354)。
+        """
+        board = [
+            [-1,  1,  1, -1],
+            [-1,  1,  1, -1],
+            [-1,  1,  0, -1],
+            [-1, -1,  0, -1],
+        ]
+        game = _make_game(board, turn=-1)
+        # 合法手が 2 つ以上あること（シングルショートカットを避ける）
+        valid = game.board.get_valid_moves(-1)
+        assert len(valid) >= 2, f"合法手が {len(valid)} 個しかない"
+        # 空きマス数が 2 であること
+        assert sum(row.count(0) for row in board) == 2
+        agent = NegamaxAgent(time_limit_ms=10**9, max_depth=10)
+        move = agent.play(game)
+        assert move in valid
+
 
 class TestTimeManagement:
     """時間管理と _SearchTimeout のテスト。"""

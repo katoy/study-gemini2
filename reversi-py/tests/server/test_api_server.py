@@ -118,6 +118,24 @@ class TestApiServer(unittest.TestCase):
             agent = _select_agent("negamax")
         self.assertEqual(agent.time_limit_ms, 123)
 
+    def test_select_agent_unknown_type_returns_none(self) -> None:
+        """VALID_AGENT_TYPES 外の文字列を渡すと None を返す（行 87 カバー）。"""
+        from server.api_server import _select_agent
+        result = _select_agent("bogus_agent_type_xyz")
+        self.assertIsNone(result)
+
+    def test_outer_exception_handler_returns_500(self) -> None:
+        """PlayRequest.model_dump() が RuntimeError を投げると外側 catch-all が 500 を返す（行 176-180 カバー）。"""
+        from server.api_server import PlayRequest
+        with patch.object(PlayRequest, "model_dump",
+                          side_effect=RuntimeError("unexpected top-level error")):
+            response = self.client.post(
+                "/play",
+                json={"board": VALID_BOARD, "turn": 1},
+            )
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.json()["detail"], "Internal server error.")
+
     def test_play_invalid_agent_type(self):
         payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "unknown"}
         response = self.client.post("/play", json=payload)
