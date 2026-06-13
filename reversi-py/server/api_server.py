@@ -42,13 +42,14 @@ try:
     from agents.random_agent import RandomAgent
     from agents.gain_agent import GainAgent
     from agents.mcts_agent import MonteCarloTreeSearchAgent
+    from agents.negamax_agent import NegamaxAgent
 except ImportError as e:
     logger.error(f"必要なモジュールのインポートに失敗しました: {e}")
     sys.exit(1)
 
 app = FastAPI()
 
-VALID_AGENT_TYPES = frozenset({"first", "random", "gain", "mcts"})
+VALID_AGENT_TYPES = frozenset({"first", "random", "gain", "mcts", "negamax"})
 
 # 盤面サイズの許容範囲。巨大盤面による CPU/メモリ枯渇（DoS）を防ぐ
 MIN_BOARD_SIZE = 4
@@ -79,6 +80,10 @@ def _select_agent(agent_type: str):
         return GainAgent()
     if agent_type == "mcts":
         return MonteCarloTreeSearchAgent()
+    if agent_type == "negamax":
+        return NegamaxAgent(
+            time_limit_ms=int(os.getenv("NEGAMAX_TIME_LIMIT_MS", "3000"))
+        )
     return None
 
 
