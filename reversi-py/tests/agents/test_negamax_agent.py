@@ -8,19 +8,19 @@ class TestBuildWeightTable:
     """位置重みテーブル生成のテスト。"""
 
     @pytest.mark.parametrize("n", [4, 6, 8, 16])
-    def test_table_size(self, n):
+    def test_table_size(self, n: int) -> None:
         table = _build_weight_table(n)
         assert len(table) == n
         assert all(len(row) == n for row in table)
 
     @pytest.mark.parametrize("n", [4, 6, 8, 16])
-    def test_rotational_symmetry(self, n):
+    def test_rotational_symmetry(self, n: int) -> None:
         """テーブルは 90 度回転で不変（4 回回転対称）。"""
         table = _build_weight_table(n)
         rotated = tuple(zip(*table[::-1]))
         assert rotated == table
 
-    def test_role_weights_8x8(self):
+    def test_role_weights_8x8(self) -> None:
         table = _build_weight_table(8)
         assert table[0][0] == 100      # 角
         assert table[1][1] == -50      # X マス
@@ -29,9 +29,9 @@ class TestBuildWeightTable:
         assert table[1][3] == -2       # 辺の 1 つ内側
         assert table[3][3] == 0        # 中央
 
-    def test_corner_beats_edge_beats_x(self):
+    def test_corner_beats_edge_beats_x(self) -> None:
         table = _build_weight_table(8)
         assert table[0][0] > table[0][3] > 0 > table[1][1]
 
-    def test_cache_returns_same_object(self):
+    def test_cache_returns_same_object(self) -> None:
         assert _build_weight_table(8) is _build_weight_table(8)
