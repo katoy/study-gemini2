@@ -1,7 +1,13 @@
 """NegamaxAgent の単体テスト。"""
 import pytest
 
-from agents.negamax_agent import _build_weight_table
+from agents.negamax_agent import (
+    _apply,
+    _build_weight_table,
+    _flips_for_move,
+    _undo,
+    _valid_moves,
+)
 
 
 class TestBuildWeightTable:
@@ -35,3 +41,44 @@ class TestBuildWeightTable:
 
     def test_cache_returns_same_object(self) -> None:
         assert _build_weight_table(8) is _build_weight_table(8)
+
+
+def _initial_board(n: int = 8) -> list:
+    """初期配置の盤面を作る（board.py の Board.__init__ と同一配置）。"""
+    board = [[0] * n for _ in range(n)]
+    h = n // 2
+    board[h - 1][h - 1] = board[h][h] = 1       # 白
+    board[h - 1][h] = board[h][h - 1] = -1      # 黒
+    return board
+
+
+class TestSearchPrimitives:
+    """合法手生成と make/unmake のテスト。"""
+
+    def test_valid_moves_matches_board_class(self) -> None:
+        """モジュール内の合法手生成が Board.get_valid_moves と一致する。"""
+        from board import Board
+        b = Board(board_size=8)
+        board = _initial_board(8)
+        assert _valid_moves(board, 8, -1) == b.get_valid_moves(-1)
+        assert _valid_moves(board, 8, 1) == b.get_valid_moves(1)
+
+    def test_flips_for_move_initial_position(self) -> None:
+        board = _initial_board(8)
+        # 黒 (turn=-1) が (2, 3) に打つと (3, 3) の白が返る
+        assert _flips_for_move(board, 8, 2, 3, -1) == [(3, 3)]
+
+    def test_flips_for_occupied_cell_is_empty(self) -> None:
+        board = _initial_board(8)
+        assert _flips_for_move(board, 8, 3, 3, -1) == []
+
+    def test_apply_undo_roundtrip(self) -> None:
+        """_apply して _undo すると盤面が完全に元へ戻る。"""
+        board = _initial_board(8)
+        snapshot = [row[:] for row in board]
+        flips = _flips_for_move(board, 8, 2, 3, -1)
+        _apply(board, (2, 3), flips, -1)
+        assert board[2][3] == -1
+        assert board[3][3] == -1  # 反転済み
+        _undo(board, (2, 3), flips, -1)
+        assert board == snapshot
