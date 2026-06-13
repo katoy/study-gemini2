@@ -116,6 +116,19 @@ def _undo(
         board[r][c] = -turn
 
 
+# 終局時の確定スコアの倍率。ヒューリスティック値と桁で確実に区別する
+_TERMINAL_SCALE = 10000
+
+# ゲームフェーズ係数: (位置重み, mobility, 角, 確定石, 石差)
+_PHASE_COEFFS = (
+    (1.0, 8.0, 25.0, 10.0, 0.0),   # 序盤 (fill < 0.33)
+    (1.0, 6.0, 30.0, 15.0, 0.0),   # 中盤 (0.33 <= fill <= 0.70)
+    (0.3, 2.0, 30.0, 20.0, 5.0),   # 終盤 (fill > 0.70)
+)
+_EARLY_FILL = 0.33
+_MID_FILL = 0.70
+
+
 @lru_cache(maxsize=None)
 def _build_weight_table(n: int) -> Tuple[Tuple[int, ...], ...]:
     """サイズ n の位置重みテーブルをマスの役割から生成する。
@@ -148,3 +161,114 @@ def _build_weight_table(n: int) -> Tuple[Tuple[int, ...], ...]:
                 w = _WEIGHT_CENTER
             table[r][c] = w
     return tuple(tuple(row) for row in table)
+
+
+def _phase_coeffs(board: List[List[int]], n: int) -> Tuple[float, ...]:
+    """盤面の埋まり具合からゲームフェーズの係数組を返す。
+
+    Args:
+        board: 盤面（0=空, 1=白, -1=黒）。
+        n: 盤面サイズ。
+
+    Returns:
+        (位置重み係数, mobility 係数, 角係数, 確定石係数, 石差係数) のタプル。
+    """
+    stones = sum(1 for row in board for v in row if v != 0)
+    fill = stones / (n * n)
+    if fill < _EARLY_FILL:
+        return _PHASE_COEFFS[0]
+    if fill <= _MID_FILL:
+        return _PHASE_COEFFS[1]
+    return _PHASE_COEFFS[2]
+
+
+def _stable_edge_count(board: List[List[int]], n: int, color: int) -> int:
+    """各角から辺に沿って連続する color の石を数える（簡易確定石カウント）。
+
+    Args:
+        board: 盤面。
+        n: 盤面サイズ。
+        color: カウント対象の色（1=白, -1=黒）。
+
+    Returns:
+        color の石で確定している数。
+    """
+    stable: set = set()
+    corners = (
+        (0, 0, (0, 1), (1, 0)),
+        (0, n - 1, (0, -1), (1, 0)),
+        (n - 1, 0, (0, 1), (-1, 0)),
+        (n - 1, n - 1, (0, -1), (-1, 0)),
+    )
+    for r0, c0, d1, d2 in corners:
+        if board[r0][c0] != color:
+            continue
+        for dr, dc in (d1, d2):
+            r, c = r0, c0
+            while 0 <= r < n and 0 <= c < n and board[r][c] == color:
+                stable.add((r, c))
+                r += dr
+                c += dc
+    return len(stable)
+
+
+def _disc_diff(board: List[List[int]], turn: int) -> int:
+    """手番側から見た石差。
+
+    Args:
+        board: 盤面。
+        turn: 手番（1=白, -1=黒）。
+
+    Returns:
+        手番側の石数 - 相手側の石数。
+    """
+    return turn * sum(v for row in board for v in row)
+
+
+def _terminal_score(board: List[List[int]], turn: int) -> float:
+    """終局局面の確定スコア（手番側視点）。
+
+    Args:
+        board: 盤面。
+        turn: 手番（1=白, -1=黒）。
+
+    Returns:
+        手番側視点の終局スコア。
+    """
+    return float(_disc_diff(board, turn) * _TERMINAL_SCALE)
+
+
+def _evaluate(board: List[List[int]], n: int, turn: int) -> float:
+    """手番側から見たヒューリスティック評価値。
+
+    位置重み、着手可能数、角占有、確定石、石差の 5 要素を
+    ゲームフェーズに応じた係数で合成する。
+
+    Args:
+        board: 盤面。
+        n: 盤面サイズ。
+        turn: 手番（1=白, -1=黒）。
+
+    Returns:
+        評価値（正=有利, 負=不利）。
+    """
+    w_pos, w_mob, w_corner, w_stable, w_disc = _phase_coeffs(board, n)
+    weights = _build_weight_table(n)
+    pos = 0
+    disc = 0
+    for r in range(n):
+        for c in range(n):
+            v = board[r][c]
+            if v != 0:
+                pos += v * weights[r][c]
+                disc += v
+    mobility = len(_valid_moves(board, n, turn)) - len(_valid_moves(board, n, -turn))
+    corners = sum(board[r][c] for r in (0, n - 1) for c in (0, n - 1))
+    stable = _stable_edge_count(board, n, turn) - _stable_edge_count(board, n, -turn)
+    return (
+        w_pos * pos * turn
+        + w_mob * mobility
+        + w_corner * corners * turn
+        + w_stable * stable
+        + w_disc * disc * turn
+    )

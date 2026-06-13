@@ -52,6 +52,66 @@ def _initial_board(n: int = 8) -> list:
     return board
 
 
+from agents.negamax_agent import (
+    _PHASE_COEFFS,
+    _disc_diff,
+    _evaluate,
+    _phase_coeffs,
+    _stable_edge_count,
+    _terminal_score,
+)
+
+
+class TestEvaluation:
+    """評価関数のテスト。"""
+
+    def test_phase_coeffs_three_stages(self) -> None:
+        n = 8
+        early = _initial_board(n)                      # 4 石 → fill 0.0625
+        mid = [[-1] * n for _ in range(4)] + [[0] * n for _ in range(4)]  # fill 0.5
+        late = [[-1] * n for _ in range(7)] + [[0] * n]                   # fill 0.875
+        assert _phase_coeffs(early, n) == _PHASE_COEFFS[0]
+        assert _phase_coeffs(mid, n) == _PHASE_COEFFS[1]
+        assert _phase_coeffs(late, n) == _PHASE_COEFFS[2]
+
+    def test_stable_edge_count(self) -> None:
+        board = [[0] * 8 for _ in range(8)]
+        board[0][0] = board[0][1] = board[0][2] = -1   # 上辺の角から 3 連
+        board[1][0] = -1                               # 左辺の角から 2 連目
+        assert _stable_edge_count(board, 8, -1) == 4
+        assert _stable_edge_count(board, 8, 1) == 0
+
+    def test_stable_edge_count_no_corner_means_zero(self) -> None:
+        board = [[0] * 8 for _ in range(8)]
+        board[0][3] = -1   # 角に接続しない辺石は数えない
+        assert _stable_edge_count(board, 8, -1) == 0
+
+    def test_disc_diff(self) -> None:
+        board = _initial_board(8)
+        board[0][0] = -1
+        assert _disc_diff(board, -1) == 1
+        assert _disc_diff(board, 1) == -1
+
+    def test_terminal_score_scale(self) -> None:
+        board = _initial_board(8)
+        board[0][0] = -1
+        assert _terminal_score(board, -1) == 10000
+        assert _terminal_score(board, 1) == -10000
+
+    def test_evaluate_is_symmetric(self) -> None:
+        """同一局面で手番を入れ替えると符号が反転する。"""
+        board = _initial_board(8)
+        board[2][3] = -1
+        assert _evaluate(board, 8, -1) == pytest.approx(-_evaluate(board, 8, 1))
+
+    def test_evaluate_prefers_corner(self) -> None:
+        """角を持つ側の評価が高い。"""
+        board = _initial_board(8)
+        with_corner = [row[:] for row in board]
+        with_corner[0][0] = -1
+        assert _evaluate(with_corner, 8, -1) > _evaluate(board, 8, -1)
+
+
 class TestSearchPrimitives:
     """合法手生成と make/unmake のテスト。"""
 
