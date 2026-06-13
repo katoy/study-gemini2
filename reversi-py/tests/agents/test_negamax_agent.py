@@ -112,6 +112,158 @@ class TestEvaluation:
         assert _evaluate(with_corner, 8, -1) > _evaluate(board, 8, -1)
 
 
+from unittest.mock import Mock
+
+from agents.negamax_agent import NegamaxAgent, _SearchTimeout
+
+
+def _make_game(board: list, turn: int) -> Mock:
+    """探索に必要な最小限の Game モックを作る。"""
+    from board import Board
+    game = Mock()
+    n = len(board)
+    b = Board(board_size=n)
+    b.board = [row[:] for row in board]
+    game.board = b
+    game.turn = turn
+    game.get_board.return_value = [row[:] for row in board]
+    game.get_valid_moves.return_value = b.get_valid_moves(turn)
+    game.get_board_size.return_value = n
+    return game
+
+
+def _deterministic_agent(depth: int = 3) -> NegamaxAgent:
+    """時間制限を実質無効化した決定論的エージェント。"""
+    return NegamaxAgent(time_limit_ms=10**9, max_depth=depth)
+
+
+class TestNegamaxAgentPlay:
+    """NegamaxAgent.play の振る舞いテスト。"""
+
+    def test_no_valid_moves_returns_none(self) -> None:
+        board = [[-1] * 8 for _ in range(8)]   # 黒で埋め尽くし → 合法手なし
+        game = _make_game(board, turn=1)
+        assert _deterministic_agent().play(game) is None
+
+    def test_single_move_returned_without_search(self) -> None:
+        game = _make_game(_initial_board(8), turn=-1)
+        game.get_valid_moves.return_value = [(2, 3)]
+        assert _deterministic_agent().play(game) == (2, 3)
+
+    def test_returns_legal_move_from_initial_position(self) -> None:
+        game = _make_game(_initial_board(8), turn=-1)
+        move = _deterministic_agent().play(game)
+        assert move in game.board.get_valid_moves(-1)
+
+    def test_takes_corner_when_available(self) -> None:
+        """角が合法手なら角を選ぶ（深さ 2 で十分）。"""
+        board = [[0] * 8 for _ in range(8)]
+        board[0][1] = 1     # C マスに白
+        board[0][2] = -1    # 黒
+        board[4][4] = board[4][5] = 1
+        board[5][4] = -1
+        game = _make_game(board, turn=-1)
+        assert (0, 0) in game.board.get_valid_moves(-1)
+        move = _deterministic_agent(depth=2).play(game)
+        assert move == (0, 0)
+
+    def test_returns_legal_move_with_tiny_time_limit(self) -> None:
+        """time_limit_ms=1 でも depth 1 の結果で合法手を返す。"""
+        agent = NegamaxAgent(time_limit_ms=1)
+        game = _make_game(_initial_board(8), turn=-1)
+        move = agent.play(game)
+        assert move in game.board.get_valid_moves(-1)
+
+    def test_deterministic_same_input_same_output(self) -> None:
+        game1 = _make_game(_initial_board(8), turn=-1)
+        game2 = _make_game(_initial_board(8), turn=-1)
+        assert _deterministic_agent().play(game1) == _deterministic_agent().play(game2)
+
+
+class TestEndgameAndPass:
+    """終盤読み切りとパス処理のテスト。"""
+
+    def test_endgame_solver_picks_winning_move(self) -> None:
+        """4x4 の残り 1 マスを埋める唯一の合法手を完全読みで選ぶ。"""
+        board = [
+            [-1, -1, -1, -1],
+            [-1, 1, 1, -1],
+            [-1, 1, 0, -1],
+            [-1, -1, -1, -1],
+        ]
+        # 黒 (turn=-1) は (2, 2) のみ合法手（上方向で (1, 2) の白を挟む）
+        game = _make_game(board, turn=-1)
+        assert game.board.get_valid_moves(-1) == [(2, 2)]
+        agent = NegamaxAgent(time_limit_ms=10**9, endgame_empties=12)
+        # 合法手 1 つのショートカットを通さず探索経路を踏むため直接呼ぶ
+        n = 4
+        inner = [row[:] for row in board]
+        agent._deadline = float("inf")
+        agent._node_count = 0
+        assert agent._search_root(inner, n, -1, depth=1, endgame=True) == (2, 2)
+
+    def test_negamax_pass_switches_turn_without_consuming_depth(self) -> None:
+        """手番側に合法手がなく相手にある局面では手番交代して探索を続ける。
+
+        パス処理は深さを消費しない（深さ 2 で黒パス → 白着手 → 黒評価値が返る）。
+        最終的にダブルパスになる場合は終局スコアが返される。
+        """
+        board = [[0] * 4 for _ in range(4)]
+        board[0][0] = 1
+        board[0][1] = -1
+        # 黒に合法手なし、白に (0, 2) の合法手あり
+        # 白が着手後、黒にも合法手がない（ダブルパス）→ 終局スコアが返される
+        agent = _deterministic_agent()
+        agent._deadline = float("inf")
+        agent._node_count = 0
+        value = agent._negamax(board, 4, -1, 2, float("-inf"), float("inf"),
+                               endgame=False, passed=False)
+        # ダブルパス → 終局スコア（10000 倍）が返される
+        # 黒視点で石差 -3（白 3 石、黒 0 石） → -30000
+        assert value == -30000.0
+
+    def test_negamax_double_pass_returns_terminal_score(self) -> None:
+        """双方に合法手がない局面は終局として確定スコアを返す。"""
+        board = [[0] * 4 for _ in range(4)]
+        board[0][0] = -1   # 黒石 1 つのみ → どちらも着手不能
+        agent = _deterministic_agent()
+        agent._deadline = float("inf")
+        agent._node_count = 0
+        value = agent._negamax(board, 4, -1, 3, float("-inf"), float("inf"),
+                               endgame=False, passed=False)
+        assert value == 10000.0   # 黒視点: 石差 +1 × 10000
+
+
+class TestTimeManagement:
+    """時間管理と _SearchTimeout のテスト。"""
+
+    def test_negamax_raises_timeout_when_deadline_passed(self) -> None:
+        agent = NegamaxAgent(time_limit_ms=10**9)
+        agent._deadline = 0.0           # 過去のデッドライン
+        agent._node_count = 511         # 次のノードで時刻チェックが走る
+        board = _initial_board(8)
+        with pytest.raises(_SearchTimeout):
+            agent._negamax(board, 8, -1, 3, float("-inf"), float("inf"),
+                           endgame=False, passed=False)
+
+    def test_play_survives_mid_search_timeout(self, monkeypatch) -> None:
+        """深さ 2 以降で時間切れになっても depth 1 の手を返す。"""
+        agent = NegamaxAgent(time_limit_ms=10**9, max_depth=10)
+        game = _make_game(_initial_board(8), turn=-1)
+        original = agent._search_root
+        calls = {"n": 0}
+
+        def flaky(*args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] >= 2:
+                raise _SearchTimeout()
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(agent, "_search_root", flaky)
+        move = agent.play(game)
+        assert move in game.board.get_valid_moves(-1)
+
+
 class TestSearchPrimitives:
     """合法手生成と make/unmake のテスト。"""
 
