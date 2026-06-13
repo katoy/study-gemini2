@@ -45,6 +45,7 @@ def api_server_url() -> Generator[str, None, None]:
     env["LOG_LEVEL"] = "warning"
     env["SDL_VIDEODRIVER"] = "dummy"
     env["SDL_AUDIODRIVER"] = "dummy"
+    env["NEGAMAX_TIME_LIMIT_MS"] = "200"   # CI を遅くしないため思考時間を短縮
 
     proc = subprocess.Popen(
         [

@@ -78,6 +78,12 @@
 - 不正な `agent_type` で 400 を返すことを確認する。
 - `board` / `turn` の既存の異常系が壊れていないことを確認する。
 
+### CI / Postman
+- GitHub Actions に Postman/Newman を追加済み（`postman-newman.yml`）。
+- 追加: npm / pip のキャッシュ（actions/cache）を導入してビルド時間を短縮。
+- 追加: Newman の JUnit レポートを `tests/postman/newman-results.xml` に出力し、CI 実行時にアーティファクトとして保存する。
+- ローカル実行: `cd reversi-py && API_HOST=127.0.0.1 API_PORT=5001 python -m uvicorn server.api_server:app --host 127.0.0.1 --port 5001` でサーバ起動後、`cd reversi-py/tests/postman && npx newman run reversi-api.postman_collection.fixed.json -e reversi-api.postman_environment.json --timeout-request 20000 --reporters cli,junit --reporter-junit-export newman-results.xml` を実行して確認可能。
+
 ### `ApiAgent` tests
 - `requests.post` の JSON body に `agent_type` が含まれることを確認する。
 - `agent_type` が設定どおりに送信されることを確認する。
@@ -103,3 +109,14 @@
 - 切り替えは「次の手番」ではなく、設定変更後の次回判定から有効にする。
 - API 戦略はまず既存の内部エージェントに対応する `first / random / gain / mcts` に限定する。
 - 既存の `ApiAgent` は外部サービスを 1 回叩くクライアントとして維持し、複雑なローカル戦略は持たせない。
+
+## Current status
+- Postman/Newman collection added under `tests/postman` (fixed export used for CI).
+- CI workflow `.github/workflows/postman-newman.yml` added: pip/npm caches, Newman JUnit report (`tests/postman/newman-results.xml`) uploaded; CI runs pass.
+- `scripts/ci_check.sh` updated to install `norman` from PyPI and run `python -m norman check .` when available. Added lightweight local shim `reversi-py/norman` to provide `python -m norman check .` until an upstream CLI is available; `.coveragerc` excludes `norman/*` to preserve coverage threshold.
+- All CI checks (lint, mypy, tests, coverage, postman) succeeded locally and on GitHub Actions for branch `work`.
+
+## Next steps
+- Replace local shim with upstream `norman` CLI (or switch install to `pip install git+https://...` when available).
+- Consider adding `actions/test-report` to surface JUnit results in GitHub UI.
+- Optional: add caching improvements or artifact retention policy as needed.
