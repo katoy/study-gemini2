@@ -98,6 +98,26 @@ class TestApiServer(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["move"], [2, 3])
 
+    def test_play_agent_type_negamax(self) -> None:
+        payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "negamax"}
+        with patch("server.api_server.NegamaxAgent") as MockNegamax:
+            MockNegamax.return_value.play.return_value = (2, 3)
+            response = self.client.post("/play", json=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["move"], [2, 3])
+
+    def test_negamax_time_limit_env_var(self) -> None:
+        """NEGAMAX_TIME_LIMIT_MS 環境変数が反映される。"""
+        import os
+
+        from unittest.mock import patch as mock_patch
+
+        with mock_patch.dict(os.environ, {"NEGAMAX_TIME_LIMIT_MS": "123"}):
+            from server.api_server import _select_agent
+
+            agent = _select_agent("negamax")
+        self.assertEqual(agent.time_limit_ms, 123)
+
     def test_play_invalid_agent_type(self):
         payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "unknown"}
         response = self.client.post("/play", json=payload)

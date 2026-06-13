@@ -7,10 +7,10 @@
 Python と Pygame で作られたリバーシゲームです。
 
 - 人間 vs 人間、人間 vs AI、AI vs AI に対応
-- 4 種類の AI 戦略（First / Random / Gain / MCTS）を API サーバー経由で提供
+- 5 種類の AI 戦略（First / Random / Gain / MCTS / Negamax）を API サーバー経由で提供
 - 「待った」（Undo）、リスタート、リセット、パス処理に対応
 - 日本語 UI とフォント設定に対応
-- **包括的なテスト体制**: 244 テスト（アプリ + サーバー + 統合）、カバレッジ 99%
+- **包括的なテスト体制**: 279 テスト（アプリ + サーバー + 統合）、カバレッジ 99%
 - **GitHub Actions CI**: Lint / 型チェック / テスト / カバレッジ / サーバーテスト / 統合テスト
 
 ## AI エージェント
@@ -22,6 +22,7 @@ Python と Pygame で作られたリバーシゲームです。
 - `API (Random)`: 合法手からランダムに選ぶ
 - `API (Gain)`: 獲得石数が最大の手を選ぶ
 - `API (MCTS)`: モンテカルロ木探索で手を選ぶ
+- `API (Negamax)`: アルファベータ枝刈り + 反復深化 + 終盤完全読み切り。位置重み・着手可能数・確定石で評価
 
 `API (...)` エージェントはいずれも、`server/api_server.py` で起動する API サーバーから手を取得します。
 AI を使う場合は API サーバーの起動が必要です（`./scripts/start_with_server.sh` を推奨）。
@@ -61,6 +62,7 @@ flowchart LR
         Random["RandomAgent"]
         Gain["GainAgent"]
         MCTS["MonteCarloTreeSearchAgent"]
+        Negamax["NegamaxAgent"]
     end
 
     User --> Main
@@ -86,6 +88,7 @@ flowchart LR
     APIServer --> Random
     APIServer --> Gain
     APIServer --> MCTS
+    APIServer --> Negamax
     APIServer --> Board
 ```
 
@@ -178,7 +181,7 @@ python main.py
 
 #### 方法 2: API サーバーとアプリを一緒に起動（AI エージェント使用）
 
-AI エージェント（`API (First)` / `API (Random)` / `API (Gain)` / `API (MCTS)`）を使う場合、API サーバーとアプリを起動します。
+AI エージェント（`API (First)` / `API (Random)` / `API (Gain)` / `API (MCTS)` / `API (Negamax)`）を使う場合、API サーバーとアプリを起動します。
 
 **スクリプトを使う場合（推奨）:**
 
@@ -384,7 +387,7 @@ API ドキュメント:
 
 - `board`: 正方形の 2 次元配列（各セルは -1: 黒、0: 空、1: 白）。サイズは 4〜16（DoS 防止の上限あり）
 - `turn`: 手番（-1: 黒、1: 白）
-- `agent_type`: `first` / `random` / `gain` / `mcts` のいずれか（省略時は `random`）
+- `agent_type`: `first` / `random` / `gain` / `mcts` / `negamax` のいずれか（省略時は `random`）
 
 レスポンスは `{"move": [row, col]}`、合法手がない場合は `{"move": null}` です。
 
@@ -401,7 +404,7 @@ API ドキュメント:
 
 4. プレイヤー設定で以下を選べます
    - `人間`: 人間が手を指します
-   - `API (First)`, `API (Random)`, `API (Gain)`, `API (MCTS)`: API サーバー経由の AI（サーバー起動が必要）
+   - `API (First)`, `API (Random)`, `API (Gain)`, `API (MCTS)`, `API (Negamax)`: API サーバー経由の AI（サーバー起動が必要）
 
 5. 「待った」ボタンで手を戻せます（AI 対戦時は自分が打つ直前の状態まで戻ります）
 

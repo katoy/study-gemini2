@@ -58,6 +58,15 @@ AGENT_DEFINITIONS = [
             'agent_type': 'mcts',
         }
     },
+    {
+        'id': 5,
+        'class': ApiAgent,
+        'display_name': 'API (Negamax)',
+        'params': {
+            'api_url': 'http://127.0.0.1:5001/play',
+            'agent_type': 'negamax',
+        }
+    },
 ]
 
 # --- ヘルパー関数 ---
