@@ -54,7 +54,7 @@ class TestServerEndpoint:
             assert all(isinstance(x, int) for x in data["move"])
 
     def test_play_all_agent_types_respond_200(self, api_server_url: str) -> None:
-        for agent_type in ("first", "random", "gain"):
+        for agent_type in ("first", "random", "gain", "negamax"):
             response = requests.post(
                 f"{api_server_url}/play",
                 json={"board": STANDARD_BOARD, "turn": 1, "agent_type": agent_type},
