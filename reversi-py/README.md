@@ -468,9 +468,10 @@ uv run pytest -m strength tests/test_strength.py -v
   - `test_pattern_initializes`: 正常に初期化される
   - 属性チェック（evaluator 存在確認）
   
-- **AlphaZero**: 初期化・動作確認（未学習モデル）
+- **AlphaZero**: 初期化・動作確認・訓練済みモデル検証
   - `test_alpha_zero_initializes`: 正常に初期化される
   - `test_alpha_zero_returns_move`: 合法手を返す
+  - `test_alpha_zero_with_trained_model`: 学習済みモデルで動作する
 
 **注記**: 
 - 通常の `uv run pytest` 実行では strength テストは自動除外されます（pytest マーカーで管理）
@@ -495,6 +496,41 @@ uv run python scripts/benchmark_agents.py --mcts-iterations 100 --time-limit-ms 
 受け入れ基準:
 - `--opponent mcts` 時: 80% 以上の勝率
 - `--opponent gain` / `--opponent random` 時: 60% 以上の勝率
+
+### AlphaZero 訓練（自己対戦学習）
+
+AlphaZero エージェントはニューラルネットワークを使用するため、強さを向上させるには訓練が必要です。自己対戦による学習スクリプトを提供しています。
+
+#### 簡易訓練実行
+
+```bash
+# デフォルト: 10 イテレーション訓練、学習済みモデルを models/alpha_zero_latest.pth に保存
+uv run python scripts/train_alpha_zero_simple.py
+```
+
+訓練の詳細:
+- **データ生成**: 各イテレーションで 5 ゲームの自己対戦（GainAgent）を実行
+- **ニューラルネットワーク**: ResNet（4 ブロック、32 フィルタ）
+- **最適化**: Adam（学習率 1e-3）
+- **出力**: チェックポイント `models/alpha_zero_iter*.pth` と最新版 `models/alpha_zero_latest.pth`
+
+#### 訓練済みモデルの確認
+
+```bash
+# 訓練済みモデルで GainAgent に対戦（3 ゲーム）
+uv run python scripts/test_alpha_zero_strength.py
+```
+
+期待: AlphaZero が GainAgent に対して複数回の勝利を獲得（現在は 1/3 wins）。
+
+#### GUI での使用
+
+GUI で「プレイヤー設定」から `API (AlphaZero)` を選択すると、自動的に学習済みモデルが読み込まれます。
+
+**注記:**
+- 学習済みモデルが見つからない場合、自動的に未学習モデルで動作します
+- AlphaZero の強さを向上させるには、訓練イテレーション数を増やすか、自己対戦データを増やす必要があります
+- 現在の実装は教育的な目的を想定しており、本格的な訓練には GPU の利用が推奨されます
 
 ### 統合テスト
 
