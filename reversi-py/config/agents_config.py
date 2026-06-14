@@ -67,6 +67,24 @@ AGENT_DEFINITIONS = [
             'agent_type': 'negamax',
         }
     },
+    {
+        'id': 6,
+        'class': ApiAgent,
+        'display_name': 'API (Transposition)',
+        'params': {
+            'api_url': 'http://127.0.0.1:5001/play',
+            'agent_type': 'transposition',
+        }
+    },
+    {
+        'id': 7,
+        'class': ApiAgent,
+        'display_name': 'API (Pattern)',
+        'params': {
+            'api_url': 'http://127.0.0.1:5001/play',
+            'agent_type': 'pattern',
+        }
+    },
 ]
 
 # --- ヘルパー関数 ---
