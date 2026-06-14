@@ -87,6 +87,10 @@ jobs:
       run: |
         xvfb-run -a sh -c 'uv run pytest tests/ --cov=. --cov-report=term-missing --cov-report=json --cov-config=.coveragerc && uv run python scripts/test_gui_init.py'
 
+    - name: Run strength tests (AI agent strength validation on 8x8 board)
+      run: |
+        uv run pytest -m strength tests/test_strength.py -v
+
     - name: Check coverage (must be 90%+)
       run: |
         COVERAGE_REPORT=$(uv run pytest tests/ --cov=. --cov-report=term-missing:skip-covered -q 2>&1)
