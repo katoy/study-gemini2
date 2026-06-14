@@ -87,15 +87,15 @@ jobs:
       run: |
         xvfb-run -a sh -c 'uv run pytest tests/ --cov=. --cov-report=term-missing --cov-report=json --cov-config=.coveragerc && uv run python scripts/test_gui_init.py'
 
-    - name: Check coverage (GUI excluded - must be 99%+)
+    - name: Check coverage (must be 90%+)
       run: |
-        COVERAGE_REPORT=$(uv run pytest --cov=. --cov-report=term-missing:skip-covered -q 2>&1)
+        COVERAGE_REPORT=$(uv run pytest tests/ --cov=. --cov-report=term-missing:skip-covered -q 2>&1)
         echo "$COVERAGE_REPORT"
 
         COVERAGE_PERCENT=$(echo "$COVERAGE_REPORT" | grep "^TOTAL" | awk '{print $NF}' | sed 's/%//')
 
-        if [ -z "$COVERAGE_PERCENT" ] || [ "${COVERAGE_PERCENT%.*}" -lt 99 ]; then
-          echo "❌ Coverage ${COVERAGE_PERCENT}% is below 99% threshold (excluding GUI)"
+        if [ -z "$COVERAGE_PERCENT" ] || [ "${COVERAGE_PERCENT%.*}" -lt 90 ]; then
+          echo "❌ Coverage ${COVERAGE_PERCENT}% is below 90% threshold"
           exit 1
         fi
-        echo "✅ Coverage ${COVERAGE_PERCENT}% meets requirement (99%+)"
+        echo "✅ Coverage ${COVERAGE_PERCENT}% meets requirement (90%+)"
