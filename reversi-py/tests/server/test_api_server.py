@@ -158,6 +158,26 @@ class TestApiServer(unittest.TestCase):
             agent = _select_agent("pattern")
         self.assertEqual(agent._time_limit_ms, 789)
 
+    def test_play_agent_type_alphazero(self) -> None:
+        payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "alphazero"}
+        with patch("server.api_server.AlphaZeroAgent") as MockAlphaZero:
+            MockAlphaZero.return_value.play.return_value = (2, 3)
+            response = self.client.post("/play", json=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["move"], [2, 3])
+
+    def test_alphazero_n_simulations_env_var(self) -> None:
+        """ALPHAZERO_N_SIMULATIONS 環境変数が反映される。"""
+        import os
+
+        from unittest.mock import patch as mock_patch
+
+        with mock_patch.dict(os.environ, {"ALPHAZERO_N_SIMULATIONS": "100"}):
+            from server.api_server import _select_agent
+
+            agent = _select_agent("alphazero")
+        self.assertEqual(agent._n_simulations, 100)
+
     def test_play_invalid_agent_type(self):
         payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "unknown"}
         response = self.client.post("/play", json=payload)

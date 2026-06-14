@@ -85,6 +85,15 @@ AGENT_DEFINITIONS = [
             'agent_type': 'pattern',
         }
     },
+    {
+        'id': 8,
+        'class': ApiAgent,
+        'display_name': 'API (AlphaZero)',
+        'params': {
+            'api_url': 'http://127.0.0.1:5001/play',
+            'agent_type': 'alphazero',
+        }
+    },
 ]
 
 # --- ヘルパー関数 ---

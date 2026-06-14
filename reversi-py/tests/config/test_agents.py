@@ -122,7 +122,7 @@ class TestConfigAgents(unittest.TestCase):
             with self.subTest(agent_id=defn['id']):
                 self.assertIn("params", defn, "Definition should have 'params' key")
                 self.assertIn("agent_type", defn["params"], "params should contain 'agent_type'")
-                self.assertIn(defn["params"].get("agent_type"), ["first", "random", "gain", "mcts", "negamax", "transposition", "pattern"])
+                self.assertIn(defn["params"].get("agent_type"), ["first", "random", "gain", "mcts", "negamax", "transposition", "pattern", "alphazero"])
 
 
 if __name__ == '__main__':
