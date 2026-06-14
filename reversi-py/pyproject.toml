@@ -41,5 +41,11 @@ per-file-ignores = { "tests/**" = ["E402"] }
 [tool.mypy]
 ignore_missing_imports = true
 
+[tool.pytest.ini_options]
+markers = [
+    "strength: NegamaxAgent の強さ検証テスト（デフォルト実行から除外）",
+]
+addopts = "-m 'not strength'"
+
 [tool.setuptools]
 packages = ["agents", "config", "server"]
