@@ -1,8 +1,10 @@
 """AlphaZero スタイル AI（MCTS + PyTorch ResNet）。
 
 MCTS 探索にニューラルネットワークの policy/value を統合したエージェント。
+デフォルトで学習済みモデルを使用します。
 """
 import random
+from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 try:
@@ -17,6 +19,9 @@ from .base_agent import Agent
 if TYPE_CHECKING:
     from game import Game
 
+# デフォルトの学習済みモデルパス
+DEFAULT_MODEL_PATH = Path(__file__).parent.parent / "models" / "alpha_zero_latest.pth"
+
 
 class AlphaZeroAgent(Agent):
     """MCTS + PyTorch ResNet のエージェント。
@@ -24,6 +29,7 @@ class AlphaZeroAgent(Agent):
     Args:
         n_simulations: MCTS シミュレーション数。
         model_path: 学習済みモデルのパス（オプション）。
+                   指定がない場合は models/alpha_zero_latest.pth を使用。
     """
 
     def __init__(
@@ -35,11 +41,15 @@ class AlphaZeroAgent(Agent):
         self._net = ReversiNet(board_size=8, n_res_blocks=2, n_filters=32)
         self._net.eval()
 
-        if model_path:
-            try:
-                self._net.load_state_dict(torch.load(model_path, map_location='cpu'))
-            except FileNotFoundError:
-                pass
+        # モデルパスの優先順位: 指定パス → デフォルトパス
+        model_to_load = model_path or str(DEFAULT_MODEL_PATH)
+
+        # 学習済みモデルを読み込む
+        try:
+            self._net.load_state_dict(torch.load(model_to_load, map_location='cpu'))
+        except FileNotFoundError:
+            # モデルが見つからない場合は未学習モデルで続行
+            pass
 
     def _board_to_tensor(self, board: list[list[int]], turn: int) -> torch.Tensor:
         """盤面をテンソルに変換。
