@@ -10,9 +10,9 @@ Python と Pygame で作られたリバーシゲームです。
 - **8 種類の AI 戦略**（First / Random / Gain / MCTS / Negamax / TranspositionNegamax / Pattern / AlphaZero）を API サーバー経由で提供
 - 「待った」（Undo）、リスタート、リセット、パス処理に対応
 - 日本語 UI とフォント設定に対応
-- **包括的なテスト体制**: 287 テスト（アプリ + サーバー + 統合 + 強さ検証）、カバレッジ 100%
-- **AI 強さ検証**: Tier 1（3 秒高速テスト） / Tier 2（詳細ベンチマーク）で複数 AI の強さを確認
-- **GitHub Actions CI**: Lint / 型チェック / テスト / カバレッジ / サーバーテスト / 統合テスト
+- **包括的なテスト体制**: 314 テスト（アプリ + サーバー + 統合 + 強さ検証）、カバレッジ 90%+（Tier 1）/ 100%（単体テスト）
+- **AI 強さ検証**: Tier 1（8x8 盤面での高速強さテスト、7 テスト） / Tier 2（詳細ベンチマーク）で複数 AI の強さを確認
+- **GitHub Actions CI**: Lint / 型チェック / テスト / Strength テスト / カバレッジ / サーバーテスト
 
 ## AI エージェント
 
@@ -397,7 +397,7 @@ API ドキュメント:
 
 - `board`: 正方形の 2 次元配列（各セルは -1: 黒、0: 空、1: 白）。サイズは 4〜16（DoS 防止の上限あり）
 - `turn`: 手番（-1: 黒、1: 白）
-- `agent_type`: `first` / `random` / `gain` / `mcts` / `negamax` のいずれか（省略時は `random`）
+- `agent_type`: `first` / `random` / `gain` / `mcts` / `negamax` / `transposition` / `pattern` / `alphazero` のいずれか（省略時は `random`）
 
 レスポンスは `{"move": [row, col]}`、合法手がない場合は `{"move": null}` です。
 
@@ -428,7 +428,7 @@ API ドキュメント:
 uv run pytest --ignore=tests/integration -q
 ```
 
-期待: `273 passed, 10 subtests passed` （カバレッジ 100%）
+期待: `307 passed, 12 subtests passed` （strength マーカーテスト自動除外）
 
 ### サーバー単体テスト
 
@@ -444,21 +444,38 @@ uv run pytest tests/server/ -v
 
 Negamax エージェントの強さを検証する 2 層テスト体制です。
 
-#### Tier 1: 高速強さテスト（CI 組み込み）
+#### Tier 1: 高速強さテスト（CI 組み込み、8x8 盤面）
 
-GainAgent に対して Negamax が勝利することを確認する 3 ゲームの検証テスト（3 秒以内）。
+複数の AI エージェントを 8x8 盤面で検証する 7 つの高速テスト（10 秒以内）。
 
 ```bash
 # 明示的に実行
 uv run pytest -m strength tests/test_strength.py -v
 ```
 
-期待: `3 passed in X.Xs` （X は 15 秒以内）
-- `test_negamax_black_wins`: Negamax が黒番で勝利
-- `test_negamax_white_wins`: Negamax が白番で勝利
-- `test_negamax_black_wins_again`: 再戦で勝利（2/3 確認）
+期待: `7 passed in X.Xs` （X は 15 秒以内）
 
-**注記**: 通常の `uv run pytest` 実行では strength テストは自動除外されます（pytest マーカーで管理）。
+**テスト内容:**
+- **Negamax（強さテスト）**: GainAgent に対して 2 ゲームで勝利確認
+  - `test_negamax_black_wins`: 黒番で勝利（石差 > 0）
+  - `test_negamax_white_wins`: 白番で勝利（石差 < 0）
+  
+- **Transposition**: 初期化・動作確認（8x8 盤面）
+  - `test_transposition_initializes`: 正常に初期化される
+  - `test_transposition_returns_move`: 合法手を返す
+  
+- **Pattern**: 初期化・属性確認（8x8 盤面）
+  - `test_pattern_initializes`: 正常に初期化される
+  - 属性チェック（evaluator 存在確認）
+  
+- **AlphaZero**: 初期化・動作確認（未学習モデル）
+  - `test_alpha_zero_initializes`: 正常に初期化される
+  - `test_alpha_zero_returns_move`: 合法手を返す
+
+**注記**: 
+- 通常の `uv run pytest` 実行では strength テストは自動除外されます（pytest マーカーで管理）
+- CI で `pytest -m strength` を明示的に実行
+- Negamax は実際の対戦テスト、Transposition/Pattern/AlphaZero は初期化・動作確認
 
 #### Tier 2: 詳細ベンチマーク（ローカル検証）
 
@@ -636,15 +653,19 @@ sequenceDiagram
 
 ### テストと CI
 
-- `tests/`: テストコード（287 テスト）
+- `tests/`: テストコード（314 テスト = 307 単体テスト + 7 強さテスト）
   - `tests/agents/test_*.py`: エージェント単体テスト
   - `tests/server/test_api_server.py`: サーバーテスト（23 テスト）
   - `tests/integration/test_api_integration.py`: 統合テスト（9 テスト）
-  - `tests/test_strength.py`: AI 強さ検証テスト（3 テスト、Tier 1、strength マーカー）
+  - `tests/test_strength.py`: AI 強さ検証テスト（7 テスト、Tier 1、8x8 盤面、strength マーカー）
+    - Negamax 強さテスト（2 テスト）
+    - Transposition 初期化・動作テスト（2 テスト）
+    - Pattern 初期化テスト（1 テスト）
+    - AlphaZero 初期化・動作テスト（2 テスト）
 - `scripts/ci_check.sh`: ローカル CI チェックスクリプト（6 ステップ）
 - `scripts/train_pattern_weights.py`: PatternAgent の重みを TD 学習で訓練
 - `scripts/benchmark_agents.py`: ベンチマークスクリプト（Tier 2、複数オプション対応）
-- `.github/workflows/ci.yml`: GitHub Actions 定義（4 ジョブ並列）
+- `.github/workflows/ci.yml`: GitHub Actions 定義（Lint / Type / Test / Strength / Coverage）
 
 
 ## 補足
