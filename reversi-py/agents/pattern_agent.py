@@ -31,7 +31,7 @@ class PatternAgent(Agent):
         self._time_limit_ms = time_limit_ms
         self._max_depth = max_depth
         self._evaluator = PatternEvaluator(board_size=8, weights_path=weights_path)
-        self._start_time = 0
+        self._start_time: float = 0.0
         self._nodes_checked = 0
 
     def _time_exceeded(self) -> bool:
