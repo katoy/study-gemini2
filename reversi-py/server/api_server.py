@@ -43,13 +43,15 @@ try:
     from agents.gain_agent import GainAgent
     from agents.mcts_agent import MonteCarloTreeSearchAgent
     from agents.negamax_agent import NegamaxAgent
+    from agents.transposition_negamax_agent import TranspositionNegamaxAgent
+    from agents.pattern_agent import PatternAgent
 except ImportError as e:
     logger.error(f"必要なモジュールのインポートに失敗しました: {e}")
     sys.exit(1)
 
 app = FastAPI()
 
-VALID_AGENT_TYPES = frozenset({"first", "random", "gain", "mcts", "negamax"})
+VALID_AGENT_TYPES = frozenset({"first", "random", "gain", "mcts", "negamax", "transposition", "pattern"})
 
 # 盤面サイズの許容範囲。巨大盤面による CPU/メモリ枯渇（DoS）を防ぐ
 MIN_BOARD_SIZE = 4
@@ -83,6 +85,15 @@ def _select_agent(agent_type: str):
     if agent_type == "negamax":
         return NegamaxAgent(
             time_limit_ms=int(os.getenv("NEGAMAX_TIME_LIMIT_MS", "3000"))
+        )
+    if agent_type == "transposition":
+        return TranspositionNegamaxAgent(
+            time_limit_ms=int(os.getenv("TRANSPOSITION_TIME_LIMIT_MS", "3000"))
+        )
+    if agent_type == "pattern":
+        return PatternAgent(
+            weights_path=os.getenv("PATTERN_WEIGHTS_PATH", "data/pattern_weights_8x8.json"),
+            time_limit_ms=int(os.getenv("PATTERN_TIME_LIMIT_MS", "3000"))
         )
     return None
 
