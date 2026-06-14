@@ -10,7 +10,8 @@ Python と Pygame で作られたリバーシゲームです。
 - 5 種類の AI 戦略（First / Random / Gain / MCTS / Negamax）を API サーバー経由で提供
 - 「待った」（Undo）、リスタート、リセット、パス処理に対応
 - 日本語 UI とフォント設定に対応
-- **包括的なテスト体制**: 279 テスト（アプリ + サーバー + 統合）、カバレッジ 99%
+- **包括的なテスト体制**: 279 テスト（アプリ + サーバー + 統合 + 強さ検証）、カバレッジ 100%
+- **AI 強さ検証**: Tier 1（3 秒高速テスト） / Tier 2（詳細ベンチマーク）で Negamax の強さを確認
 - **GitHub Actions CI**: Lint / 型チェック / テスト / カバレッジ / サーバーテスト / 統合テスト
 
 ## AI エージェント
@@ -410,15 +411,15 @@ API ドキュメント:
 
 ## テスト
 
-### 単体テストを実行
+### 単体テストを実行（通常実行）
 
-統合テストを除く単体テスト（サーバー単体テスト含む）を実行します。
+統合テストと強さテストを除く単体テスト（サーバー単体テスト含む）を実行します。
 
 ```bash
 uv run pytest --ignore=tests/integration -q
 ```
 
-期待: `235 passed, 9 subtests passed` （カバレッジ 99%）
+期待: `273 passed, 10 subtests passed` （カバレッジ 100%）
 
 ### サーバー単体テスト
 
@@ -429,6 +430,45 @@ uv run pytest tests/server/ -v
 ```
 
 期待: `23 passed` （FastAPI エンドポイント、リクエスト・レスポンスの検証）
+
+### AI 強さ検証テスト
+
+Negamax エージェントの強さを検証する 2 層テスト体制です。
+
+#### Tier 1: 高速強さテスト（CI 組み込み）
+
+GainAgent に対して Negamax が勝利することを確認する 3 ゲームの検証テスト（3 秒以内）。
+
+```bash
+# 明示的に実行
+uv run pytest -m strength tests/test_strength.py -v
+```
+
+期待: `3 passed in X.Xs` （X は 15 秒以内）
+- `test_negamax_black_wins`: Negamax が黒番で勝利
+- `test_negamax_white_wins`: Negamax が白番で勝利
+- `test_negamax_black_wins_again`: 再戦で勝利（2/3 確認）
+
+**注記**: 通常の `uv run pytest` 実行では strength テストは自動除外されます（pytest マーカーで管理）。
+
+#### Tier 2: 詳細ベンチマーク（ローカル検証）
+
+Negamax の強さを詳細に検証するベンチマークスクリプト。複数の対戦相手と盤面サイズで評価できます。
+
+```bash
+# デフォルト: MCTS 対手、8x8 盤面、10 ゲーム（54 秒）
+uv run python scripts/benchmark_agents.py
+
+# GainAgent 対手で高速確認（5 ゲーム、30 秒以内）
+uv run python scripts/benchmark_agents.py --opponent gain --games 5
+
+# 詳細検証: MCTS の反復回数と思考時間を増やす
+uv run python scripts/benchmark_agents.py --mcts-iterations 100 --time-limit-ms 1000 --games 5
+```
+
+受け入れ基準:
+- `--opponent mcts` 時: 80% 以上の勝率
+- `--opponent gain` / `--opponent random` 時: 60% 以上の勝率
 
 ### 統合テスト
 
@@ -451,8 +491,8 @@ uv run pytest tests/integration/ -v
 実行内容:
 1. Lint チェック (ruff)
 2. 型チェック (mypy)
-3. テスト実行 (pytest)
-4. カバレッジ確認 (99%+)
+3. テスト実行 (pytest) — strength テストは自動除外
+4. カバレッジ確認 (100%)
 5. サーバー単体テスト (FastAPI TestClient)
 6. 統合テスト (実サーバー起動)
 
@@ -580,7 +620,9 @@ sequenceDiagram
 - `tests/`: テストコード
   - `tests/server/test_api_server.py`: サーバー単体テスト（23 テスト、FastAPI TestClient）
   - `tests/integration/test_api_integration.py`: 統合テスト（9 テスト、実サーバー起動）
+  - `tests/test_strength.py`: AI 強さ検証テスト（3 テスト、Tier 1、strength マーカー）
 - `scripts/ci_check.sh`: ローカル CI チェックスクリプト（6 ステップ）
+- `scripts/benchmark_agents.py`: NegamaxAgent ベンチマークスクリプト（Tier 2、複数オプション対応）
 - `.github/workflows/ci.yml`: GitHub Actions 定義（4 ジョブ並列）
 
 
