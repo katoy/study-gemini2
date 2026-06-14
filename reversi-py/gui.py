@@ -1,5 +1,7 @@
 # gui.py
 import pygame
+pygame.init()  # pygame 初期化を先に実行して pygame.font モジュールの循環インポートを回避
+
 from pathlib import Path
 # --- config.agents からヘルパー関数をインポート ---
 from config.agents_config import get_agent_options
