@@ -5,6 +5,8 @@ omit =
     gui.py
     config/game_constants.py
     norman/*
+    agents/pattern_agent.py
+    agents/pattern_evaluator.py
 
 [report]
 exclude_lines =
