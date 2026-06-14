@@ -3,7 +3,6 @@
 自己対戦とネットワーク訓練を数イテレーション実行。
 学習済みモデルを保存します。
 """
-import os
 import sys
 from pathlib import Path
 

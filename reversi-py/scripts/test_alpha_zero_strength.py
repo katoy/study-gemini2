@@ -7,7 +7,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import torch
 from agents.alpha_zero_agent import AlphaZeroAgent
 from agents.gain_agent import GainAgent
 from game import Game
