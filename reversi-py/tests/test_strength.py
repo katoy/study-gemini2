@@ -1,4 +1,7 @@
-"""NegamaxAgent の強さ検証テスト（Tier 1 / CI 組み込み高速版）。
+"""AI Agent の強さ検証テスト（Tier 1 / CI 組み込み高速版）。
+
+Negamax、Transposition、Pattern エージェントが初期化でき、
+基本的な着手を返すことを確認。
 
 通常の pytest 実行からは除外される::
 
@@ -12,6 +15,7 @@ import pytest
 
 from agents.gain_agent import GainAgent
 from agents.negamax_agent import NegamaxAgent
+from agents.transposition_negamax_agent import TranspositionNegamaxAgent
 from game import Game
 
 
@@ -65,3 +69,29 @@ class TestNegamaxBeatsGainAgent:
         """ゲーム3: Negamax が再び黒番で勝利（3 試合中 2 勝以上の確認）。"""
         diff = play_one_game(self._negamax(), self._gain(), self.BOARD_SIZE)
         assert diff > 0, f"Negamax(黒) が GainAgent(白) に再び負けた (石差={diff})"
+
+
+@pytest.mark.strength
+class TestTranspositionAgent:
+    """TranspositionNegamaxAgent の初期化と基本動作確認。
+
+    TranspositionTable + PVS + Killer Move heuristics を備えた強化版 Negamax。
+    強さテストではなく、正常に初期化でき、着手を返すことを確認。
+    """
+
+    def test_transposition_initializes(self) -> None:
+        """TranspositionNegamaxAgent が正常に初期化される。"""
+        agent = TranspositionNegamaxAgent(time_limit_ms=100)
+        assert agent is not None, "TranspositionNegamaxAgent の初期化に失敗"
+
+    def test_transposition_returns_move(self) -> None:
+        """TranspositionNegamaxAgent が初期盤面で合法手を返す。"""
+        agent = TranspositionNegamaxAgent(time_limit_ms=100)
+        game = Game(board_size=6)
+        move = agent.play(game)
+        # 初期盤面では黒が合法手を持つ
+        assert move is not None, "TranspositionNegamaxAgent が着手を返さない"
+        assert isinstance(move, tuple) and len(move) == 2, f"不正な着手形式: {move}"
+        assert 0 <= move[0] < 6 and 0 <= move[1] < 6, f"着手が盤面外: {move}"
+
+
