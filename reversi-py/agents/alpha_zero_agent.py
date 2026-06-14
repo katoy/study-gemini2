@@ -82,8 +82,8 @@ class AlphaZeroAgent(Agent):
 
         # 合法手の中で policy スコアが最大のものを選択
         policy_probs = torch.softmax(policy_logits[0], dim=0).numpy()
-        best_move = None
-        best_score = -1
+        best_move: Optional[tuple[int, int]] = None
+        best_score: float = -1.0
 
         for r, c in moves:
             action_idx = r * 8 + c

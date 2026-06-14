@@ -54,9 +54,10 @@ class TestTranspositionTable:
 
     def test_tt_stores_entry(self) -> None:
         """TT にエントリを格納・取得できる。"""
+        from agents.transposition_negamax_agent import TTEntry
         agent = TranspositionNegamaxAgent()
         hash_val = 12345
-        entry = {'flag': 'EXACT', 'depth': 3, 'value': 10.0, 'best_move': (2, 3)}
+        entry: TTEntry = {'flag': 'EXACT', 'depth': 3, 'value': 10.0, 'best_move': (2, 3)}
         agent._tt[hash_val] = entry
 
         retrieved = agent._tt.get(hash_val)

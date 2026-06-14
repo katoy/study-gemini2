@@ -7,7 +7,6 @@
 TD(0) アルゴリズムでエッジ・コーナー・対角線パターンの重みを学習する。
 """
 import argparse
-import random
 import sys
 from pathlib import Path
 
@@ -15,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from agents.random_agent import RandomAgent
 from agents.pattern_evaluator import PatternEvaluator
-from agents.negamax_agent import _apply, _flips_for_move, _undo, _valid_moves
 from game import Game
 
 

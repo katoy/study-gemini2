@@ -74,8 +74,8 @@ class PatternAgent(Agent):
             return (-value, None)
 
         # αβ探索
-        best_value = -float('inf')
-        best_move = None
+        best_value: float = -float('inf')
+        best_move: Optional[tuple[int, int]] = None
 
         for move in moves:
             self._nodes_checked += 1
@@ -92,7 +92,7 @@ class PatternAgent(Agent):
             _undo(board, move, flips, turn)
 
             if value > best_value:
-                best_value = value
+                best_value = float(value)
                 best_move = move
 
             alpha = max(alpha, best_value)
