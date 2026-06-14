@@ -7,11 +7,11 @@
 Python と Pygame で作られたリバーシゲームです。
 
 - 人間 vs 人間、人間 vs AI、AI vs AI に対応
-- 5 種類の AI 戦略（First / Random / Gain / MCTS / Negamax）を API サーバー経由で提供
+- **8 種類の AI 戦略**（First / Random / Gain / MCTS / Negamax / TranspositionNegamax / Pattern / AlphaZero）を API サーバー経由で提供
 - 「待った」（Undo）、リスタート、リセット、パス処理に対応
 - 日本語 UI とフォント設定に対応
-- **包括的なテスト体制**: 279 テスト（アプリ + サーバー + 統合 + 強さ検証）、カバレッジ 100%
-- **AI 強さ検証**: Tier 1（3 秒高速テスト） / Tier 2（詳細ベンチマーク）で Negamax の強さを確認
+- **包括的なテスト体制**: 287 テスト（アプリ + サーバー + 統合 + 強さ検証）、カバレッジ 100%
+- **AI 強さ検証**: Tier 1（3 秒高速テスト） / Tier 2（詳細ベンチマーク）で複数 AI の強さを確認
 - **GitHub Actions CI**: Lint / 型チェック / テスト / カバレッジ / サーバーテスト / 統合テスト
 
 ## AI エージェント
@@ -23,7 +23,10 @@ Python と Pygame で作られたリバーシゲームです。
 - `API (Random)`: 合法手からランダムに選ぶ
 - `API (Gain)`: 獲得石数が最大の手を選ぶ
 - `API (MCTS)`: モンテカルロ木探索で手を選ぶ
-- `API (Negamax)`: アルファベータ枝刈り + 反復深化 + 終盤完全読み切り。位置重み・着手可能数・確定石で評価
+- `API (Negamax)`: αβ枝刈り + 反復深化 + 終盤読み切り（位置重み・着手可能数・確定石で評価）
+- `API (Transposition)`: αβ枝刈り + トランスポジションテーブル + PVS + Killer move（同時間で 2-3 倍深く探索）
+- `API (Pattern)`: αβ枝刈り + Edax 式パターン評価（エッジ・コーナー・対角線パターン、TD 学習済み）
+- `API (AlphaZero)`: MCTS + PyTorch ResNet（自己対戦学習対応）
 
 `API (...)` エージェントはいずれも、`server/api_server.py` で起動する API サーバーから手を取得します。
 AI を使う場合は API サーバーの起動が必要です（`./scripts/start_with_server.sh` を推奨）。
@@ -64,6 +67,9 @@ flowchart LR
         Gain["GainAgent"]
         MCTS["MonteCarloTreeSearchAgent"]
         Negamax["NegamaxAgent"]
+        Transposition["TranspositionNegamaxAgent"]
+        Pattern["PatternAgent"]
+        AlphaZero["AlphaZeroAgent"]
     end
 
     User --> Main
@@ -90,6 +96,9 @@ flowchart LR
     APIServer --> Gain
     APIServer --> MCTS
     APIServer --> Negamax
+    APIServer --> Transposition
+    APIServer --> Pattern
+    APIServer --> AlphaZero
     APIServer --> Board
 ```
 
@@ -611,18 +620,30 @@ sequenceDiagram
 - `agents/`: AI エージェント実装
 - `config/agents_config.py`: エージェント定義
 
+### AI エージェント
+
+- `agents/base_agent.py`: Agent 基底クラス
+- `agents/negamax_agent.py`: NegamaxAgent（αβ枝刈り + 反復深化）
+- `agents/transposition_negamax_agent.py`: TranspositionNegamaxAgent（TT + PVS + Killer）
+- `agents/pattern_evaluator.py`: PatternEvaluator（Edax 式パターン評価）
+- `agents/pattern_agent.py`: PatternAgent（パターン評価 + αβ）
+- `agents/networks/reversi_net.py`: ReversiNet（PyTorch ResNet）
+- `agents/alpha_zero_agent.py`: AlphaZeroAgent（MCTS + NN）
+
 ### サーバー
 
 - `server/api_server.py`: FastAPI REST API サーバー（エンドポイント: POST /play）
 
 ### テストと CI
 
-- `tests/`: テストコード
-  - `tests/server/test_api_server.py`: サーバー単体テスト（23 テスト、FastAPI TestClient）
-  - `tests/integration/test_api_integration.py`: 統合テスト（9 テスト、実サーバー起動）
+- `tests/`: テストコード（287 テスト）
+  - `tests/agents/test_*.py`: エージェント単体テスト
+  - `tests/server/test_api_server.py`: サーバーテスト（23 テスト）
+  - `tests/integration/test_api_integration.py`: 統合テスト（9 テスト）
   - `tests/test_strength.py`: AI 強さ検証テスト（3 テスト、Tier 1、strength マーカー）
 - `scripts/ci_check.sh`: ローカル CI チェックスクリプト（6 ステップ）
-- `scripts/benchmark_agents.py`: NegamaxAgent ベンチマークスクリプト（Tier 2、複数オプション対応）
+- `scripts/train_pattern_weights.py`: PatternAgent の重みを TD 学習で訓練
+- `scripts/benchmark_agents.py`: ベンチマークスクリプト（Tier 2、複数オプション対応）
 - `.github/workflows/ci.yml`: GitHub Actions 定義（4 ジョブ並列）
 
 
