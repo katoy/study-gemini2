@@ -113,8 +113,8 @@ class TestPatternAgent:
 class TestAlphaZeroAgent:
     """AlphaZeroAgent の初期化と基本動作確認。
 
-    MCTS + PyTorch ResNet エージェント。未学習モデルなので、
-    正常に初期化でき、合法手を返すことを確認。
+    MCTS + PyTorch ResNet エージェント。初期化と動作確認、
+    学習済みモデルでの初期盤面テスト。
     """
 
     BOARD_SIZE = 8
@@ -134,5 +134,17 @@ class TestAlphaZeroAgent:
         assert move is not None, "AlphaZeroAgent が着手を返さない"
         assert isinstance(move, tuple) and len(move) == 2, f"不正な着手形式: {move}"
         assert 0 <= move[0] < 8 and 0 <= move[1] < 8, f"着手が盤面外: {move}"
+
+    def test_alpha_zero_with_trained_model(self) -> None:
+        """AlphaZeroAgent が学習済みモデルで動作する。"""
+        import os
+        from pathlib import Path
+
+        model_path = "models/alpha_zero_latest.pth"
+        if Path(model_path).exists():
+            agent = AlphaZeroAgent(n_simulations=self.N_SIMULATIONS, model_path=model_path)
+            game = Game(board_size=self.BOARD_SIZE)
+            move = agent.play(game)
+            assert move is not None, "AlphaZeroAgent (訓練済みモデル) が着手を返さない"
 
 
