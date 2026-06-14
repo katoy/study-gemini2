@@ -118,6 +118,46 @@ class TestApiServer(unittest.TestCase):
             agent = _select_agent("negamax")
         self.assertEqual(agent.time_limit_ms, 123)
 
+    def test_play_agent_type_transposition(self) -> None:
+        payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "transposition"}
+        with patch("server.api_server.TranspositionNegamaxAgent") as MockTransposition:
+            MockTransposition.return_value.play.return_value = (2, 3)
+            response = self.client.post("/play", json=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["move"], [2, 3])
+
+    def test_transposition_time_limit_env_var(self) -> None:
+        """TRANSPOSITION_TIME_LIMIT_MS 環境変数が反映される。"""
+        import os
+
+        from unittest.mock import patch as mock_patch
+
+        with mock_patch.dict(os.environ, {"TRANSPOSITION_TIME_LIMIT_MS": "456"}):
+            from server.api_server import _select_agent
+
+            agent = _select_agent("transposition")
+        self.assertEqual(agent._time_limit_ms, 456)
+
+    def test_play_agent_type_pattern(self) -> None:
+        payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "pattern"}
+        with patch("server.api_server.PatternAgent") as MockPattern:
+            MockPattern.return_value.play.return_value = (2, 3)
+            response = self.client.post("/play", json=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["move"], [2, 3])
+
+    def test_pattern_time_limit_env_var(self) -> None:
+        """PATTERN_TIME_LIMIT_MS 環境変数が反映される。"""
+        import os
+
+        from unittest.mock import patch as mock_patch
+
+        with mock_patch.dict(os.environ, {"PATTERN_TIME_LIMIT_MS": "789"}):
+            from server.api_server import _select_agent
+
+            agent = _select_agent("pattern")
+        self.assertEqual(agent._time_limit_ms, 789)
+
     def test_play_invalid_agent_type(self):
         payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "unknown"}
         response = self.client.post("/play", json=payload)
