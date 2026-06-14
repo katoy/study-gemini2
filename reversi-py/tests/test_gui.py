@@ -815,6 +815,63 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
 
         self.gui._calculate_button_rect = original_calc_rect
 
+    def test_all_agents_selectable_in_gui(self):
+        """GUI プレイヤー設定に全エージェントが読み込まれているか確認"""
+        from config.agents_config import get_agent_options
+        from config.theme import Screen
+
+        # GUI にロードされたエージェント
+        agent_options = get_agent_options()
+
+        # エージェント数の確認
+        self.assertGreaterEqual(
+            len(agent_options), 6,
+            "6 個以上のエージェントが必要です（人間＋5 個の API エージェント以上）"
+        )
+
+        # 各エージェントの ID と表示名を確認
+        agent_ids = [agent_id for agent_id, _ in agent_options]
+        agent_names = [name for _, name in agent_options]
+
+        # すべてのエージェント ID がユニークであることを確認
+        self.assertEqual(
+            len(agent_ids), len(set(agent_ids)),
+            "すべてのエージェント ID がユニークであるべき"
+        )
+
+        # 人間プレイヤー (ID=0) が最初にあることを確認
+        self.assertEqual(agent_ids[0], 0, "人間プレイヤー (ID=0) が最初であるべき")
+
+        # すべてのエージェント名が空でないことを確認
+        for name in agent_names:
+            self.assertTrue(len(name) > 0, f"エージェント名は空であってはいけない: {name}")
+
+        # Transposition、Pattern エージェントが含まれていることを確認
+        agent_name_str = " ".join(agent_names)
+        self.assertIn("Transposition", agent_name_str, "Transposition エージェントが必要")
+        self.assertIn("Pattern", agent_name_str, "Pattern エージェントが必要")
+
+        # レイアウト検証：全エージェントが画面に収まるか
+        radio_y_offset = Screen.RADIO_Y_OFFSET
+        radio_y_spacing = Screen.RADIO_Y_SPACING
+        button_height = 40
+        buttons_bottom = 50 + button_height
+        player_settings_top = buttons_bottom + Screen.BUTTON_BOTTOM_MARGIN
+
+        last_agent_y = (
+            player_settings_top
+            + radio_y_offset
+            + (len(agent_options) - 1) * radio_y_spacing
+            + Screen.RADIO_BUTTON_SIZE
+        )
+
+        # GUI スクリーンの推奨高さ（800x600 の 1.5 倍程度）を確認
+        min_required_height = last_agent_y + 50  # 下部マージン
+        self.assertLess(
+            min_required_height, 900,
+            f"全エージェント表示に必要な高さ {min_required_height}px が 900px 未満であるべき"
+        )
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
