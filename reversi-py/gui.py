@@ -163,7 +163,7 @@ class GameGUI:
         font_dir = script_dir / "fonts"
         font_filename = "NotoSansJP-Regular.ttf"
         font_path = font_dir / font_filename
-        font_size = 20
+        font_size = 18
 
         # Evaluate existence once to avoid multiple stat calls (tests assert single call)
         try:
