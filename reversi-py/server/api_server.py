@@ -45,13 +45,14 @@ try:
     from agents.negamax_agent import NegamaxAgent
     from agents.transposition_negamax_agent import TranspositionNegamaxAgent
     from agents.pattern_agent import PatternAgent
+    from agents.alpha_zero_agent import AlphaZeroAgent
 except ImportError as e:
     logger.error(f"必要なモジュールのインポートに失敗しました: {e}")
     sys.exit(1)
 
 app = FastAPI()
 
-VALID_AGENT_TYPES = frozenset({"first", "random", "gain", "mcts", "negamax", "transposition", "pattern"})
+VALID_AGENT_TYPES = frozenset({"first", "random", "gain", "mcts", "negamax", "transposition", "pattern", "alphazero"})
 
 # 盤面サイズの許容範囲。巨大盤面による CPU/メモリ枯渇（DoS）を防ぐ
 MIN_BOARD_SIZE = 4
@@ -94,6 +95,10 @@ def _select_agent(agent_type: str):
         return PatternAgent(
             weights_path=os.getenv("PATTERN_WEIGHTS_PATH", "data/pattern_weights_8x8.json"),
             time_limit_ms=int(os.getenv("PATTERN_TIME_LIMIT_MS", "3000"))
+        )
+    if agent_type == "alphazero":
+        return AlphaZeroAgent(
+            n_simulations=int(os.getenv("ALPHAZERO_N_SIMULATIONS", "50"))
         )
     return None
 
