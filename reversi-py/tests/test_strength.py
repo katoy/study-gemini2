@@ -98,23 +98,15 @@ class TestPatternAgent:
     """PatternAgent の初期化と基本動作確認。
 
     パターン評価関数を使用した negamax エージェント。
-    8x8 盤面で正常に初期化でき、合法手を返すことを確認。
+    初期化のみ確認（詳細なテストは tests/agents/test_pattern_agent.py）。
     """
 
     def test_pattern_initializes(self) -> None:
         """PatternAgent が正常に初期化される。"""
         agent = PatternAgent(weights_path=None, time_limit_ms=50)
         assert agent is not None, "PatternAgent の初期化に失敗"
-
-    def test_pattern_returns_move(self) -> None:
-        """PatternAgent が 8x8 初期盤面で合法手を返す。"""
-        agent = PatternAgent(weights_path=None, time_limit_ms=50)
-        game = Game(board_size=8)
-        move = agent.play(game)
-        # 初期盤面では黒が合法手を持つ
-        assert move is not None, "PatternAgent が着手を返さない"
-        assert isinstance(move, tuple) and len(move) == 2, f"不正な着手形式: {move}"
-        assert 0 <= move[0] < 8 and 0 <= move[1] < 8, f"着手が盤面外: {move}"
+        assert agent._time_limit_ms == 50
+        assert agent._evaluator is not None
 
 
 @pytest.mark.strength
