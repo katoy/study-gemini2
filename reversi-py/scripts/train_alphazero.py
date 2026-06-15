@@ -14,7 +14,6 @@
 from __future__ import annotations
 
 import argparse
-import copy
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,7 +30,6 @@ from agents.negamax_agent import (
     NegamaxAgent,
     _apply,
     _flips_for_move,
-    _undo,
     _valid_moves,
 )
 from agents.networks.othello_net import OthelloNNet

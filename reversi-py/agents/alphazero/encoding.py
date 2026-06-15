@@ -14,7 +14,6 @@ def board_to_tensor(board: list[list[int]], turn: int) -> torch.Tensor:
     Returns:
         (1, 1, n, n) のテンソル。値は 1（自分）, -1（相手）, 0（空）。
     """
-    n = len(board)
     board_array = []
     for row in board:
         board_row = []
