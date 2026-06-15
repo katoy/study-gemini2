@@ -69,16 +69,32 @@ class AlphaZeroAgent(Agent):
         # モデルが見つからない場合は未学習モデルで続行
 
     def _board_to_tensor(self, board: list[list[int]], turn: int) -> torch.Tensor:
-        """盤面をテンソルに変換（OthelloNNet 形式）。
+        """盤面をテンソルに変換（OthelloNNet 形式・現在プレイヤーの視点）。
+
+        alpha-zero-general の OthelloNNet は、現在のプレイヤーの視点で盤面を見るように訓練されています。
+        つまり、現在のプレイヤーの石を +1、相手の石を -1 として表現します。
 
         Args:
             board: 盤面（0=空, -1=黒, 1=白）。
-            turn: 手番プレイヤー（未使用、OthelloNNet は盤面状態のみを使用）。
+            turn: 手番プレイヤー（-1=黒, 1=白）。
 
         Returns:
-            (1, 1, 8, 8) のテンソル。値は -1（黒）, 0（空）, 1（白）。
+            (1, 1, 8, 8) のテンソル。値は -1（相手）, 0（空）, 1（現在プレイヤー）。
         """
-        board_tensor = torch.tensor(board, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        # 現在プレイヤーの視点に盤面を変換
+        board_array = []
+        for row in board:
+            board_row = []
+            for cell in row:
+                if cell == 0:
+                    board_row.append(0)  # 空
+                elif cell == turn:
+                    board_row.append(1)  # 現在プレイヤーの石
+                else:
+                    board_row.append(-1)  # 相手の石
+            board_array.append(board_row)
+
+        board_tensor = torch.tensor(board_array, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
         return board_tensor
 
     def play(self, game: "Game") -> Optional[tuple[int, int]]:
