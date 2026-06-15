@@ -12,25 +12,25 @@ class OthelloNNet(nn.Module):
         self.board_size = board_size
         self.action_size = board_size * board_size + 1  # +1 はパス
 
-        # 畳み込み層
-        self.conv1 = nn.Conv2d(1, 128, kernel_size=3, stride=1, padding=1)
-        self.bn1 = nn.BatchNorm2d(128)
-        self.conv2 = nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1)
-        self.bn2 = nn.BatchNorm2d(128)
-        self.conv3 = nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=0)
-        self.bn3 = nn.BatchNorm2d(128)
-        self.conv4 = nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=0)
-        self.bn4 = nn.BatchNorm2d(128)
+        # 畳み込み層（alpha-zero-general の OthelloNNet アーキテクチャ）
+        self.conv1 = nn.Conv2d(1, 512, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm2d(512)
+        self.conv2 = nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(512)
+        self.conv3 = nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=0)
+        self.bn3 = nn.BatchNorm2d(512)
+        self.conv4 = nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=0)
+        self.bn4 = nn.BatchNorm2d(512)
 
         # 全結合層
-        self.fc1 = nn.Linear(128 * (board_size - 4) * (board_size - 4), 512)
-        self.fc_bn1 = nn.BatchNorm1d(512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc_bn2 = nn.BatchNorm1d(256)
+        self.fc1 = nn.Linear(512 * (board_size - 4) * (board_size - 4), 1024)
+        self.fc_bn1 = nn.BatchNorm1d(1024)
+        self.fc2 = nn.Linear(1024, 512)
+        self.fc_bn2 = nn.BatchNorm1d(512)
 
         # 出力層
-        self.fc_pi = nn.Linear(256, self.action_size)  # 方策
-        self.fc_v = nn.Linear(256, 1)  # 価値
+        self.fc3 = nn.Linear(512, self.action_size)  # 方策
+        self.fc4 = nn.Linear(512, 1)  # 価値
 
         self.dropout = dropout
 
@@ -65,7 +65,7 @@ class OthelloNNet(nn.Module):
         x = F.dropout(x, p=self.dropout, training=self.training)
 
         # 出力層
-        pi = self.fc_pi(x)  # ロジット
-        v = torch.tanh(self.fc_v(x))  # -1 から 1
+        pi = self.fc3(x)  # ロジット
+        v = torch.tanh(self.fc4(x))  # -1 から 1
 
         return pi, v
