@@ -13,7 +13,7 @@ except ImportError:
     raise ImportError("PyTorch is required for AlphaZeroAgent")
 
 from .negamax_agent import _valid_moves
-from .networks.reversi_net import ReversiNet
+from .networks.othello_net import OthelloNNet
 from .base_agent import Agent
 
 if TYPE_CHECKING:
@@ -40,7 +40,7 @@ class AlphaZeroAgent(Agent):
         model_path: Optional[str] = None,
     ) -> None:
         self._n_simulations = n_simulations
-        self._net = ReversiNet(board_size=8, n_res_blocks=2, n_filters=32)
+        self._net = OthelloNNet(board_size=8)
         self._net.eval()
 
         # モデルパスの優先順位: 指定パス → デフォルトパス → フォールバック
@@ -69,30 +69,22 @@ class AlphaZeroAgent(Agent):
         # モデルが見つからない場合は未学習モデルで続行
 
     def _board_to_tensor(self, board: list[list[int]], turn: int) -> torch.Tensor:
-        """盤面をテンソルに変換。
+        """盤面をテンソルに変換（OthelloNNet 形式）。
 
         Args:
             board: 盤面（0=空, -1=黒, 1=白）。
-            turn: 手番プレイヤー。
+            turn: 手番プレイヤー（未使用、OthelloNNet は盤面状態のみを使用）。
 
         Returns:
-            (1, 2, 8, 8) のテンソル。
+            (1, 1, 8, 8) のテンソル。値は -1（黒）, 0（空）, 1（白）。
         """
-        board_tensor = torch.zeros(1, 2, 8, 8, dtype=torch.float32)
-
-        for r in range(8):
-            for c in range(8):
-                if board[r][c] == turn:
-                    board_tensor[0, 0, r, c] = 1.0
-                elif board[r][c] == -turn:
-                    board_tensor[0, 1, r, c] = 1.0
-
+        board_tensor = torch.tensor(board, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
         return board_tensor
 
     def play(self, game: "Game") -> Optional[tuple[int, int]]:
         """与えられたゲーム状態で最善手を返す。
 
-        簡略版: ネットワークで policy を評価して最善手を選択。
+        ネットワークで policy を評価して、合法手の中で最高スコアの手を選択。
         """
         board = game.board.board
         turn = game.turn
@@ -108,15 +100,17 @@ class AlphaZeroAgent(Agent):
             policy_logits, _ = self._net(board_tensor)
 
         # 合法手の中で policy スコアが最大のものを選択
-        policy_probs = torch.softmax(policy_logits[0], dim=0).numpy()
+        # OthelloNNet は 65 個の出力（64 マス + パス）を返す
+        policy_probs = torch.softmax(policy_logits[0], dim=0).cpu().numpy()
         best_move: Optional[tuple[int, int]] = None
         best_score: float = -1.0
 
         for r, c in moves:
             action_idx = r * 8 + c
-            score = float(policy_probs[action_idx])
-            if score > best_score:
-                best_score = score
-                best_move = (r, c)
+            if action_idx < len(policy_probs):
+                score = float(policy_probs[action_idx])
+                if score > best_score:
+                    best_score = score
+                    best_move = (r, c)
 
         return best_move if best_move else random.choice(moves)
