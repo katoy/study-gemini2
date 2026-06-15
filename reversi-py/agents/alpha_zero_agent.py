@@ -12,11 +12,11 @@ try:
 except ImportError:
     raise ImportError("PyTorch is required for AlphaZeroAgent")
 
-_logger = logging.getLogger(__name__)
-
 from .alphazero.mcts import MCTS, PASS_ACTION
-from .networks.othello_net import OthelloNNet
 from .base_agent import Agent
+from .networks.othello_net import OthelloNNet
+
+_logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from game import Game
