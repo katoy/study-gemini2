@@ -1,10 +1,9 @@
 """AlphaZero スタイル AI（MCTS + PyTorch CNN）。
 
-MCTS 探索にニューラルネットワークの policy/value を統合したエージェント。
+PUCT 探索（MCTS）にニューラルネットワークの policy/value を統合したエージェント。
 デフォルトで学習済みモデルを使用します。
 """
 import logging
-import random
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
@@ -15,7 +14,7 @@ except ImportError:
 
 _logger = logging.getLogger(__name__)
 
-from .negamax_agent import _valid_moves
+from .alphazero.mcts import MCTS, PASS_ACTION
 from .networks.othello_net import OthelloNNet
 from .base_agent import Agent
 
@@ -76,65 +75,59 @@ class AlphaZeroAgent(Agent):
         if not loaded:
             _logger.warning("全モデルのロードに失敗。未学習モデルで続行します。")
 
-    def _board_to_tensor(self, board: list[list[int]], turn: int) -> torch.Tensor:
-        """盤面をテンソルに変換（OthelloNNet 形式・現在プレイヤーの視点）。
+        self._mcts = MCTS(
+            net=self._net,
+            n_simulations=n_simulations,
+            board_size=board_size,
+        )
 
-        alpha-zero-general の OthelloNNet は、現在のプレイヤーの視点で盤面を見るように訓練されています。
-        つまり、現在のプレイヤーの石を +1、相手の石を -1 として表現します。
+    @classmethod
+    def from_net(
+        cls,
+        net: OthelloNNet,
+        n_simulations: int = 50,
+        c_puct: float = 1.0,
+        board_size: int = 8,
+    ) -> "AlphaZeroAgent":
+        """学習済み net オブジェクトから直接エージェントを生成（ファイルロードをスキップ）。
 
-        Args:
-            board: 盤面（0=空, -1=黒, 1=白）。
-            turn: 手番プレイヤー（-1=黒, 1=白）。
-
-        Returns:
-            (1, 1, 8, 8) のテンソル。値は -1（相手）, 0（空）, 1（現在プレイヤー）。
+        arena 評価などでファイル I/O を省きたい場合に使用。
         """
-        # 現在プレイヤーの視点に盤面を変換
-        board_array = []
-        for row in board:
-            board_row = []
-            for cell in row:
-                if cell == 0:
-                    board_row.append(0)  # 空
-                elif cell == turn:
-                    board_row.append(1)  # 現在プレイヤーの石
-                else:
-                    board_row.append(-1)  # 相手の石
-            board_array.append(board_row)
-
-        board_tensor = torch.tensor(board_array, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-        return board_tensor
+        agent = cls.__new__(cls)
+        agent._n_simulations = n_simulations
+        agent._board_size = board_size
+        agent._net = net
+        agent._mcts = MCTS(
+            net=net,
+            n_simulations=n_simulations,
+            c_puct=c_puct,
+            board_size=board_size,
+        )
+        return agent
 
     def play(self, game: "Game") -> Optional[tuple[int, int]]:
-        """与えられたゲーム状態で最善手を返す。
+        """MCTS（PUCT 探索）で最善手を選択して返す。
 
-        ネットワークで policy を評価して、合法手の中で最高スコアの手を選択。
+        Args:
+            game: 現在のゲーム状態。
+
+        Returns:
+            最善手 (row, col)。合法手がない場合は None。
         """
         board = game.board.board
         turn = game.turn
 
-        # 合法手取得
-        moves = _valid_moves(board, self._board_size, turn)
-        if not moves:
+        # 合法手なし → パス
+        from .negamax_agent import _valid_moves
+        if not _valid_moves(board, self._board_size, turn):
             return None
 
-        # ネットワークで policy を評価
-        board_tensor = self._board_to_tensor(board, turn)
-        with torch.no_grad():
-            policy_logits, _ = self._net(board_tensor)
+        # MCTS で訪問数を計算し、最大訪問数の手を選択
+        counts = self._mcts.run(board, turn)
+        best_action = max(counts, key=lambda a: counts[a])
 
-        # 合法手の中で policy スコアが最大のものを選択
-        # OthelloNNet は board_size^2 + 1 個の出力（各マス + パス）を返す
-        policy_probs = torch.softmax(policy_logits[0], dim=0).cpu().numpy()
-        best_move: Optional[tuple[int, int]] = None
-        best_score: float = -1.0
+        if best_action == PASS_ACTION:
+            return None
 
-        for r, c in moves:
-            action_idx = r * self._board_size + c
-            if action_idx < len(policy_probs):
-                score = float(policy_probs[action_idx])
-                if score > best_score:
-                    best_score = score
-                    best_move = (r, c)
-
-        return best_move if best_move else random.choice(moves)
+        r, c = divmod(best_action, self._board_size)
+        return (r, c)
