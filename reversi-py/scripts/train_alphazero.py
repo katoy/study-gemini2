@@ -222,6 +222,7 @@ def main(cfg: TrainConfig) -> None:
     print(f"{'='*70}")
     print(f"設定: iters={cfg.n_iters}, games/iter={cfg.games_per_iter}, sims={cfg.n_simulations}\n")
 
+    sys.stdout.reconfigure(line_buffering=True)
     device = "cpu"
     net = OthelloNNet(board_size=cfg.board_size).to(device)
 
@@ -232,7 +233,7 @@ def main(cfg: TrainConfig) -> None:
     else:
         print("warm-start なし（ランダム初期化）")
 
-    best_net = copy.deepcopy(net)
+    best_nega_rate = 0.0
     optimizer = optim.Adam(net.parameters(), lr=cfg.lr)
 
     for it in range(cfg.n_iters):
@@ -275,20 +276,20 @@ def main(cfg: TrainConfig) -> None:
         avg_loss = total_loss_sum / len(loader)
         print(f"  訓練完了 - avg loss: {avg_loss:.4f}")
 
-        # Arena 評価ゲート
+        # Negamax 勝率で進捗管理（巻き戻しなし・学習を蓄積）
         net.eval()
-        win_rate = arena(net, best_net, cfg.arena_games, cfg)
         nega_rate = arena_vs_negamax(net, cfg.nega_games, cfg)
-        print(f"  arena: 新 vs 旧 = {win_rate*100:.1f}%  / vs Negamax = {nega_rate*100:.1f}%")
+        print(f"  vs Negamax = {nega_rate*100:.1f}%")
 
-        if win_rate >= cfg.gate_threshold:
-            best_net = copy.deepcopy(net)
-            save_best(best_net, cfg.best_model)
-            print(f"  ✅ ベストモデル更新 → {cfg.best_model}")
-        else:
-            net = copy.deepcopy(best_net)
-            optimizer = optim.Adam(net.parameters(), lr=cfg.lr)
-            print("  旧ベストモデルに巻き戻し")
+        if nega_rate > best_nega_rate:
+            best_nega_rate = nega_rate
+            save_best(net, cfg.best_model)
+            print(f"  ✅ ベストモデル更新 (vs Negamax {best_nega_rate*100:.1f}%) -> {cfg.best_model}")
+
+        if nega_rate >= 0.9:
+            print(f"\n目標達成！ vs Negamax 勝率 {nega_rate*100:.1f}%")
+            save_best(net, cfg.best_model)
+            break
 
     print(f"\n{'='*70}")
     print("訓練完了")
