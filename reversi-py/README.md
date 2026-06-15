@@ -501,27 +501,19 @@ uv run python scripts/benchmark_agents.py --mcts-iterations 100 --time-limit-ms 
 
 AlphaZero エージェントはニューラルネットワークを使用するため、強さを向上させるには訓練が必要です。自己対戦による学習スクリプトを提供しています。
 
-#### 簡易訓練実行
+#### 訓練実行
 
 ```bash
-# デフォルト: 10 イテレーション訓練、学習済みモデルを models/alpha_zero_latest.pth に保存
-uv run python scripts/train_alpha_zero_simple.py
+# MCTS + 正しい自己対戦学習（policy+value 損失・arena 評価ゲート）
+uv run python scripts/train_alphazero.py
 ```
 
-訓練の詳細:
-- **データ生成**: 各イテレーションで 5 ゲームの自己対戦（GainAgent）を実行
-- **ニューラルネットワーク**: ResNet（4 ブロック、32 フィルタ）
-- **最適化**: Adam（学習率 1e-3）
-- **出力**: チェックポイント `models/alpha_zero_iter*.pth` と最新版 `models/alpha_zero_latest.pth`
-
-#### 訓練済みモデルの確認
+#### 強さテスト
 
 ```bash
-# 訓練済みモデルで GainAgent に対戦（3 ゲーム）
-uv run python scripts/test_alpha_zero_strength.py
+# Negamax・GainAgent に対する勝率を確認
+uv run pytest -m strength -v
 ```
-
-期待: AlphaZero が GainAgent に対して複数回の勝利を獲得（現在は 1/3 wins）。
 
 #### GUI での使用
 

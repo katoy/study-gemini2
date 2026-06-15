@@ -46,3 +46,9 @@ htmlcov/
 .env
 .env.local
 tests/postman/node_modules
+
+# 学習済みモデル（大容量バイナリ）
+# 起動必須の 1 つだけ追跡継続（negation）
+models/*.pth
+models/*.pth.tar
+!models/alpha_zero_8x8_best.pth.tar
