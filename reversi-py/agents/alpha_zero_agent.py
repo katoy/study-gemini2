@@ -20,7 +20,9 @@ if TYPE_CHECKING:
     from game import Game
 
 # デフォルトの学習済みモデルパス
-DEFAULT_MODEL_PATH = Path(__file__).parent.parent / "models" / "alpha_zero_latest.pth"
+# 優先順位：alpha_zero_8x8_best.pth.tar > alpha_zero_latest.pth
+DEFAULT_MODEL_PATH = Path(__file__).parent.parent / "models" / "alpha_zero_8x8_best.pth.tar"
+FALLBACK_MODEL_PATH = Path(__file__).parent.parent / "models" / "alpha_zero_latest.pth"
 
 
 class AlphaZeroAgent(Agent):
@@ -41,15 +43,30 @@ class AlphaZeroAgent(Agent):
         self._net = ReversiNet(board_size=8, n_res_blocks=2, n_filters=32)
         self._net.eval()
 
-        # モデルパスの優先順位: 指定パス → デフォルトパス
+        # モデルパスの優先順位: 指定パス → デフォルトパス → フォールバック
         model_to_load = model_path or str(DEFAULT_MODEL_PATH)
 
         # 学習済みモデルを読み込む
-        try:
-            self._net.load_state_dict(torch.load(model_to_load, map_location='cpu'))
-        except FileNotFoundError:
-            # モデルが見つからない場合は未学習モデルで続行
-            pass
+        loaded = False
+        for path_to_try in [model_to_load, str(DEFAULT_MODEL_PATH), str(FALLBACK_MODEL_PATH)]:
+            if not path_to_try:
+                continue
+            try:
+                checkpoint = torch.load(str(path_to_try), map_location='cpu')
+                # checkpoint が dict の場合は 'model_state' キーを試す
+                if isinstance(checkpoint, dict) and 'model_state' in checkpoint:
+                    self._net.load_state_dict(checkpoint['model_state'])
+                elif isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+                    self._net.load_state_dict(checkpoint['state_dict'])
+                else:
+                    # 直接 state_dict として読み込む
+                    self._net.load_state_dict(checkpoint)
+                loaded = True
+                break
+            except Exception:
+                continue
+
+        # モデルが見つからない場合は未学習モデルで続行
 
     def _board_to_tensor(self, board: list[list[int]], turn: int) -> torch.Tensor:
         """盤面をテンソルに変換。
