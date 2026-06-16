@@ -7,7 +7,7 @@
 Python と Pygame で作られたリバーシゲームです。
 
 - 人間 vs 人間、人間 vs AI、AI vs AI に対応
-- **8 種類の AI 戦略**（First / Random / Gain / MCTS / Negamax / TranspositionNegamax / Pattern / AlphaZero）を API サーバー経由で提供
+- **10 種類の AI 戦略**（First / Random / Gain / MCTS / Negamax / TranspositionNegamax / Pattern / AlphaZero / AlphaZero-Stage1 / AlphaZero-Nega3000）を API サーバー経由で提供
 - 「待った」（Undo）、リスタート、リセット、パス処理に対応
 - 日本語 UI とフォント設定に対応
 - **包括的なテスト体制**: 314 テスト（アプリ + サーバー + 統合 + 強さ検証）、カバレッジ 90%+（Tier 1）/ 100%（単体テスト）
@@ -27,6 +27,8 @@ Python と Pygame で作られたリバーシゲームです。
 - `API (Transposition)`: αβ枝刈り + トランスポジションテーブル + PVS + Killer move（同時間で 2-3 倍深く探索）
 - `API (Pattern)`: αβ枝刈り + Edax 式パターン評価（エッジ・コーナー・対角線パターン、TD 学習済み）
 - `API (AlphaZero)`: MCTS + PyTorch ResNet（自己対戦学習対応）
+- `API (AlphaZero-Stage1)`: AlphaZero モデル Phase 1（Negamax 500ms 対応）
+- `API (AlphaZero-Nega3000)`: AlphaZero モデル Phase 2（Negamax 3000ms 対応、90%+ 勝率）
 
 `API (...)` エージェントはいずれも、`server/api_server.py` で起動する API サーバーから手を取得します。
 AI を使う場合は API サーバーの起動が必要です（`./scripts/start_with_server.sh` を推奨）。
