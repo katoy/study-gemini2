@@ -39,8 +39,8 @@ class Screen:
     MESSAGE_ABOVE_TURN_MARGIN = 10 # パスなどのメッセージと手番表示の間隔
     RADIO_BUTTON_SIZE = 20 # ラジオボタンのサイズ
     RADIO_BUTTON_MARGIN = 5  # ラジオボタンとテキストの間隔
-    RADIO_Y_OFFSET = 15      # ラジオボタンの垂直位置オフセット
-    RADIO_Y_SPACING = 25     # ラジオボタンの間隔
+    RADIO_Y_OFFSET = 12      # ラジオボタンの垂直位置オフセット
+    RADIO_Y_SPACING = 22     # ラジオボタンの間隔
     RADIO_BUTTON_INNER_CIRCLE_RATIO = 0.6 # 内側の円の半径の割合
     BUTTON_MARGIN = 10 # ボタンの左右マージン
     BUTTON_VERTICAL_MARGIN = 5 # ボタンの上下マージン
