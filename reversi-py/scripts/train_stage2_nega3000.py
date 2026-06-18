@@ -208,7 +208,7 @@ def main(cfg: TrainConfig) -> None:
             save_best(net, cfg.best_model)
             print("  ✅ モデル保存")
 
-        if rate >= 0.9:
+        if rate >= 0.95:
             print(f"\n🎉 目標達成: {rate*100:.1f}%")
             break
 
