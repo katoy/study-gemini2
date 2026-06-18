@@ -51,7 +51,7 @@ class GameGUI:
         # フォントを先に読み込み、必要な最小高さを計算してウィンドウ高さを調整する
         self.font = self._load_font()
         # agent ラベル用の小さいフォント
-        self.agent_label_font = self._load_font(font_size=24)
+        self.agent_label_font = self._load_font(font_size=20)
         # テキスト描画のキャッシング（毎フレーム同じテキストの render を避ける）
         self._text_cache: dict[tuple[str, tuple[int, int, int]], pygame.Surface] = {}
         # 盤面領域計算のキャッシング（ウィンドウサイズが変わらなければ再計算を避ける）
