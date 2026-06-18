@@ -50,6 +50,8 @@ class GameGUI:
         self.agent_options = get_agent_options()
         # フォントを先に読み込み、必要な最小高さを計算してウィンドウ高さを調整する
         self.font = self._load_font()
+        # agent ラベル用の小さいフォント
+        self.agent_label_font = self._load_font(font_size=24)
         # テキスト描画のキャッシング（毎フレーム同じテキストの render を避ける）
         self._text_cache: dict[tuple[str, tuple[int, int, int]], pygame.Surface] = {}
         # 盤面領域計算のキャッシング（ウィンドウサイズが変わらなければ再計算を避ける）
@@ -99,11 +101,13 @@ class GameGUI:
             self._button_cache[cache_key] = Button(rect, text, self.font)
         return self._button_cache[cache_key]
 
-    def _get_label(self, pos, text, color=Color.WHITE, is_right_aligned=False) -> Label:
+    def _get_label(self, pos, text, color=Color.WHITE, is_right_aligned=False, font=None) -> Label:
         """Label インスタンスをキャッシュから取得する（なければ生成）"""
-        cache_key = (pos, text, color, is_right_aligned)
+        if font is None:
+            font = self.font
+        cache_key = (pos, text, color, is_right_aligned, id(font))
         if cache_key not in self._label_cache:
-            self._label_cache[cache_key] = Label(pos, text, self.font, color, is_right_aligned)
+            self._label_cache[cache_key] = Label(pos, text, font, color, is_right_aligned)
         return self._label_cache[cache_key]
 
     # === レイアウト計算・初期化 ===
@@ -678,7 +682,7 @@ class GameGUI:
 
             RadioButton(radio_pos, Screen.RADIO_BUTTON_SIZE, is_selected, enabled).draw(self.screen)
             # テキストは常に有効な色で描画 (enabled フラグはボタン自体に適用)
-            self._get_label(text_pos, display_name).draw(self.screen)
+            self._get_label(text_pos, display_name, font=self.agent_label_font).draw(self.screen)
 
         # 白プレイヤーのラジオボタンを描画
         for i, (agent_id, display_name) in enumerate(self.agent_options):
@@ -691,7 +695,7 @@ class GameGUI:
 
             RadioButton(radio_pos, Screen.RADIO_BUTTON_SIZE, is_selected, enabled).draw(self.screen)
             # テキストは常に有効な色で描画
-            self._get_label(text_pos, display_name).draw(self.screen)
+            self._get_label(text_pos, display_name, font=self.agent_label_font).draw(self.screen)
 
     def draw_turn_message(self, game):
         """手番表示を描画する"""
