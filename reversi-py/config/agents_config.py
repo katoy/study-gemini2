@@ -88,7 +88,7 @@ AGENT_DEFINITIONS = [
     {
         'id': 8,
         'class': ApiAgent,
-        'display_name': 'API (AlphaZero)',
+        'display_name': 'AlphaZero',
         'params': {
             'api_url': 'http://127.0.0.1:5001/play',
             'agent_type': 'alphazero',
@@ -97,7 +97,7 @@ AGENT_DEFINITIONS = [
     {
         'id': 9,
         'class': ApiAgent,
-        'display_name': 'API (AlphaZero-Stage1)',
+        'display_name': 'AlphaZero-S1',
         'params': {
             'api_url': 'http://127.0.0.1:5001/play',
             'agent_type': 'alphazero_stage1',
@@ -106,7 +106,7 @@ AGENT_DEFINITIONS = [
     {
         'id': 10,
         'class': ApiAgent,
-        'display_name': 'API (AlphaZero-Nega3000)',
+        'display_name': 'AlphaZero-N3K',
         'params': {
             'api_url': 'http://127.0.0.1:5001/play',
             'agent_type': 'alphazero_nega3000',
