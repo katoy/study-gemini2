@@ -171,7 +171,9 @@ def main(cfg: TrainConfig) -> None:
     print(f"{'='*70}")
     print(f"設定: iters={cfg.n_iters}, games/iter={cfg.games_per_iter}, sims={cfg.n_simulations}\n")
 
-    sys.stdout.reconfigure(line_buffering=True)
+    import io
+    if isinstance(sys.stdout, io.TextIOBase):
+        sys.stdout.reconfigure(line_buffering=True)  # type: ignore
     device = "cpu"
     net = OthelloNNet(board_size=cfg.board_size).to(device)
 

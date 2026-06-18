@@ -150,7 +150,9 @@ def main(cfg: TrainConfig) -> None:
     print("フェーズ 2: Negamax(3000ms) で fine-tune")
     print(f"{'='*70}\n")
 
-    sys.stdout.reconfigure(line_buffering=True)
+    import io
+    if isinstance(sys.stdout, io.TextIOBase):
+        sys.stdout.reconfigure(line_buffering=True)  # type: ignore
     device = "cpu"
     net = OthelloNNet(board_size=cfg.board_size).to(device)
 
@@ -204,7 +206,7 @@ def main(cfg: TrainConfig) -> None:
         if rate > best_rate:
             best_rate = rate
             save_best(net, cfg.best_model)
-            print(f"  ✅ モデル保存")
+            print("  ✅ モデル保存")
 
         if rate >= 0.9:
             print(f"\n🎉 目標達成: {rate*100:.1f}%")
