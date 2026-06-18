@@ -1,16 +1,16 @@
 # gui.py
-import pygame
+import pygame  # noqa: E402
 pygame.init()  # pygame 初期化を先に実行して pygame.font モジュールの循環インポートを回避
 
-from pathlib import Path
+from pathlib import Path  # noqa: E402
 # --- config.agents からヘルパー関数をインポート ---
-from config.agents_config import get_agent_options
+from config.agents_config import get_agent_options  # noqa: E402
 # --- config.theme からインポート ---
-from config.theme import Color, Screen
+from config.theme import Color, Screen  # noqa: E402
 # --- config.i18n からインポート ---
-from config.i18n import _t
+from config.i18n import _t  # noqa: E402
 # <<< 追加: ui_elements から UI要素をインポート >>>
-from ui_elements import Button, RadioButton, Label
+from ui_elements import Button, RadioButton, Label  # noqa: E402
 # ---------------------------------------------
 
 class GameGUI:
