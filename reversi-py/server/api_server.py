@@ -110,7 +110,7 @@ def _select_agent(agent_type: str):
         )
     if agent_type == "alphazero_nega3000":
         return AlphaZeroAgent(
-            n_simulations=int(os.getenv("ALPHAZERO_NEGA3000_N_SIMULATIONS", "50")),
+            n_simulations=int(os.getenv("ALPHAZERO_NEGA3000_N_SIMULATIONS", "100")),
             model_path="models/alpha_zero_nega3000.pth"
         )
     return None
