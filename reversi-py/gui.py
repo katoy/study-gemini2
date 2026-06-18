@@ -49,9 +49,9 @@ class GameGUI:
         # compute_min_height や player settings 計算で agent_options を参照するため
         self.agent_options = get_agent_options()
         # フォントを先に読み込み、必要な最小高さを計算してウィンドウ高さを調整する
-        self.font = self._load_font(font_size=16)
+        self.font = self._load_font(font_size=18)
         # agent ラベル用の小さいフォント
-        self.agent_label_font = self._load_font(font_size=18)
+        self.agent_label_font = self._load_font(font_size=14)
         # テキスト描画のキャッシング（毎フレーム同じテキストの render を避ける）
         self._text_cache: dict[tuple[str, tuple[int, int, int]], pygame.Surface] = {}
         # 盤面領域計算のキャッシング（ウィンドウサイズが変わらなければ再計算を避ける）
