@@ -159,7 +159,7 @@ class GameGUI:
             return turn_message_center_y - font_height - Screen.MESSAGE_ABOVE_TURN_MARGIN
 
 
-    def _load_font(self):
+    def _load_font(self, font_size=14):
         """同梱された日本語フォントをロードする
 
         Prefer pygame.font when available (helps tests that mock it).
@@ -169,7 +169,6 @@ class GameGUI:
         font_dir = script_dir / "fonts"
         font_filename = "NotoSansJP-Regular.ttf"
         font_path = font_dir / font_filename
-        font_size = 14
 
         # Evaluate existence once to avoid multiple stat calls (tests assert single call)
         try:
