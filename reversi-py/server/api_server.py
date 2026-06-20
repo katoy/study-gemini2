@@ -54,7 +54,7 @@ app = FastAPI()
 
 VALID_AGENT_TYPES = frozenset({
     "first", "random", "gain", "mcts", "negamax", "transposition",
-    "pattern", "alphazero", "alphazero_stage1", "alphazero_nega3000"
+    "pattern", "alphazero", "alphazero_stage1", "alphazero_nega3000", "alphazero_nega6000"
 })
 
 # 盤面サイズの許容範囲。巨大盤面による CPU/メモリ枯渇（DoS）を防ぐ
@@ -112,6 +112,11 @@ def _select_agent(agent_type: str):
         return AlphaZeroAgent(
             n_simulations=int(os.getenv("ALPHAZERO_NEGA3000_N_SIMULATIONS", "150")),
             model_path="models/alpha_zero_nega3000.pth"
+        )
+    if agent_type == "alphazero_nega6000":
+        return AlphaZeroAgent(
+            n_simulations=int(os.getenv("ALPHAZERO_NEGA6000_N_SIMULATIONS", "200")),
+            model_path="models/alpha_zero_nega6000.pth"
         )
     return None
 

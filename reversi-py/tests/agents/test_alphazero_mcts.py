@@ -32,7 +32,6 @@ def _make_dummy_net() -> MagicMock:
             return pi, v
         return MagicMock(), MagicMock()
 
-    net.__call__ = dummy_forward
     net.side_effect = dummy_forward
     return net
 

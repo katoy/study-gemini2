@@ -95,21 +95,21 @@ AGENT_DEFINITIONS = [
         }
     },
     {
-        'id': 9,
-        'class': ApiAgent,
-        'display_name': 'AlphaZero-S1',
-        'params': {
-            'api_url': 'http://127.0.0.1:5001/play',
-            'agent_type': 'alphazero_stage1',
-        }
-    },
-    {
         'id': 10,
         'class': ApiAgent,
         'display_name': 'AlphaZero-N3K',
         'params': {
             'api_url': 'http://127.0.0.1:5001/play',
             'agent_type': 'alphazero_nega3000',
+        }
+    },
+    {
+        'id': 11,
+        'class': ApiAgent,
+        'display_name': 'AlphaZero-N6K',
+        'params': {
+            'api_url': 'http://127.0.0.1:5001/play',
+            'agent_type': 'alphazero_nega6000',
         }
     },
 ]
