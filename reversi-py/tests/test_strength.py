@@ -17,6 +17,7 @@ from agents.gain_agent import GainAgent
 from agents.negamax_agent import NegamaxAgent
 from agents.transposition_negamax_agent import TranspositionNegamaxAgent
 from agents.pattern_agent import PatternAgent
+from agents.pattern_evaluator import PatternEvaluator
 from agents.alpha_zero_agent import AlphaZeroAgent
 from game import Game
 
@@ -184,3 +185,36 @@ class TestTranspositionBeatsPattern:
         pattern = PatternAgent(weights_path=None, time_limit_ms=200)
         diff = play_one_game(pattern, trans, 8)
         assert diff < 0, f"Transposition(白) が Pattern(黒) に負けた (石差={diff})"
+
+
+@pytest.mark.strength
+class TestNegamaxWithPatternEvaluator:
+    """PatternEvaluator 統合版 Negamax の強さテスト。
+
+    位置重み評価より評価精度が高いため、より強くなることを検証。
+    """
+
+    BOARD_SIZE = 8
+    TIME_LIMIT_MS = 100
+
+    def test_pattern_negamax_black_wins(self) -> None:
+        """黒番で PatternEvaluator 統合版が GainAgent に勝つ。"""
+        evaluator = PatternEvaluator(board_size=8, weights_path=None)
+        agent = NegamaxAgent(
+            time_limit_ms=self.TIME_LIMIT_MS,
+            pattern_evaluator=evaluator
+        )
+        gain = GainAgent()
+        diff = play_one_game(agent, gain, self.BOARD_SIZE)
+        assert diff > 0, f"PatternEvaluator統合版(黒) が GainAgent(白) に負けた (石差={diff})"
+
+    def test_pattern_negamax_white_wins(self) -> None:
+        """白番で PatternEvaluator 統合版が GainAgent に勝つ。"""
+        evaluator = PatternEvaluator(board_size=8, weights_path=None)
+        agent = NegamaxAgent(
+            time_limit_ms=self.TIME_LIMIT_MS,
+            pattern_evaluator=evaluator
+        )
+        gain = GainAgent()
+        diff = play_one_game(gain, agent, self.BOARD_SIZE)
+        assert diff < 0, f"PatternEvaluator統合版(白) が GainAgent(黒) に負けた (石差={diff})"

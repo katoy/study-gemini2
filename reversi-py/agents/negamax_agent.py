@@ -11,6 +11,7 @@ from .base_agent import Agent
 
 if TYPE_CHECKING:
     from game import Game
+    from agents.pattern_evaluator import PatternEvaluator
 
 # マスの役割ごとの重み
 _WEIGHT_CORNER = 100   # 角
@@ -301,6 +302,7 @@ class NegamaxAgent(Agent):
         time_limit_ms: int = 3000,
         max_depth: int = 60,
         endgame_empties: int = 12,
+        pattern_evaluator: Optional["PatternEvaluator"] = None,
     ) -> None:
         """NegamaxAgent を初期化します。
 
@@ -308,10 +310,13 @@ class NegamaxAgent(Agent):
             time_limit_ms: 思考時間の上限（ミリ秒）。
             max_depth: 探索深さの上限。テストでは小さく固定して決定論化する。
             endgame_empties: 終盤読み切りに切り替える空きマス数の閾値。
+            pattern_evaluator: PatternEvaluator インスタンス（オプション）。
+                指定された場合、位置重み評価の代わりに使用される。
         """
         self.time_limit_ms = time_limit_ms
         self.max_depth = max_depth
         self.endgame_empties = endgame_empties
+        self._pattern_evaluator = pattern_evaluator
         self._deadline = 0.0
         self._node_count = 0
 
@@ -437,6 +442,9 @@ class NegamaxAgent(Agent):
             raise _SearchTimeout()
 
         if depth <= 0:
+            if self._pattern_evaluator is not None:
+                # PatternEvaluator を使用（手番視点の値を返す）
+                return float(self._pattern_evaluator.evaluate(board, turn))
             if endgame:
                 return float(_disc_diff(board, turn))
             return _evaluate(board, n, turn)
