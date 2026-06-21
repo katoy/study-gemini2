@@ -138,7 +138,6 @@ class TestAlphaZeroAgent:
 
     def test_alpha_zero_with_trained_model(self) -> None:
         """AlphaZeroAgent が学習済みモデルで動作する。"""
-        import os
         from pathlib import Path
 
         model_path = "models/alpha_zero_latest.pth"
@@ -218,3 +217,44 @@ class TestNegamaxWithPatternEvaluator:
         gain = GainAgent()
         diff = play_one_game(gain, agent, self.BOARD_SIZE)
         assert diff < 0, f"PatternEvaluator統合版(白) が GainAgent(黒) に負けた (石差={diff})"
+
+
+@pytest.mark.strength
+class TestAlphaZeroN6KVsTransposition:
+    """AlphaZero-N6K と TranspositionNegamaxAgent の対決テスト。
+
+    訓練済み AlphaZero (Negamax 6000ms 対戦) と TranspositionNegamaxAgent を
+    先後入れ替えで対戦させ、実力差を確認する。
+    """
+
+    BOARD_SIZE = 8
+    ALPHAZERO_SIMULATIONS = 100  # テスト用に軽量化
+    NEGAMAX_TIME_LIMIT_MS = 500
+
+    def test_alphazero_n6k_black_wins_vs_transposition(self) -> None:
+        """AlphaZero-N6K が黒番で TranspositionNegamaxAgent に勝つ。"""
+        from pathlib import Path
+        model_path = "models/alpha_zero_nega6000.pth"
+        if not Path(model_path).exists():
+            pytest.skip(f"モデルファイルが存在しません: {model_path}")
+        az = AlphaZeroAgent(
+            n_simulations=self.ALPHAZERO_SIMULATIONS,
+            model_path=model_path,
+        )
+        trans = TranspositionNegamaxAgent(time_limit_ms=self.NEGAMAX_TIME_LIMIT_MS)
+        diff = play_one_game(az, trans, self.BOARD_SIZE)
+        assert diff > 0, f"AlphaZero-N6K(黒) が Transposition(白) に負けた (石差={diff})"
+
+    def test_alphazero_n6k_white_wins_vs_transposition(self) -> None:
+        """AlphaZero-N6K が白番で TranspositionNegamaxAgent に勝つ。"""
+        from pathlib import Path
+        model_path = "models/alpha_zero_nega6000.pth"
+        if not Path(model_path).exists():
+            pytest.skip(f"モデルファイルが存在しません: {model_path}")
+        az = AlphaZeroAgent(
+            n_simulations=self.ALPHAZERO_SIMULATIONS,
+            model_path=model_path,
+        )
+        trans = TranspositionNegamaxAgent(time_limit_ms=self.NEGAMAX_TIME_LIMIT_MS)
+        diff = play_one_game(trans, az, self.BOARD_SIZE)
+        assert diff < 0, f"AlphaZero-N6K(白) が Transposition(黒) に負けた (石差={diff})"
