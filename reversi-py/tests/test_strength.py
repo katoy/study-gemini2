@@ -148,3 +148,39 @@ class TestAlphaZeroAgent:
             assert move is not None, "AlphaZeroAgent (訓練済みモデル) が着手を返さない"
 
 
+@pytest.mark.strength
+class TestTranspositionBeatsNegamax:
+    """TranspositionNegamaxAgent が NegamaxAgent に勝てることを確認。"""
+
+    def test_transposition_black_wins_vs_negamax(self) -> None:
+        """黒番で NegamaxAgent に勝てる。"""
+        trans = TranspositionNegamaxAgent(time_limit_ms=100)
+        nmax = NegamaxAgent(time_limit_ms=100)
+        diff = play_one_game(trans, nmax, 8)
+        assert diff > 0, f"Transposition(黒) が Negamax(白) に負けた (石差={diff})"
+
+    def test_transposition_white_wins_vs_negamax(self) -> None:
+        """白番で NegamaxAgent に勝てる。"""
+        trans = TranspositionNegamaxAgent(time_limit_ms=100)
+        nmax = NegamaxAgent(time_limit_ms=100)
+        diff = play_one_game(nmax, trans, 8)
+        assert diff < 0, f"Transposition(白) が Negamax(黒) に負けた (石差={diff})"
+
+
+@pytest.mark.strength
+class TestTranspositionBeatsPattern:
+    """TranspositionNegamaxAgent が PatternAgent に勝てることを確認。"""
+
+    def test_transposition_black_wins_vs_pattern(self) -> None:
+        """黒番で PatternAgent に勝てる。"""
+        trans = TranspositionNegamaxAgent(time_limit_ms=200)
+        pattern = PatternAgent(weights_path=None, time_limit_ms=200)
+        diff = play_one_game(trans, pattern, 8)
+        assert diff > 0, f"Transposition(黒) が Pattern(白) に負けた (石差={diff})"
+
+    def test_transposition_white_wins_vs_pattern(self) -> None:
+        """白番で PatternAgent に勝てる。"""
+        trans = TranspositionNegamaxAgent(time_limit_ms=200)
+        pattern = PatternAgent(weights_path=None, time_limit_ms=200)
+        diff = play_one_game(pattern, trans, 8)
+        assert diff < 0, f"Transposition(白) が Pattern(黒) に負けた (石差={diff})"
