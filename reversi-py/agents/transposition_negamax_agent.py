@@ -182,7 +182,7 @@ class TranspositionNegamaxAgent(Agent):
         if endgame or empties <= self._endgame_empties:
             black = sum(1 for row in board for v in row if v == -1)
             white = sum(1 for row in board for v in row if v == 1)
-            return (black - white) * 10000
+            return turn * (black - white) * 10000
 
         table = _build_weight_table(n)
 
@@ -209,13 +209,14 @@ class TranspositionNegamaxAgent(Agent):
         stable = _stable_edge_count(board, n, turn) - _stable_edge_count(board, n, -turn)
 
         if fill < 0.33:
-            pos_c, mob_c, cor_c, stab_c = 1.0, 8.0, 25.0, 10.0
+            pos_c, mob_c, cor_c, stab_c, disc_c = 1.0, 8.0, 25.0, 10.0, 0.0
         elif fill <= 0.70:
-            pos_c, mob_c, cor_c, stab_c = 1.0, 6.0, 30.0, 15.0
+            pos_c, mob_c, cor_c, stab_c, disc_c = 1.0, 6.0, 30.0, 15.0, 0.0
         else:
-            pos_c, mob_c, cor_c, stab_c = 0.3, 2.0, 30.0, 20.0
+            pos_c, mob_c, cor_c, stab_c, disc_c = 0.3, 2.0, 30.0, 20.0, 5.0
 
-        return pos_c * pos_score + mob_c * mobility + cor_c * corners + stab_c * stable
+        disc = turn * sum(v for row in board for v in row)
+        return pos_c * pos_score + mob_c * mobility + cor_c * corners + stab_c * stable + disc_c * disc
 
     def _negamax(
         self,
@@ -276,6 +277,7 @@ class TranspositionNegamaxAgent(Agent):
         ordered_moves.extend(remaining)
 
         # αβ探索
+        orig_alpha = alpha
         best_value = -float('inf')
         best_move = None
 
@@ -306,10 +308,10 @@ class TranspositionNegamaxAgent(Agent):
                 break
 
         # TT 書き込み
-        if best_value <= alpha:
-            flag = 'UPPERBOUND'
-        elif best_value >= beta:
+        if best_value >= beta:
             flag = 'LOWERBOUND'
+        elif best_value <= orig_alpha:
+            flag = 'UPPERBOUND'
         else:
             flag = 'EXACT'
 
@@ -323,8 +325,9 @@ class TranspositionNegamaxAgent(Agent):
         self._nodes_checked = 0
         self._tt.clear()
         self._killers = [set() for _ in range(self._max_depth + 2)]
+        self._history = {}
 
-        board = game.board.board
+        board = [row[:] for row in game.board.board]
         n = game.board_size
         turn = game.turn
 
