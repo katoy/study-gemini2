@@ -7,7 +7,7 @@
 Python と Pygame で作られたリバーシゲームです。
 
 - 人間 vs 人間、人間 vs AI、AI vs AI に対応
-- **10 種類の AI 戦略**（First / Random / Gain / MCTS / Negamax / TranspositionNegamax / Pattern / AlphaZero / AlphaZero-S1 / AlphaZero-N3K）を API サーバー経由で提供
+- **11 種類の AI 戦略**（First / Random / Gain / MCTS / Negamax / TranspositionNegamax / Pattern / AlphaZero / AlphaZero-N3K / AlphaZero-N6K）を API サーバー経由で提供
 - 「待った」（Undo）、リスタート、リセット、パス処理に対応
 - 日本語 UI とフォント設定に対応
 - **包括的なテスト体制**: 314 テスト（アプリ + サーバー + 統合 + 強さ検証）、カバレッジ 90%+（Tier 1）/ 100%（単体テスト）
@@ -27,8 +27,8 @@ Python と Pygame で作られたリバーシゲームです。
 - `API (Transposition)`: αβ枝刈り + トランスポジションテーブル + PVS + Killer move（同時間で 2-3 倍深く探索）
 - `API (Pattern)`: αβ枝刈り + Edax 式パターン評価（エッジ・コーナー・対角線パターン、TD 学習済み）
 - `AlphaZero`: MCTS + PyTorch ResNet（自己対戦学習対応）
-- `AlphaZero-S1`: AlphaZero モデル Phase 1（Negamax 500ms に対して訓練済み、50 イテレーション完了）
-- `AlphaZero-N3K`: AlphaZero モデル Phase 2（Negamax 3000ms に対して訓練済み、66 イテレーション完了、最大勝率 100%）
+- `AlphaZero-N3K`: AlphaZero モデル Phase 2（Negamax 3000ms に対して訓練済み）
+- `AlphaZero-N6K`: AlphaZero モデル Phase 3（Negamax 6000ms に対して訓練済み）
 
 `API (...)` エージェントはいずれも、`server/api_server.py` で起動する API サーバーから手を取得します。
 AI を使う場合は API サーバーの起動が必要です（`./scripts/start_with_server.sh` を推奨）。
@@ -399,7 +399,7 @@ API ドキュメント:
 
 - `board`: 正方形の 2 次元配列（各セルは -1: 黒、0: 空、1: 白）。サイズは 4〜16（DoS 防止の上限あり）
 - `turn`: 手番（-1: 黒、1: 白）
-- `agent_type`: `first` / `random` / `gain` / `mcts` / `negamax` / `transposition` / `pattern` / `alphazero` のいずれか（省略時は `random`）
+- `agent_type`: `first` / `random` / `gain` / `mcts` / `negamax` / `transposition` / `pattern` / `alphazero` / `alphazero_nega3000` / `alphazero_nega6000` のいずれか（省略時は `random`）
 
 レスポンスは `{"move": [row, col]}`、合法手がない場合は `{"move": null}` です。
 
@@ -417,6 +417,7 @@ API ドキュメント:
 4. プレイヤー設定で以下を選べます
    - `人間`: 人間が手を指します
    - `API (First)`, `API (Random)`, `API (Gain)`, `API (MCTS)`, `API (Negamax)`: API サーバー経由の AI（サーバー起動が必要）
+   - `AlphaZero-N3K`, `AlphaZero-N6K`: 訓練済み AlphaZero モデル
 
 5. 「待った」ボタンで手を戻せます（AI 対戦時は自分が打つ直前の状態まで戻ります）
 
