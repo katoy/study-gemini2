@@ -63,7 +63,7 @@ def main() -> None:
     parser.add_argument("--agent", choices=["negamax", "transposition"],
                         default="negamax",
                         help="テスト対象エージェント（デフォルト: negamax）")
-    parser.add_argument("--opponent", choices=["mcts", "gain", "random", "alphazero_n6k"],
+    parser.add_argument("--opponent", choices=["mcts", "gain", "random", "alphazero_n6k", "alphazero_n6k_v2"],
                         default="mcts",
                         help="対戦相手（デフォルト: mcts）")
     args = parser.parse_args()
@@ -88,7 +88,10 @@ def main() -> None:
         win_threshold = 0.60
     elif args.opponent == "alphazero_n6k":
         opponent_name = "AlphaZero-N6K(sim=200)"
-        win_threshold = 0.40  # 強敵なので 40% 以上で合格
+        win_threshold = 0.40
+    elif args.opponent == "alphazero_n6k_v2":
+        opponent_name = "AlphaZero-N6Kv2(sim=200)"
+        win_threshold = 0.40
     else:
         opponent_name = args.opponent
         win_threshold = 0.50
@@ -105,6 +108,11 @@ def main() -> None:
             opponent = AlphaZeroAgent(
                 n_simulations=200,
                 model_path="models/alpha_zero_nega6000.pth",
+            )
+        elif args.opponent == "alphazero_n6k_v2":
+            opponent = AlphaZeroAgent(
+                n_simulations=200,
+                model_path="models/alpha_zero_nega6000_v2.pth",
             )
         else:
             opponent = make_opponent(args)
