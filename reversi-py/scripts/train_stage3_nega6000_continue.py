@@ -29,7 +29,7 @@ class TrainConfig:
     n_iters: int = 100           # 80 → 100
     games_per_iter: int = 16     # 8 → 16（サンプル倍増）
     n_simulations: int = 50      # 30 → 50（読みを深く）
-    c_puct: float = 1.5          # 1.0 → 1.5（広い探索）
+    c_puct: float = 1.0          # 1.5 → 1.0 に戻す（安定性重視）
     temp_moves: int = 5          # 8 → 5（確定的な手を早める）
     dirichlet_alpha: float = 0.3
     dirichlet_eps: float = 0.25
