@@ -66,6 +66,8 @@ def main() -> None:
     parser.add_argument("--opponent", choices=["mcts", "gain", "random", "alphazero_n6k", "alphazero_n6k_v2"],
                         default="mcts",
                         help="対戦相手（デフォルト: mcts）")
+    parser.add_argument("--alphazero-simulations", type=int, default=200,
+                        help="AlphaZero の MCTS シミュレーション数（デフォルト: 200）")
     args = parser.parse_args()
 
     # テスト対象エージェントを生成
@@ -87,10 +89,10 @@ def main() -> None:
         opponent_name = "random"
         win_threshold = 0.60
     elif args.opponent == "alphazero_n6k":
-        opponent_name = "AlphaZero-N6K(sim=200)"
+        opponent_name = f"AlphaZero-N6K(sim={args.alphazero_simulations})"
         win_threshold = 0.40
     elif args.opponent == "alphazero_n6k_v2":
-        opponent_name = "AlphaZero-N6Kv2(sim=200)"
+        opponent_name = f"AlphaZero-N6Kv2(sim={args.alphazero_simulations})"
         win_threshold = 0.40
     else:
         opponent_name = args.opponent
@@ -106,12 +108,12 @@ def main() -> None:
         random.seed(i)
         if args.opponent == "alphazero_n6k":
             opponent = AlphaZeroAgent(
-                n_simulations=200,
+                n_simulations=args.alphazero_simulations,
                 model_path="models/alpha_zero_nega6000.pth",
             )
         elif args.opponent == "alphazero_n6k_v2":
             opponent = AlphaZeroAgent(
-                n_simulations=200,
+                n_simulations=args.alphazero_simulations,
                 model_path="models/alpha_zero_nega6000_v2.pth",
             )
         else:
