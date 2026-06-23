@@ -93,21 +93,14 @@ def play_one_selfplay_game(net: OthelloNNet, cfg: TrainConfig) -> list[tuple[tor
 
     black = sum(cell == -1 for row in board for cell in row)
     white = sum(cell == 1 for row in board for cell in row)
-    if black > white:
-        winner = -1
-    elif white > black:
-        winner = 1
-    else:
-        winner = 0
+    disc_diff = black - white  # 黒視点の石差（-64〜+64）
+    # 手番視点の石差を -1〜+1 に正規化（最大石数 32 で割る）
+    # 大差勝ちほど |z| が大きくなり、石差を最大化する動機付けになる
 
     result = []
     for board_t, pi, t in samples:
-        if winner == 0:
-            z = 0.0
-        elif winner == t:
-            z = 1.0
-        else:
-            z = -1.0
+        z = float(t * disc_diff) / 32.0
+        z = max(-1.0, min(1.0, z))  # クリッピング（念のため）
         result.append((board_t, pi, z))
 
     return result
