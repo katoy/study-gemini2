@@ -53,9 +53,10 @@ except ImportError as e:
 app = FastAPI()
 
 VALID_AGENT_TYPES = frozenset({
-    "first", "random", "gain", "mcts", "negamax", "transposition",
+    "first", "random", "gain", "mcts", "negamax", "negamax_3k", "negamax_6k", "transposition",
     "pattern", "alphazero", "alphazero_stage1", "alphazero_nega3000",
-    "alphazero_nega6000", "alphazero_nega6000_v2"
+    "alphazero_nega6000", "alphazero_nega6000_v2",
+    "alphazero_nega6000_v6_improved_loss"
 })
 
 # 盤面サイズの許容範囲。巨大盤面による CPU/メモリ枯渇（DoS）を防ぐ
@@ -91,6 +92,10 @@ def _select_agent(agent_type: str):
         return NegamaxAgent(
             time_limit_ms=int(os.getenv("NEGAMAX_TIME_LIMIT_MS", "3000"))
         )
+    if agent_type == "negamax_3k":
+        return NegamaxAgent(time_limit_ms=3000)
+    if agent_type == "negamax_6k":
+        return NegamaxAgent(time_limit_ms=6000)
     if agent_type == "transposition":
         return TranspositionNegamaxAgent(
             time_limit_ms=int(os.getenv("TRANSPOSITION_TIME_LIMIT_MS", "3000"))
@@ -123,6 +128,11 @@ def _select_agent(agent_type: str):
         return AlphaZeroAgent(
             n_simulations=int(os.getenv("ALPHAZERO_NEGA6000_V2_N_SIMULATIONS", "200")),
             model_path="models/alpha_zero_nega6000_v2.pth"
+        )
+    if agent_type == "alphazero_nega6000_v6_improved_loss":
+        return AlphaZeroAgent(
+            n_simulations=int(os.getenv("ALPHAZERO_NEGA6000_V6_IMPROVED_LOSS_N_SIMULATIONS", "200")),
+            model_path="models/alpha_zero_nega6000_v6_improved_loss.pth"
         )
     return None
 

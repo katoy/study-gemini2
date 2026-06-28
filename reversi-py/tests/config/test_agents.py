@@ -122,7 +122,41 @@ class TestConfigAgents(unittest.TestCase):
             with self.subTest(agent_id=defn['id']):
                 self.assertIn("params", defn, "Definition should have 'params' key")
                 self.assertIn("agent_type", defn["params"], "params should contain 'agent_type'")
-                self.assertIn(defn["params"].get("agent_type"), ["first", "random", "gain", "mcts", "negamax", "transposition", "pattern", "alphazero"])
+        self.assertIn(
+            defn["params"].get("agent_type"),
+            [
+                "first",
+                "random",
+                "gain",
+                "mcts",
+                "negamax_3k",
+                "negamax_6k",
+                "transposition",
+                "pattern",
+                "alphazero",
+                "alphazero_stage1",
+                "alphazero_nega3000",
+                "alphazero_nega6000",
+                "alphazero_nega6000_v2",
+                "alphazero_nega6000_v6_improved_loss",
+            ],
+        )
+
+    def test_negamax_selection_is_split_into_3k_and_6k(self):
+        """プレイヤー設定の Negamax は 3K / 6K の 2 種類になっている"""
+        negamax_options = [
+            d for d in AGENT_DEFINITIONS if d["display_name"].startswith("API (Negamax")
+        ]
+        self.assertEqual(len(negamax_options), 2)
+        self.assertEqual(
+            [d["display_name"] for d in negamax_options],
+            ["API (Negamax-3K)", "API (Negamax-6K)"],
+        )
+        self.assertEqual(
+            [d["params"]["agent_type"] for d in negamax_options],
+            ["negamax_3k", "negamax_6k"],
+        )
+        self.assertTrue(all(d["params"].get("timeout") == 10 for d in negamax_options))
 
 
 if __name__ == '__main__':

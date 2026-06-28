@@ -106,6 +106,26 @@ class TestApiServer(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["move"], [2, 3])
 
+    def test_play_agent_type_negamax_3k(self) -> None:
+        payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "negamax_3k"}
+        with patch("server.api_server.NegamaxAgent") as MockNegamax:
+            MockNegamax.return_value.play.return_value = (2, 3)
+            response = self.client.post("/play", json=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["move"], [2, 3])
+        MockNegamax.assert_called_once()
+        self.assertEqual(MockNegamax.call_args.kwargs["time_limit_ms"], 3000)
+
+    def test_play_agent_type_negamax_6k(self) -> None:
+        payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "negamax_6k"}
+        with patch("server.api_server.NegamaxAgent") as MockNegamax:
+            MockNegamax.return_value.play.return_value = (2, 3)
+            response = self.client.post("/play", json=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["move"], [2, 3])
+        MockNegamax.assert_called_once()
+        self.assertEqual(MockNegamax.call_args.kwargs["time_limit_ms"], 6000)
+
     def test_negamax_time_limit_env_var(self) -> None:
         """NEGAMAX_TIME_LIMIT_MS 環境変数が反映される。"""
         import os

@@ -61,10 +61,21 @@ AGENT_DEFINITIONS = [
     {
         'id': 5,
         'class': ApiAgent,
-        'display_name': 'API (Negamax)',
+        'display_name': 'API (Negamax-3K)',
         'params': {
             'api_url': 'http://127.0.0.1:5001/play',
-            'agent_type': 'negamax',
+            'agent_type': 'negamax_3k',
+            'timeout': 10,
+        }
+    },
+    {
+        'id': 9,
+        'class': ApiAgent,
+        'display_name': 'API (Negamax-6K)',
+        'params': {
+            'api_url': 'http://127.0.0.1:5001/play',
+            'agent_type': 'negamax_6k',
+            'timeout': 10,
         }
     },
     {
@@ -119,6 +130,15 @@ AGENT_DEFINITIONS = [
         'params': {
             'api_url': 'http://127.0.0.1:5001/play',
             'agent_type': 'alphazero_nega6000_v2',
+        }
+    },
+    {
+        'id': 13,
+        'class': ApiAgent,
+        'display_name': 'AlphaZero-N6Kv6',
+        'params': {
+            'api_url': 'http://127.0.0.1:5001/play',
+            'agent_type': 'alphazero_nega6000_v6_improved_loss',
         }
     },
 ]
