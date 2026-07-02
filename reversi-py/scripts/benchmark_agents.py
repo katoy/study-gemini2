@@ -63,9 +63,19 @@ def main() -> None:
     parser.add_argument("--agent", choices=["negamax", "transposition"],
                         default="negamax",
                         help="テスト対象エージェント（デフォルト: negamax）")
-    parser.add_argument("--opponent", choices=["mcts", "gain", "random", "alphazero_n6k", "alphazero_n6k_v2"],
-                        default="mcts",
-                        help="対戦相手（デフォルト: mcts）")
+    parser.add_argument(
+        "--opponent",
+        choices=[
+            "mcts",
+            "gain",
+            "random",
+            "alphazero_n6k",
+            "alphazero_n6k_v2",
+            "alphazero_n6k_v6",
+            "alphazero_n6k_v9",
+        ],
+        default="mcts",
+        help="対戦相手（デフォルト: mcts）")
     parser.add_argument("--alphazero-simulations", type=int, default=200,
                         help="AlphaZero の MCTS シミュレーション数（デフォルト: 200）")
     args = parser.parse_args()
@@ -94,6 +104,12 @@ def main() -> None:
     elif args.opponent == "alphazero_n6k_v2":
         opponent_name = f"AlphaZero-N6Kv2(sim={args.alphazero_simulations})"
         win_threshold = 0.40
+    elif args.opponent == "alphazero_n6k_v6":
+        opponent_name = f"AlphaZero-N6Kv6(sim={args.alphazero_simulations})"
+        win_threshold = 0.40
+    elif args.opponent == "alphazero_n6k_v9":
+        opponent_name = f"AlphaZero-N6Kv9(sim={args.alphazero_simulations})"
+        win_threshold = 0.40
     else:
         opponent_name = args.opponent
         win_threshold = 0.50
@@ -115,6 +131,16 @@ def main() -> None:
             opponent = AlphaZeroAgent(
                 n_simulations=args.alphazero_simulations,
                 model_path="models/alpha_zero_nega6000_v2.pth",
+            )
+        elif args.opponent == "alphazero_n6k_v6":
+            opponent = AlphaZeroAgent(
+                n_simulations=args.alphazero_simulations,
+                model_path="models/alpha_zero_nega6000_v6_improved_loss.pth",
+            )
+        elif args.opponent == "alphazero_n6k_v9":
+            opponent = AlphaZeroAgent(
+                n_simulations=args.alphazero_simulations,
+                model_path="models/alpha_zero_nega6000_v9.pth",
             )
         else:
             opponent = make_opponent(args)

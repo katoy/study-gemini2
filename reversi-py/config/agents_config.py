@@ -141,6 +141,15 @@ AGENT_DEFINITIONS = [
             'agent_type': 'alphazero_nega6000_v6_improved_loss',
         }
     },
+    {
+        'id': 14,
+        'class': ApiAgent,
+        'display_name': 'AlphaZero-N6Kv9',
+        'params': {
+            'api_url': 'http://127.0.0.1:5001/play',
+            'agent_type': 'alphazero_nega6000_v9',
+        }
+    },
 ]
 
 # --- ヘルパー関数 ---

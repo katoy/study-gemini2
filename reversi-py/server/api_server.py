@@ -56,7 +56,7 @@ VALID_AGENT_TYPES = frozenset({
     "first", "random", "gain", "mcts", "negamax", "negamax_3k", "negamax_6k", "transposition",
     "pattern", "alphazero", "alphazero_stage1", "alphazero_nega3000",
     "alphazero_nega6000", "alphazero_nega6000_v2",
-    "alphazero_nega6000_v6_improved_loss"
+    "alphazero_nega6000_v6_improved_loss", "alphazero_nega6000_v9"
 })
 
 # 盤面サイズの許容範囲。巨大盤面による CPU/メモリ枯渇（DoS）を防ぐ
@@ -133,6 +133,11 @@ def _select_agent(agent_type: str):
         return AlphaZeroAgent(
             n_simulations=int(os.getenv("ALPHAZERO_NEGA6000_V6_IMPROVED_LOSS_N_SIMULATIONS", "200")),
             model_path="models/alpha_zero_nega6000_v6_improved_loss.pth"
+        )
+    if agent_type == "alphazero_nega6000_v9":
+        return AlphaZeroAgent(
+            n_simulations=int(os.getenv("ALPHAZERO_NEGA6000_V9_N_SIMULATIONS", "200")),
+            model_path=os.getenv("ALPHAZERO_NEGA6000_V9_MODEL", "models/alpha_zero_nega6000_v9.pth")
         )
     return None
 
