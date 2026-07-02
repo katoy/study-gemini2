@@ -43,14 +43,14 @@ def evaluate_against_negamax(
 - テスト: 開口が異なるペアで棋譜が異なること、色入れ替えの正しさ、勝率計算（軽量にするため Negamax はモック or time_limit_ms を極小化）
 - `ruff check` / `mypy` 通過を確認
 
-## Phase 2: 真のベースライン確定（バックグラウンド・半日〜1 日）
+## Phase 2: 真のベースライン確定（実行中・2026-07-03 06:27 開始）
 
-**修正:** `scripts/evaluate_baseline_3k6k.py` を Phase 1 のモジュールを使うよう更新
+**修正:** `scripts/evaluate_baseline_3k6k.py` を Phase 1 のモジュール使用に更新 ✅
 
-- [ ] 候補モデルを列挙: `ls models/alpha_zero_nega6000*.pth`。スクリーニング対象は 4 つ程度に絞る（無印 or v2 / v6_improved_loss / v7_dual_negamax / v8）
-- [ ] **スクリーニング:** 各候補 × {3K, 6K} × 20 ゲーム（10 開口 × 2 色）、sims=200。**逐次実行・他プロセス禁止**（CPU 負荷で Negamax の強さが変わるため）。所要 約 10〜16 時間 → nohup バックグラウンド実行 + ログ監視
+- [x] 候補モデルを 4 つに絞る：alpha_zero_nega6000.pth / v6_improved_loss / v7_dual_negamax / v8
+- [x] **スクリーニング実行中：** 逐次実行・ログは `logs/baseline_screening.log`（期間 10～16 時間）
 - [ ] **本評価:** min(3K, 6K) 最良の 1 モデルを 50 ゲーム × 両相手で確定測定
-- [ ] 結果を plan_v8.md に追記して記録
+- [ ] 結果を本セクションに追記
 
 **ゲート G1:** 最良モデルの min 勝率を B とする。
 - **B ≥ 60% → Route A**（自己対戦修正版。ギャップが小さく自己対戦で詰められる）
