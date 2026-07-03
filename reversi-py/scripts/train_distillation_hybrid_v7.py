@@ -186,8 +186,13 @@ def main(cfg: DistillationConfig) -> None:
     if Path(cfg.warm_start).exists():
         print(log_time(f"v7 モデルをロード: {cfg.warm_start}"), flush=True)
         checkpoint = torch.load(cfg.warm_start, map_location=device)
-        if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
-            net.load_state_dict(checkpoint["model_state_dict"])
+        if isinstance(checkpoint, dict):
+            if "model_state_dict" in checkpoint:
+                net.load_state_dict(checkpoint["model_state_dict"])
+            elif "state_dict" in checkpoint:
+                net.load_state_dict(checkpoint["state_dict"])
+            else:
+                net.load_state_dict(checkpoint)
         else:
             net.load_state_dict(checkpoint)
         print(log_time("  ✅ ロード完了"), flush=True)
