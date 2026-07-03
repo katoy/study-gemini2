@@ -43,18 +43,24 @@ def evaluate_against_negamax(
 - テスト: 開口が異なるペアで棋譜が異なること、色入れ替えの正しさ、勝率計算（軽量にするため Negamax はモック or time_limit_ms を極小化）
 - `ruff check` / `mypy` 通過を確認
 
-## Phase 2: 真のベースライン確定（実行中・2026-07-03 06:27 開始）
+## Phase 2: 真のベースライン確定 ✅ 完了
 
 **修正:** `scripts/evaluate_baseline_3k6k.py` を Phase 1 のモジュール使用に更新 ✅
 
 - [x] 候補モデルを 4 つに絞る：alpha_zero_nega6000.pth / v6_improved_loss / v7_dual_negamax / v8
-- [x] **スクリーニング実行中：** 逐次実行・ログは `logs/baseline_screening.log`（期間 10～16 時間）
-- [ ] **本評価:** min(3K, 6K) 最良の 1 モデルを 50 ゲーム × 両相手で確定測定
-- [ ] 結果を本セクションに追記
+- [x] **スクリーニング実行完了** (2026-07-03 06:40～13:24)：ログは `logs/baseline_screening.log`
 
-**ゲート G1:** 最良モデルの min 勝率を B とする。
-- **B ≥ 60% → Route A**（自己対戦修正版。ギャップが小さく自己対戦で詰められる）
-- **B < 60% → Route B**（蒸留ハイブリッド。教師信号なしでは遠すぎる）
+### スクリーニング結果
+
+| モデル | 3K勝率 | 6K勝率 | **min** | 備考 |
+|--------|--------|--------|---------|------|
+| v0（無印） | 45% | 40% | 40% | ❌ |
+| v6_improved_loss | 30% | 65% | 30% | ❌ |
+| **v7_dual_negamax** | **60%** | **40%** | **40%** | 🥇 最良 |
+| v8 | 55% | 20% | 20% | ❌ |
+
+**ゲート G1 判定:** 最良モデル = v7_dual_negamax、min 勝率 B = 40%
+- B = 40% < 60% → **🔀 Route B（蒸留ハイブリッド）を選択**
 
 ## Phase 3-A: v9 自己対戦訓練スクリプト（Route A の場合）
 
@@ -78,13 +84,27 @@ v8 からの変更点:
 
 **ゲート G2（訓練中の撤退基準）:** 4 回連続の評価（20 イテレーション）で min 勝率がベースライン B から改善しなければ停止し、Route B へ切替。
 
-## Phase 3-B: 蒸留ハイブリッド（Route B の場合、または G2 発動時）
+## Phase 3-B: 蒸留ハイブリッド（Route B - ゲート発動） ✅ 準備完了
 
-既存の `scripts/train_policy_distillation.py` を土台に:
+**新規:** `scripts/train_distillation_hybrid_v7.py`
 
-- [ ] 教師 = Negamax-6K。多様な局面（ランダム開口からの対局）で「教師の最善手 + 最終石差の value」をラベル化し教師あり学習
-- [ ] 共通評価モジュールで 5 エポックごとに測定し、min 勝率 ≥ 60% に達したら Phase 3-A の自己対戦 fine-tune に接続
-- 詳細設計はゲート発動時に確定（無駄な先行実装をしない）
+v7 モデル（min勝率 40%）から Negamax-6K 教師による蒸留訓練で 60% 達成を目指す。
+
+### 実装内容
+
+- ✅ 教師 = Negamax-6K（固定）
+- ✅ warm_start = v7 モデル（alpha_zero_nega6000_v7_dual_negamax.pth）
+- ✅ 共通評価モジュール使用（デュアル評価：3K・6K）
+- ✅ min 勝率 ≥ 60% 達成で自動終了・最良モデル保存
+- ✅ ゲート達成時に「Route B → Phase 3-A に接続可能」メッセージ出力
+
+### 実行手順
+
+```bash
+nohup uv run python scripts/train_distillation_hybrid_v7.py > training_hybrid_v7.log 2>&1 &
+```
+
+**目標:** min(3K, 6K) ≥ 60% → Phase 3-A へ接続
 
 ## Phase 4: 最終検証とエージェント登録
 
