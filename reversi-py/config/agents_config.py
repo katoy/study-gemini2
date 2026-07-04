@@ -150,6 +150,15 @@ AGENT_DEFINITIONS = [
             'agent_type': 'alphazero_nega6000_v9',
         }
     },
+    {
+        'id': 15,
+        'class': ApiAgent,
+        'display_name': 'AlphaZero-N6K-Hybrid',
+        'params': {
+            'api_url': 'http://127.0.0.1:5001/play',
+            'agent_type': 'alphazero_nega6000_hybrid',
+        }
+    },
 ]
 
 # --- ヘルパー関数 ---

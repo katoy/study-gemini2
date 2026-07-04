@@ -73,6 +73,7 @@ def main() -> None:
             "alphazero_n6k_v2",
             "alphazero_n6k_v6",
             "alphazero_n6k_v9",
+            "alphazero_n6k_hybrid",
         ],
         default="mcts",
         help="対戦相手（デフォルト: mcts）")
@@ -110,6 +111,9 @@ def main() -> None:
     elif args.opponent == "alphazero_n6k_v9":
         opponent_name = f"AlphaZero-N6Kv9(sim={args.alphazero_simulations})"
         win_threshold = 0.40
+    elif args.opponent == "alphazero_n6k_hybrid":
+        opponent_name = f"AlphaZero-N6K-Hybrid(sim={args.alphazero_simulations})"
+        win_threshold = 0.40
     else:
         opponent_name = args.opponent
         win_threshold = 0.50
@@ -141,6 +145,11 @@ def main() -> None:
             opponent = AlphaZeroAgent(
                 n_simulations=args.alphazero_simulations,
                 model_path="models/alpha_zero_nega6000_v9.pth",
+            )
+        elif args.opponent == "alphazero_n6k_hybrid":
+            opponent = AlphaZeroAgent(
+                n_simulations=args.alphazero_simulations,
+                model_path="models/alpha_zero_nega6000_hybrid.pth",
             )
         else:
             opponent = make_opponent(args)
