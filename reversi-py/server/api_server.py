@@ -56,7 +56,8 @@ VALID_AGENT_TYPES = frozenset({
     "first", "random", "gain", "mcts", "negamax", "negamax_3k", "negamax_6k", "transposition",
     "pattern", "alphazero", "alphazero_stage1", "alphazero_nega3000",
     "alphazero_nega6000", "alphazero_nega6000_v2",
-    "alphazero_nega6000_v6_improved_loss", "alphazero_nega6000_v9", "alphazero_nega6000_hybrid"
+    "alphazero_nega6000_v6_improved_loss", "alphazero_nega6000_v9", "alphazero_nega6000_hybrid",
+    "alphazero_solver"
 })
 
 # 盤面サイズの許容範囲。巨大盤面による CPU/メモリ枯渇（DoS）を防ぐ
@@ -140,9 +141,32 @@ def _select_agent(agent_type: str):
             model_path=os.getenv("ALPHAZERO_NEGA6000_V9_MODEL", "models/alpha_zero_nega6000_v9.pth")
         )
     if agent_type == "alphazero_nega6000_hybrid":
+        n_sim = int(os.getenv("ALPHAZERO_NEGA6000_HYBRID_N_SIMULATIONS", "200"))
+        model_path = os.getenv("ALPHAZERO_NEGA6000_HYBRID_MODEL", "models/alpha_zero_nega6000_hybrid.pth")
+        logger.info(f"[Hybrid] n_simulations={n_sim}, model_path={model_path}")
+        return AlphaZeroAgent(n_simulations=n_sim, model_path=model_path)
+    if agent_type == "alphazero_solver":
+        model_path = os.getenv(
+            "ALPHAZERO_SOLVER_MODEL",
+            "models/alpha_zero_nega6000_v8.pth"
+        )
+        n_simulations = int(os.getenv(
+            "ALPHAZERO_SOLVER_N_SIMULATIONS",
+            "200"
+        ))
+        endgame_empties = int(os.getenv(
+            "ALPHAZERO_SOLVER_ENDGAME_EMPTIES",
+            "12"
+        ))
+        endgame_time_limit_ms = int(os.getenv(
+            "ALPHAZERO_SOLVER_TIME_LIMIT_MS",
+            "10000"
+        ))
         return AlphaZeroAgent(
-            n_simulations=int(os.getenv("ALPHAZERO_NEGA6000_HYBRID_N_SIMULATIONS", "200")),
-            model_path=os.getenv("ALPHAZERO_NEGA6000_HYBRID_MODEL", "models/alpha_zero_nega6000_hybrid.pth")
+            n_simulations=n_simulations,
+            model_path=model_path,
+            endgame_empties=endgame_empties,
+            endgame_time_limit_ms=endgame_time_limit_ms,
         )
     return None
 

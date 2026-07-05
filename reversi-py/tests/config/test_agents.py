@@ -118,29 +118,34 @@ class TestConfigAgents(unittest.TestCase):
     def test_api_agent_has_agent_type_param(self):
         """すべての API エージェント定義 (人間以外) の params に agent_type が含まれる"""
         api_agents = [d for d in AGENT_DEFINITIONS if d['id'] != 0]  # 人間 (id=0) を除外
+        valid_agent_types = [
+            "first",
+            "random",
+            "gain",
+            "mcts",
+            "negamax_3k",
+            "negamax_6k",
+            "transposition",
+            "pattern",
+            "alphazero",
+            "alphazero_stage1",
+            "alphazero_nega3000",
+            "alphazero_nega6000",
+            "alphazero_nega6000_v2",
+            "alphazero_nega6000_v6_improved_loss",
+            "alphazero_nega6000_v9",
+            "alphazero_nega6000_hybrid",
+            "alphazero_solver",
+        ]
         for defn in api_agents:
             with self.subTest(agent_id=defn['id']):
                 self.assertIn("params", defn, "Definition should have 'params' key")
                 self.assertIn("agent_type", defn["params"], "params should contain 'agent_type'")
-        self.assertIn(
-            defn["params"].get("agent_type"),
-            [
-                "first",
-                "random",
-                "gain",
-                "mcts",
-                "negamax_3k",
-                "negamax_6k",
-                "transposition",
-                "pattern",
-                "alphazero",
-                "alphazero_stage1",
-                "alphazero_nega3000",
-                "alphazero_nega6000",
-                "alphazero_nega6000_v2",
-                "alphazero_nega6000_v6_improved_loss",
-            ],
-        )
+                self.assertIn(
+                    defn["params"].get("agent_type"),
+                    valid_agent_types,
+                    f"agent_type {defn['params'].get('agent_type')} not in valid list",
+                )
 
     def test_negamax_selection_is_split_into_3k_and_6k(self):
         """プレイヤー設定の Negamax は 3K / 6K の 2 種類になっている"""

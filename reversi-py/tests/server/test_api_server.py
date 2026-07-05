@@ -198,6 +198,59 @@ class TestApiServer(unittest.TestCase):
             agent = _select_agent("alphazero")
         self.assertEqual(agent._n_simulations, 100)
 
+    def test_play_agent_type_alphazero_nega6000_v9(self):
+        payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "alphazero_nega6000_v9"}
+        with patch("server.api_server.AlphaZeroAgent") as MockAlphaZero:
+            MockAlphaZero.return_value.play.return_value = (2, 3)
+            response = self.client.post("/play", json=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["move"], [2, 3])
+
+    def test_play_agent_type_alphazero_nega6000_hybrid(self):
+        payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "alphazero_nega6000_hybrid"}
+        with patch("server.api_server.AlphaZeroAgent") as MockAlphaZero:
+            MockAlphaZero.return_value.play.return_value = (2, 3)
+            response = self.client.post("/play", json=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["move"], [2, 3])
+
+    def test_play_agent_type_alphazero_solver(self):
+        """Test playing with alphazero_solver agent type"""
+        payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "alphazero_solver"}
+        with patch("server.api_server.AlphaZeroAgent") as MockAlphaZero:
+            MockAlphaZero.return_value.play.return_value = (2, 3)
+            response = self.client.post("/play", json=payload)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("move", data)
+        self.assertEqual(data["move"], [2, 3])
+
+    def test_alphazero_solver_env_vars(self) -> None:
+        """Test ALPHAZERO_SOLVER_* env vars are applied correctly"""
+        import os
+        from unittest.mock import patch as mock_patch
+
+        with mock_patch.dict(
+            os.environ,
+            {
+                "ALPHAZERO_SOLVER_N_SIMULATIONS": "400",
+                "ALPHAZERO_SOLVER_ENDGAME_EMPTIES": "14",
+                "ALPHAZERO_SOLVER_TIME_LIMIT_MS": "15000",
+            }
+        ):
+            with patch("server.api_server.AlphaZeroAgent") as MockAlphaZero:
+                MockAlphaZero.return_value.play.return_value = (2, 3)
+                # Reload module to pick up env vars
+                from server.api_server import _select_agent
+                agent = _select_agent("alphazero_solver")
+
+            MockAlphaZero.assert_called_once()
+            call_kwargs = MockAlphaZero.call_args.kwargs
+            self.assertEqual(call_kwargs["n_simulations"], 400)
+            self.assertEqual(call_kwargs["endgame_empties"], 14)
+            self.assertEqual(call_kwargs["endgame_time_limit_ms"], 15000)
+            self.assertEqual(call_kwargs["model_path"], "models/alpha_zero_nega6000_v8.pth")
+
     def test_play_invalid_agent_type(self):
         payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "unknown"}
         response = self.client.post("/play", json=payload)

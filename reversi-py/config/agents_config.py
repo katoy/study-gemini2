@@ -159,6 +159,15 @@ AGENT_DEFINITIONS = [
             'agent_type': 'alphazero_nega6000_hybrid',
         }
     },
+    {
+        'id': 16,
+        'class': ApiAgent,
+        'display_name': 'AlphaZero-Solver',
+        'params': {
+            'api_url': 'http://127.0.0.1:5001/play',
+            'agent_type': 'alphazero_solver',
+        }
+    },
 ]
 
 # --- ヘルパー関数 ---
