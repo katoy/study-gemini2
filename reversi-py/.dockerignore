@@ -1,13 +1,36 @@
+# Docker のビルドコンテキストから除外するファイル
+# （ホストの仮想環境・生成物・大きな学習データをイメージに持ち込まない）
+
+# Git・Docker 関連
 .git
 .gitignore
+.dockerignore
+Dockerfile
+
+# Python のキャッシュ・仮想環境（ホストの .venv は OS が違うため使えない）
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.env
+.venv/
 venv/
 *.egg-info/
-.dockerignore
-Dockerfile
-README.md
-# その他、ビルドや実行に不要なファイルやディレクトリ
+.env
+
+# ツールのキャッシュ・生成物
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.json
+htmlcov/
+graphify-out/
+.tokensave/
+.claude/
+logs/
+out/
+
+# 学習用の大きなデータ・使わないモデル（推論に使うものだけ残す）
+data/bitboard_pretrain_*.npz
+models/*.pth
+!models/alpha_zero_minimax80_best.pth

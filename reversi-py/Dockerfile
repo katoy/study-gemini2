@@ -6,9 +6,10 @@ FROM python:3.14-slim
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 必要なOSパッケージのインストール
+# - xfce4 / tightvncserver: VNC で操作するデスクトップ環境
+# - SDL2 の開発パッケージ・build-essential: pygame をソースからビルドするため
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    git \
     xfce4 \
     xfce4-goodies \
     tightvncserver \
@@ -21,7 +22,6 @@ RUN apt-get update && \
     xauth \
     xfonts-base \
     build-essential \
-    python3-dev \
     pkg-config \
     libsdl2-dev \
     libsdl2-image-dev \
@@ -30,23 +30,31 @@ RUN apt-get update && \
     libfreetype6-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 作業ディレクトリを作成・設定
-WORKDIR /app
-
-# プロジェクトファイルをコンテナの /app にコピー
-COPY . /app
-
 # uv をインストール
 RUN pip install --no-cache-dir uv
 
-# Python の依存関係をインストール（pyproject.toml + uv 使用）
-RUN uv sync --all-extras
+# 作業ディレクトリを作成・設定
+WORKDIR /app
+
+# 依存関係だけを先にインストールする（コード変更時もこの層はキャッシュが効く）
+# GUI・API サーバー・AlphaZero に必要な extras のみ入れ、開発用 (dev) は入れない
+COPY pyproject.toml uv.lock /app/
+RUN uv sync --frozen --extra server --extra ml --no-install-project
+
+# プロジェクトファイルをコンテナの /app にコピーし、プロジェクト本体をインストール
+COPY . /app
+RUN uv sync --frozen --extra server --extra ml
 
 # startpoint.sh に実行権限を付与
 RUN chmod +x /app/startpoint.sh
 
-# VNCサーバーが使用するポートを公開
-EXPOSE 5901
+# ポート公開（-p）で届くよう、コンテナ内では全インターフェースで待ち受ける
+# ホスト側の公開先は docker_start.sh で 127.0.0.1 に限定している
+ENV API_HOST=0.0.0.0
+ENV API_PORT=5001
+
+# VNC サーバーと API サーバーのポートを公開
+EXPOSE 5901 5001
 
 # コンテナ起動時に実行するコマンド
 CMD ["/bin/bash", "/app/startpoint.sh"]
