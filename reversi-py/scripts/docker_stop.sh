@@ -9,9 +9,10 @@ CONTAINER_NAME="reversi-container"
 echo "🛑 Docker コンテナを停止中..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-if docker ps -a | grep -q "$CONTAINER_NAME"; then
+# 名前は完全一致で判定する（似た名前の別コンテナを誤って対象にしない）
+if [ -n "$(docker ps -aq -f "name=^${CONTAINER_NAME}$")" ]; then
     # コンテナが実行中か確認
-    if docker ps | grep -q "$CONTAINER_NAME"; then
+    if [ -n "$(docker ps -q -f "name=^${CONTAINER_NAME}$")" ]; then
         echo "⏹️  コンテナを停止中..."
         docker stop "$CONTAINER_NAME"
         echo "✅ コンテナが停止しました"

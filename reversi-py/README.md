@@ -243,130 +243,93 @@ uv run python main.py
 
 ### Docker を使用した実行（コンテナ環境）
 
-Docker を使うと、依存関係やシステム設定に関わらず、どの環境でも同じ状態で実行できます。VNC を使って GUI を操作できます。
+Docker を使うと、依存関係やシステム設定に関わらず、どの環境でも同じ状態で実行できます。
+コンテナ内でデスクトップ（XFCE）・API サーバー・リバーシ GUI が自動で起動し、VNC で GUI を操作できます。
 
-#### Docker イメージのビルド
-
-イメージを構築します（初回のみ）。
-
-```bash
-docker build -t reversi-py .
-```
-
-または、スクリプトを使う場合（イメージの存在確認も行う）:
-
-```bash
-./scripts/docker_start.sh
-```
-
-#### Docker コンテナの起動
-
-**スクリプトを使う場合（推奨）:**
+#### 起動（推奨: スクリプト）
 
 ```bash
 ./scripts/docker_start.sh
 ```
 
 スクリプトは以下を行います：
-- イメージを構築（存在しない場合）
-- 既存コンテナを停止・削除
-- コンテナを起動
-- ポート設定情報を表示
+- イメージを構築（毎回実行してコードの変更を反映。変更がない層はキャッシュされるので 2 回目以降は数秒）
+- 同名の既存コンテナを停止・削除
+- コンテナを起動し、接続情報を表示
 
-**手動で起動する場合:**
+初回のビルドは PyTorch などの取得で 10 分前後かかり、イメージは約 10GB になります。
+起動完了まで数十秒かかります。`docker logs -f reversi-container` に「起動完了」と出たら接続できます。
+
+#### 手動でビルド・起動する場合
 
 ```bash
+docker build -t reversi-py .
 docker run -d \
     --name reversi-container \
     -p 5901:5901 \
     -p 5001:5001 \
-    -e DISPLAY=:1 \
     reversi-py
 ```
 
-- `-d`: バックグラウンド実行
 - `-p 5901:5901`: VNC ポート（ホスト:コンテナ）
-- `-p 5001:5001`: API サーバーポート
-- `-e DISPLAY=:1`: X11 ディスプレイ設定
+- `-p 5001:5001`: API サーバーポート（ホストから `curl` などで API を直接使う場合）
+
+コンテナ起動時の処理は `startpoint.sh` にまとまっています（VNC サーバー → API サーバー → GUI の順に起動し、それぞれの準備完了を待つ）。
 
 #### VNC での GUI 接続
 
-1. **VNC クライアントを起動**
+1. **VNC クライアントで接続**
    - macOS: Finder > 移動 > サーバーへ接続 > `vnc://localhost:5901`
    - Windows: TightVNC、RealVNC など
    - Linux: `vncviewer localhost:5901`
 
-2. **接続情報**
-   - ホスト: `localhost` または `127.0.0.1`
-   - ポート: `5901`
-   - パスワード: `reversi`（Dockerfile で設定）
+2. **パスワード**: `reversi`（既定値。環境変数 `VNC_PASSWORD` で変更できます。VNC の仕様で先頭 8 文字が有効）
+
+   ```bash
+   VNC_PASSWORD=mypass ./scripts/docker_start.sh
+   ```
 
 3. **GUI 操作**
-   - VNC 接続後は、ローカル実行と同様にゲームをプレイできます
-   - API サーバーも同時に起動されています
+   - ローカル実行と同様にゲームをプレイできます
+   - API サーバーもコンテナ内で起動済みなので、`API (...)` / AlphaZero-Minimax80 をそのまま選べます
+   - GUI を「終了」で閉じた場合は、`./scripts/docker_start.sh` でコンテナを起動し直してください
 
 #### コンテナの停止・削除
-
-**スクリプトを使う場合:**
 
 ```bash
 ./scripts/docker_stop.sh
 ```
 
-**手動で停止する場合:**
+停止後にコンテナを削除するか確認されます。手動の場合は次のとおりです。
 
 ```bash
-# コンテナを停止
 docker stop reversi-container
-
-# コンテナを削除
 docker rm reversi-container
 ```
 
-**すべての reversi コンテナを削除する場合:**
+#### トラブルシューティング
 
 ```bash
-docker ps -a | grep reversi | awk '{print $1}' | xargs docker rm -f
-```
-
-#### コンテナ内でのトラブルシューティング
-
-**ログを確認:**
-
-```bash
+# API サーバーと GUI のログ（コンテナ内の /app/api_server.log と /app/app.log）
 docker logs -f reversi-container
-```
 
-**コンテナにシェルでアクセス:**
-
-```bash
+# コンテナにシェルで入る
 docker exec -it reversi-container bash
-```
 
-**API サーバーが起動しているか確認:**
-
-```bash
-# コンテナ内から
-curl http://localhost:5001/docs
-
-# ホストマシンから
+# API サーバーが応答するか（ホストから）
 curl http://localhost:5001/docs
 ```
 
-#### 環境変数のカスタマイズ
+#### 環境変数
 
-Docker 起動時に環境変数を指定できます：
+`docker run -e 名前=値` で指定できます。
 
-```bash
-docker run -d \
-    --name reversi-container \
-    -p 5901:5901 \
-    -p 5001:5001 \
-    -e API_HOST=0.0.0.0 \
-    -e API_PORT=5001 \
-    -e LOG_LEVEL=debug \
-    reversi-py
-```
+- `VNC_PASSWORD`: VNC のパスワード（既定 `reversi`）
+- `VNC_GEOMETRY`: デスクトップの解像度（既定 `1280x1024`）
+- `LOG_LEVEL`: API サーバーのログレベル（既定 `info`）
+- `ALPHAZERO_MINIMAX_N_SIMULATIONS` など、後述の「API サーバー」の環境変数
+
+`API_HOST`（既定 `0.0.0.0`）と `API_PORT`（既定 `5001`）も変更できますが、GUI は `127.0.0.1:5001` の API に接続するため、通常は変更しないでください。
 
 ## API サーバー
 
@@ -778,6 +741,7 @@ sequenceDiagram
 
 - `scripts/start.sh` / `scripts/start_with_server.sh` / `scripts/stop_with_server.sh` / `scripts/restart_server.sh`: ローカル起動・停止
 - `scripts/docker_start.sh` / `scripts/docker_stop.sh`: Docker での起動・停止
+- `Dockerfile` / `.dockerignore` / `startpoint.sh`: Docker イメージの定義と、コンテナ起動時に VNC・API サーバー・GUI を起動するスクリプト
 - `scripts/check.sh` / `scripts/ci_check.sh`: ローカル CI チェック
 - `scripts/check_coverage.py`: カバレッジ確認
 - `scripts/test_gui_init.py`: GUI 初期化の統合テスト
