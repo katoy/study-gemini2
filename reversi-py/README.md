@@ -10,8 +10,9 @@ Python と Pygame で作られたリバーシゲームです。
 - **10 種類の AI 戦略**（First / Random / Gain / MCTS / Negamax-3K / Negamax-6K / Minimax / Transposition / Pattern / AlphaZero-Minimax80）を API サーバー経由で提供
 - 「待った」（Undo）、リスタート、リセット、パス処理に対応
 - 日本語 UI とフォント設定に対応
-- **包括的なテスト体制**: 314 テスト（アプリ + サーバー + 統合 + 強さ検証）、カバレッジ 90%+（Tier 1）/ 100%（単体テスト）
-- **AI 強さ検証**: Tier 1（8x8 盤面での高速強さテスト、7 テスト） / Tier 2（詳細ベンチマーク）で複数 AI の強さを確認
+- プレイヤー設定欄はエージェントが増えて表示領域（最大 240px）を超えるとマウスホイールでスクロール可能（スクロールバー表示）
+- **包括的なテスト体制**: 394 テスト（アプリ + サーバー + 統合 + 強さ検証）、カバレッジ 90%+（Tier 1）/ 100%（単体テスト）
+- **AI 強さ検証**: Tier 1（8x8 盤面での高速強さテスト、16 テスト） / Tier 2（詳細ベンチマーク）で複数 AI の強さを確認
 - **GitHub Actions CI**: Lint / 型チェック / テスト / Strength テスト / カバレッジ / サーバーテスト
 
 ## AI エージェント
@@ -423,6 +424,7 @@ API ドキュメント:
    - `人間`: 人間が手を指します
    - `API (First)`, `API (Random)`, `API (Gain)`, `API (MCTS)`, `API (Negamax-3K)`, `API (Negamax-6K)`, `API (Minimax)`, `API (Transposition)`, `API (Pattern)`: API サーバー経由の AI（サーバー起動が必要）
    - `AlphaZero-Minimax80`: 訓練済み AlphaZero モデル（`models/alpha_zero_minimax80_best.pth`）
+   - 選択肢が表示領域に収まらない場合は、欄の上でマウスホイールを回すとスクロールできます
 
 5. 「待った」ボタンで手を戻せます（AI 対戦時は自分が打つ直前の状態まで戻ります）
 
@@ -603,7 +605,7 @@ uv run mypy . --ignore-missing-imports
 | クラス | ファイル | 責務 |
 |--------|---------|------|
 | **App** | main.py | メインループ、ゲーム状態管理、AI 実行管理、UI イベント処理（4 責務をセクション化で整理）|
-| **GameGUI** | gui.py | レイアウト計算、UI 描画、入力処理（37 メソッドを 4 セクション化）|
+| **GameGUI** | gui.py | レイアウト計算、UI 描画、入力処理（49 メソッドを 4 セクション化）|
 | **Game** | game.py | ゲーム進行、ターン管理、プレイヤー管理、勝敗判定 |
 | **Board** | board.py | 盤面データ、ルール実装（有効手判定、石の反転） |
 
