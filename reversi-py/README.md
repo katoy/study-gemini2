@@ -7,7 +7,7 @@
 Python と Pygame で作られたリバーシゲームです。
 
 - 人間 vs 人間、人間 vs AI、AI vs AI に対応
-- **13 種類の AI 戦略**（First / Random / Gain / MCTS / Negamax-3K / Negamax-6K / TranspositionNegamax / Pattern / AlphaZero / AlphaZero-N3K / AlphaZero-N6K / AlphaZero-N6Kv2 / AlphaZero-N6Kv6）を API サーバー経由で提供
+- **18 種類の AI 戦略**（First / Random / Gain / MCTS / Negamax-3K / Negamax-6K / Minimax / Transposition / Pattern / AlphaZero / AlphaZero-N3K / AlphaZero-N6K / AlphaZero-N6Kv2 / AlphaZero-N6Kv6 / AlphaZero-N6Kv9 / AlphaZero-N6K-Hybrid / AlphaZero-Solver / AlphaZero-Minimax80）を API サーバー経由で提供
 - 「待った」（Undo）、リスタート、リセット、パス処理に対応
 - 日本語 UI とフォント設定に対応
 - **包括的なテスト体制**: 314 テスト（アプリ + サーバー + 統合 + 強さ検証）、カバレッジ 90%+（Tier 1）/ 100%（単体テスト）
@@ -25,11 +25,18 @@ Python と Pygame で作られたリバーシゲームです。
 - `API (MCTS)`: モンテカルロ木探索で手を選ぶ
 - `API (Negamax-3K)`: αβ枝刈り + 反復深化 + 終盤読み切り（位置重み・着手可能数・確定石で評価）
 - `API (Negamax-6K)`: αβ枝刈り + 反復深化 + 終盤読み切り（位置重み・着手可能数・確定石で評価）
+- `API (Minimax)`: 明示的 Max/Min 実装の αβ枝刈り + 反復深化 + 終盤 12 空き読み切り（既定 500ms）
 - `API (Transposition)`: αβ枝刈り + トランスポジションテーブル + PVS + Killer move（同時間で 2-3 倍深く探索）
 - `API (Pattern)`: αβ枝刈り + Edax 式パターン評価（エッジ・コーナー・対角線パターン、TD 学習済み）
 - `AlphaZero`: MCTS + PyTorch ResNet（自己対戦学習対応）
 - `AlphaZero-N3K`: AlphaZero モデル Phase 2（Negamax 3000ms に対して訓練済み）
 - `AlphaZero-N6K`: AlphaZero モデル Phase 3（Negamax 6000ms に対して訓練済み）
+- `AlphaZero-N6Kv2`: AlphaZero モデル（Negamax 6000ms 拡張版 v2）
+- `AlphaZero-N6Kv6`: AlphaZero モデル（改善損失関数版 v6）
+- `AlphaZero-N6Kv9`: AlphaZero モデル（拡張継続訓練版 v9）
+- `AlphaZero-N6K-Hybrid`: AlphaZero モデル（ハイブリッド訓練版）
+- `AlphaZero-Solver`: AlphaZero モデル + 終盤 12 空き探索ソルバー併用
+- `AlphaZero-Minimax80`: 純粋 `OthelloNNet` + `MCTS`（`n_simulations=200`, `endgame_empties=0`、終盤ソルバー未使用）で `MinimaxAgent(500ms)` に対し勝率 80% 超を達成したモデル（`models/alpha_zero_minimax80_best.pth`）
 
 `API (...)` エージェントはいずれも、`server/api_server.py` で起動する API サーバーから手を取得します。
 AI を使う場合は API サーバーの起動が必要です（`./scripts/start_with_server.sh` を推奨）。
@@ -70,6 +77,7 @@ flowchart LR
         Gain["GainAgent"]
         MCTS["MonteCarloTreeSearchAgent"]
         Negamax["NegamaxAgent"]
+        Minimax["MinimaxAgent"]
         Transposition["TranspositionNegamaxAgent"]
         Pattern["PatternAgent"]
         AlphaZero["AlphaZeroAgent"]
@@ -99,6 +107,7 @@ flowchart LR
     APIServer --> Gain
     APIServer --> MCTS
     APIServer --> Negamax
+    APIServer --> Minimax
     APIServer --> Transposition
     APIServer --> Pattern
     APIServer --> AlphaZero
@@ -194,7 +203,7 @@ python main.py
 
 #### 方法 2: API サーバーとアプリを一緒に起動（AI エージェント使用）
 
-AI エージェント（`API (First)` / `API (Random)` / `API (Gain)` / `API (MCTS)` / `API (Negamax-3K)` / `API (Negamax-6K)`）を使う場合、API サーバーとアプリを起動します。
+AI エージェント（`API (First)` / `API (Random)` / `API (Gain)` / `API (MCTS)` / `API (Negamax-3K)` / `API (Negamax-6K)` / `API (Minimax)` / `AlphaZero-Minimax80` 等）を使う場合、API サーバーとアプリを起動します。
 
 **スクリプトを使う場合（推奨）:**
 
@@ -381,6 +390,9 @@ uv run python -m server.api_server
 - `API_HOST`
 - `API_PORT`
 - `LOG_LEVEL`
+- `MINIMAX_TIME_LIMIT_MS`（`agent_type="minimax"` 時の思考時間上限 ms、既定 `500`）
+- `ALPHAZERO_MINIMAX_N_SIMULATIONS`（`agent_type="alphazero_minimax"` 時の MCTS 探索回数、既定 `200`）
+- `ALPHAZERO_MINIMAX_MODEL`（`agent_type="alphazero_minimax"` のモデルパス、既定 `models/alpha_zero_minimax80_best.pth`）
 
 API ドキュメント:
 
@@ -400,7 +412,7 @@ API ドキュメント:
 
 - `board`: 正方形の 2 次元配列（各セルは -1: 黒、0: 空、1: 白）。サイズは 4〜16（DoS 防止の上限あり）
 - `turn`: 手番（-1: 黒、1: 白）
-- `agent_type`: `first` / `random` / `gain` / `mcts` / `negamax` / `negamax_3k` / `negamax_6k` / `transposition` / `pattern` / `alphazero` / `alphazero_nega3000` / `alphazero_nega6000` / `alphazero_nega6000_v2` / `alphazero_nega6000_v6_improved_loss` のいずれか（省略時は `random`）
+- `agent_type`: `first` / `random` / `gain` / `mcts` / `negamax` / `negamax_3k` / `negamax_6k` / `minimax` / `transposition` / `pattern` / `alphazero` / `alphazero_stage1` / `alphazero_nega3000` / `alphazero_nega6000` / `alphazero_nega6000_v2` / `alphazero_nega6000_v6_improved_loss` / `alphazero_nega6000_v9` / `alphazero_nega6000_hybrid` / `alphazero_solver` / `alphazero_minimax` のいずれか（省略時は `random`）
 
 レスポンスは `{"move": [row, col]}`、合法手がない場合は `{"move": null}` です。
 
@@ -417,8 +429,8 @@ API ドキュメント:
 
 4. プレイヤー設定で以下を選べます
    - `人間`: 人間が手を指します
-   - `API (First)`, `API (Random)`, `API (Gain)`, `API (MCTS)`, `API (Negamax-3K)`, `API (Negamax-6K)`: API サーバー経由の AI（サーバー起動が必要）
-   - `AlphaZero-N3K`, `AlphaZero-N6K`, `AlphaZero-N6Kv2`, `AlphaZero-N6Kv6`: 訓練済み AlphaZero モデル
+   - `API (First)`, `API (Random)`, `API (Gain)`, `API (MCTS)`, `API (Negamax-3K)`, `API (Negamax-6K)`, `API (Minimax)`, `API (Transposition)`, `API (Pattern)`: API サーバー経由の AI（サーバー起動が必要）
+   - `AlphaZero`, `AlphaZero-N3K`, `AlphaZero-N6K`, `AlphaZero-N6Kv2`, `AlphaZero-N6Kv6`, `AlphaZero-N6Kv9`, `AlphaZero-N6K-Hybrid`, `AlphaZero-Solver`, `AlphaZero-Minimax80`: 訓練済み AlphaZero モデル
 
 5. 「待った」ボタンで手を戻せます（AI 対戦時は自分が打つ直前の状態まで戻ります）
 
@@ -547,9 +559,43 @@ uv run pytest -m strength -v
 - 各対戦相手との対局: 30 ゲーム（先後入替）
 - 全ケースで 90%+ の勝率を達成（2026-06-16 実装）
 
+#### 対 Minimax 勝率 80% 超ハイブリッド訓練（純粋 NN + MCTS）
+
+終盤探索ソルバーへのフォールバックを使わず（`endgame_empties=0`, `n_simulations=200`）、純粋な `OthelloNNet` + `MCTS` のみで `MinimaxAgent(500ms)` に対し勝率 80% 超を目指す 3 段階ハイブリッド訓練パイプラインを提供しています。
+
+- **Stage 1A（大規模オフライン教師事前蒸留 + D4 8 対称拡張）**: 高速 64-bit ビットボード探索教師 `BitboardTeacherAgent` による自己対戦（序盤 12% 探索手）と対 `MinimaxAgent` 混合対局の 400 局 / 21,647 局面を事前学習（`data/bitboard_pretrain_400g.npz`）
+- **Stage 1B（標的型 DAgger + `ReplayBuffer`）**: `MinimaxAgent(500ms)` との実戦対局から弱点局面を収集し、教師ラベルで集中的に補強
+- **Stage 2（安定化自己対戦 RL）**: 事前蒸留データを保持したまま低温 MCTS 自己対戦で方策・価値ヘッドを洗練
+- **Stage 3（真のペア開口 50 局公式認定）**: 同一 4-ply ランダム開口 × 先後入替による 50 局ペア評価（`sims=200`, `endgame_empties=0`）
+
+```bash
+# ハイブリッド訓練（最良重みは models/alpha_zero_minimax80_best.pth に保存）
+uv run python scripts/train_alphazero_minimax.py \
+  --opponent minimax --opponent-time-ms 500 \
+  --eval-sims 200 --cert-games 50 --target 0.80 \
+  --workers 8 --device auto \
+  --best-model models/alpha_zero_minimax80_best.pth \
+  --latest-model models/alpha_zero_minimax80_latest.pth \
+  --log-file logs/train_alphazero_minimax_v3.log
+
+# 単一プロセスによる独立評価（Minimax / Negamax 双方）
+uv run python scripts/evaluate_vs_minimax.py \
+  --model models/alpha_zero_minimax80_best.pth \
+  --opponent both --time-limit-ms 500 --games 50 --sims 200 --seed 123 --target 0.80
+```
+
+学習済みモデル（`models/alpha_zero_minimax80_best.pth`、`n_simulations=200`, `endgame_empties=0`）の評価結果:
+
+| 評価種別 | 対戦相手 (思考時間) | シード | 対局数 | 勝率 (W-D-L) | 平均石差 | 95% Wilson CI |
+| --- | --- | --- | --- | --- | --- | --- |
+| 公式認定（Stage 2） | `MinimaxAgent` (500ms) | `42` | 50 | **86.0%** (`43W-1D-6L`) | `+10.92` | `[73.8%, 93.0%]` |
+| 別シード独立検証 | `MinimaxAgent` (500ms) | `123` | 50 | **84.0%** (`42W-0D-8L`) | `+10.44` | `[71.5%, 91.7%]` |
+| 別シード独立検証 | `NegamaxAgent` (500ms) | `123` | 50 | **84.0%** (`42W-0D-8L`) | `+9.32` | `[71.5%, 91.7%]` |
+| 対 `MinimaxAgent` 合算 | `MinimaxAgent` (500ms) | `42, 123` | 100 | **85.0%** (`85W-1D-14L`) | `+10.68` | — |
+
 #### GUI での使用
 
-GUI で「プレイヤー設定」から `API (AlphaZero)` を選択すると、自動的に学習済みモデルが読み込まれます。
+GUI で「プレイヤー設定」から `AlphaZero`、`AlphaZero-Minimax80`、`API (Minimax)` などを選択すると、API サーバー経由で学習済みモデルまたは探索 AI と対戦できます。
 
 **注記:**
 - 学習済みモデルが見つからない場合、自動的に未学習モデルで動作します
@@ -572,6 +618,17 @@ uv run pytest tests/integration/ -v
 
 ```bash
 ./scripts/ci_check.sh
+```
+
+個別に Lint と型チェックだけを実行する場合:
+
+```bash
+# Lint チェック（ソースおよび全ファイル）
+uv run ruff check . --select=E,W,F --ignore=E501 --exclude=tests
+uv run ruff check .
+
+# 型チェック（.venv に mypy 導入済み）
+uv run mypy . --ignore-missing-imports
 ```
 
 実行内容:
@@ -701,11 +758,22 @@ sequenceDiagram
 
 - `agents/base_agent.py`: Agent 基底クラス
 - `agents/negamax_agent.py`: NegamaxAgent（αβ枝刈り + 反復深化）
+- `agents/minimax_agent.py`: MinimaxAgent（明示的 Max/Min αβ枝刈り + 反復深化 + 終盤 12 空き読み切り）
 - `agents/transposition_negamax_agent.py`: TranspositionNegamaxAgent（TT + PVS + Killer）
 - `agents/pattern_evaluator.py`: PatternEvaluator（Edax 式パターン評価）
 - `agents/pattern_agent.py`: PatternAgent（パターン評価 + αβ）
 - `agents/networks/reversi_net.py`: ReversiNet（PyTorch ResNet）
+- `agents/networks/othello_net.py`: OthelloNNet（8x8 AlphaZero 用 PyTorch ネットワーク）
 - `agents/alpha_zero_agent.py`: AlphaZeroAgent（MCTS + NN）
+
+### AlphaZero 訓練・評価モジュール
+
+- `training/alphazero/bitboard_teacher.py`: 64-bit ビットボード探索教師 `BitboardTeacherAgent`（PVS + TT + Killer/History + 14 空き完全読み）
+- `training/alphazero/augmentation.py`: 盤面・方策の D4 8 対称拡張
+- `training/alphazero/replay_buffer.py`: ソース別管理付き FIFO `ReplayBuffer`
+- `training/alphazero/evaluation.py`: 同一開口ペア対局評価・`evaluate_against_agent`・Wilson 信頼区間
+- `scripts/train_alphazero_minimax.py`: 対 Minimax 勝率 80% 超 3 段階ハイブリッド訓練スクリプト
+- `scripts/evaluate_vs_minimax.py`: 学習済みモデルの単一プロセス独立評価 CLI
 
 ### サーバー
 
