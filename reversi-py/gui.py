@@ -63,6 +63,8 @@ class GameGUI:
         # （毎フレームの生成は font.render を伴い高コストなため）
         self._button_cache: dict[tuple, Button] = {}
         self._label_cache: dict[tuple, Label] = {}
+        # プレイヤー設定のスクロール位置（ピクセル）
+        self._player_settings_scroll = 0
         # 必要な高さを計算し、指定された高さより大きければ調整する
         required_height = self._compute_min_height()
         if self.screen_height < required_height:
@@ -133,6 +135,26 @@ class GameGUI:
             return font_height # ラベル分のみ
         # ラベル高さ + オフセット + (ラジオボタン数-1)*間隔 + ラジオボタンサイズ
         return font_height + Screen.RADIO_Y_OFFSET + Screen.RADIO_Y_SPACING * (num_options - 1) + Screen.RADIO_BUTTON_SIZE
+
+    def _calculate_player_settings_header_height(self):
+        """プレイヤー設定UIのヘッダー（黒/白プレイヤーのラベル）と余白の高さを計算する"""
+        return self.font.get_height() + Screen.RADIO_Y_OFFSET
+
+    def _calculate_player_settings_list_height(self):
+        """ラジオボタン一覧（ヘッダーを除く）の高さを計算する"""
+        if not self.agent_options:
+            return 0
+        return self._calculate_player_settings_height() - self._calculate_player_settings_header_height()
+
+    def _calculate_player_settings_viewport_height(self):
+        """ラジオボタン一覧の表示領域の高さを計算する"""
+        return min(self._calculate_player_settings_list_height(), Screen.PLAYER_SETTINGS_VIEWPORT_MAX_HEIGHT)
+
+    def _calculate_player_settings_layout_height(self):
+        """ヘッダーと表示領域を合わせたプレイヤー設定UIの画面上の高さを計算する"""
+        if not self.agent_options:
+            return self.font.get_height()
+        return self._calculate_player_settings_header_height() + self._calculate_player_settings_viewport_height()
 
     def _calculate_player_settings_top(self):
         """プレイヤー設定UIの上端Y座標を計算する"""
@@ -282,7 +304,7 @@ class GameGUI:
         turn_message_center_y = stone_count_y + font_height + Screen.TURN_MESSAGE_TOP_MARGIN + font_height // 2
         button_height = self._calculate_button_height()
         buttons_bottom = turn_message_center_y + font_height // 2 + Screen.TURN_MESSAGE_BOTTOM_MARGIN + button_height
-        player_settings_height = self._calculate_player_settings_height()
+        player_settings_height = self._calculate_player_settings_layout_height()
         player_settings_top = buttons_bottom + Screen.BUTTON_BOTTOM_MARGIN
         player_settings_bottom = player_settings_top + player_settings_height
         needed = max(buttons_bottom, player_settings_bottom)
@@ -315,7 +337,7 @@ class GameGUI:
             turn_message_center_y = stone_count_y + font_height + Screen.TURN_MESSAGE_TOP_MARGIN + font_height // 2
             button_height = self._calculate_button_height()
             buttons_bottom = turn_message_center_y + font_height // 2 + Screen.TURN_MESSAGE_BOTTOM_MARGIN + button_height
-            player_settings_height = self._calculate_player_settings_height()
+            player_settings_height = self._calculate_player_settings_layout_height()
             player_settings_top = buttons_bottom + Screen.BUTTON_BOTTOM_MARGIN
             player_settings_bottom = player_settings_top + player_settings_height
             needed = max(buttons_bottom, player_settings_bottom)
@@ -395,6 +417,81 @@ class GameGUI:
 
         min_width = int(max(board_min, button_min, players_min, 8 * 10 + side_pad * 2))
         return min_width
+
+    def _get_player_settings_content_top(self, player_settings_top: int) -> int:
+        """ラジオボタン行の先頭Y座標を返す（ヘッダーラベルの下）"""
+        return player_settings_top + self._calculate_player_settings_header_height()
+
+    def _get_player_settings_max_scroll(self, player_settings_top: int) -> int:
+        """プレイヤー設定の最大スクロール量を返す"""
+        list_height = self._calculate_player_settings_list_height()
+        viewport_height = self._calculate_player_settings_viewport_height()
+        return max(0, list_height - viewport_height)
+
+    def _clamp_player_settings_scroll(self, player_settings_top: int) -> None:
+        """スクロール位置を表示領域に収める"""
+        max_scroll = self._get_player_settings_max_scroll(player_settings_top)
+        if max_scroll <= 0:
+            self._player_settings_scroll = 0
+            return
+        self._player_settings_scroll = max(0, min(self._player_settings_scroll, max_scroll))
+
+    def scroll_player_settings(self, scroll_delta: int, player_settings_top: int) -> bool:
+        """プレイヤー設定をスクロールする
+
+        Args:
+            scroll_delta (int): 下方向への移動量。正の値で下にスクロール。
+            player_settings_top (int): プレイヤー設定UIの上端Y座標。
+
+        Returns:
+            bool: スクロール位置が変わった場合に True。
+        """
+        max_scroll = self._get_player_settings_max_scroll(player_settings_top)
+        if max_scroll <= 0:
+            self._player_settings_scroll = 0
+            return False
+
+        new_scroll = max(0, min(self._player_settings_scroll + scroll_delta, max_scroll))
+        changed = new_scroll != self._player_settings_scroll
+        self._player_settings_scroll = new_scroll
+        return changed
+
+    def is_player_settings_point(self, click_pos: tuple[int, int], player_settings_top: int) -> bool:
+        """プレイヤー設定の表示領域内か判定する"""
+        board_rect = self._calculate_board_rect()
+        content_top = self._get_player_settings_content_top(player_settings_top)
+        viewport_height = self._calculate_player_settings_viewport_height()
+        viewport_rect = pygame.Rect(
+            board_rect.left,
+            content_top,
+            self.screen_width - board_rect.left - Screen.SIDE_PADDING,
+            viewport_height,
+        )
+        return bool(viewport_rect.collidepoint(click_pos))
+
+    def _draw_player_settings_scrollbar(self, player_settings_top: int) -> None:
+        """スクロール可能な場合にスクロールバーを描画する"""
+        max_scroll = self._get_player_settings_max_scroll(player_settings_top)
+        if max_scroll <= 0:
+            return
+
+        content_top = self._get_player_settings_content_top(player_settings_top)
+        viewport_height = self._calculate_player_settings_viewport_height()
+        track_width = Screen.PLAYER_SETTINGS_SCROLLBAR_WIDTH
+        track_margin = Screen.PLAYER_SETTINGS_SCROLLBAR_MARGIN
+        track_left = self.screen_width - Screen.SIDE_PADDING - track_width - track_margin
+        track_rect = pygame.Rect(track_left, content_top, track_width, viewport_height)
+        pygame.draw.rect(self.screen, Color.SCROLLBAR_TRACK, track_rect)
+
+        list_height = self._calculate_player_settings_list_height()
+        thumb_height = max(20, int(viewport_height * viewport_height / list_height))
+        thumb_height = min(thumb_height, viewport_height)
+        thumb_space = max(0, viewport_height - thumb_height)
+        thumb_top = content_top
+        if max_scroll > 0:
+            thumb_top += int(thumb_space * (self._player_settings_scroll / max_scroll))
+        thumb_rect = pygame.Rect(track_left, thumb_top, track_width, thumb_height)
+        pygame.draw.rect(self.screen, Color.SCROLLBAR_THUMB, thumb_rect)
 
     # === 描画 ===
     def _draw_board_background(self, board_rect):
@@ -656,45 +753,61 @@ class GameGUI:
         board_rect = self._calculate_board_rect()
         left_margin = board_rect.left
         white_player_label_x = self.screen_width // 2 + Screen.RADIO_BUTTON_MARGIN
+        content_top = self._get_player_settings_content_top(player_settings_top)
+        viewport_height = self._calculate_player_settings_viewport_height()
+        self._clamp_player_settings_scroll(player_settings_top)
 
         # Header labels for player columns (keep objects to compute badge placement)
         self._get_label((left_margin, player_settings_top), _t("ui.black_player")).draw(self.screen)
         self._get_label((white_player_label_x, player_settings_top), _t("ui.white_player")).draw(self.screen)
 
-        # ラジオボタンの垂直位置オフセットと間隔
-        radio_y_offset = Screen.RADIO_Y_OFFSET
+        # ラジオボタンの間隔とテキスト位置オフセット
         radio_y_spacing = Screen.RADIO_Y_SPACING
         radio_text_x_offset = Screen.RADIO_BUTTON_SIZE + Screen.RADIO_BUTTON_MARGIN
+        clip_rect = pygame.Rect(
+            left_margin,
+            content_top,
+            self.screen_width - left_margin - Screen.SIDE_PADDING,
+            viewport_height,
+        )
+        previous_clip = self.screen.get_clip()
+        self.screen.set_clip(clip_rect)
 
-        # 現在選択されているエージェント ID を取得
-        black_agent_id = game.agent_ids[-1]
-        white_agent_id = game.agent_ids[1]
+        try:
+            # 現在選択されているエージェント ID を取得
+            black_agent_id = game.agent_ids[-1]
+            white_agent_id = game.agent_ids[1]
 
-        # 黒プレイヤーのラジオボタンを描画
-        for i, (agent_id, display_name) in enumerate(self.agent_options):
-            radio_y = player_settings_top + radio_y_offset + i * radio_y_spacing
-            radio_pos = (left_margin, radio_y)
-            text_pos = (left_margin + radio_text_x_offset, radio_y)
+            scroll_offset = self._player_settings_scroll
+            # 黒プレイヤーのラジオボタンを描画
+            for i, (agent_id, display_name) in enumerate(self.agent_options):
+                radio_y = content_top + i * radio_y_spacing - scroll_offset
+                radio_pos = (left_margin, radio_y)
+                text_pos = (left_margin + radio_text_x_offset, radio_y)
 
-            # 選択状態の判定 (agent_id を直接比較)
-            is_selected = (agent_id == black_agent_id)
+                # 選択状態の判定 (agent_id を直接比較)
+                is_selected = (agent_id == black_agent_id)
 
-            RadioButton(radio_pos, Screen.RADIO_BUTTON_SIZE, is_selected, enabled).draw(self.screen)
-            # テキストは常に有効な色で描画 (enabled フラグはボタン自体に適用)
-            self._get_label(text_pos, display_name, font=self.agent_label_font).draw(self.screen)
+                RadioButton(radio_pos, Screen.RADIO_BUTTON_SIZE, is_selected, enabled).draw(self.screen)
+                # テキストは常に有効な色で描画 (enabled フラグはボタン自体に適用)
+                self._get_label(text_pos, display_name, font=self.agent_label_font).draw(self.screen)
 
-        # 白プレイヤーのラジオボタンを描画
-        for i, (agent_id, display_name) in enumerate(self.agent_options):
-            radio_y = player_settings_top + radio_y_offset + i * radio_y_spacing
-            radio_pos = (white_player_label_x, radio_y)
-            text_pos = (white_player_label_x + radio_text_x_offset, radio_y)
+            # 白プレイヤーのラジオボタンを描画
+            for i, (agent_id, display_name) in enumerate(self.agent_options):
+                radio_y = content_top + i * radio_y_spacing - scroll_offset
+                radio_pos = (white_player_label_x, radio_y)
+                text_pos = (white_player_label_x + radio_text_x_offset, radio_y)
 
-            # 選択状態の判定 (agent_id を直接比較)
-            is_selected = (agent_id == white_agent_id)
+                # 選択状態の判定 (agent_id を直接比較)
+                is_selected = (agent_id == white_agent_id)
 
-            RadioButton(radio_pos, Screen.RADIO_BUTTON_SIZE, is_selected, enabled).draw(self.screen)
-            # テキストは常に有効な色で描画
-            self._get_label(text_pos, display_name, font=self.agent_label_font).draw(self.screen)
+                RadioButton(radio_pos, Screen.RADIO_BUTTON_SIZE, is_selected, enabled).draw(self.screen)
+                # テキストは常に有効な色で描画
+                self._get_label(text_pos, display_name, font=self.agent_label_font).draw(self.screen)
+        finally:
+            self.screen.set_clip(previous_clip)
+
+        self._draw_player_settings_scrollbar(player_settings_top)
 
     def draw_turn_message(self, game):
         """手番表示を描画する"""
@@ -727,12 +840,14 @@ class GameGUI:
         board_rect = self._calculate_board_rect()
         board_left = board_rect.left
         white_player_label_x = self.screen_width // 2 + Screen.RADIO_BUTTON_MARGIN
-        radio_y_offset = Screen.RADIO_Y_OFFSET
+        content_top = self._get_player_settings_content_top(player_settings_top)
         radio_y_spacing = Screen.RADIO_Y_SPACING
         radio_button_size = Screen.RADIO_BUTTON_SIZE
+        self._clamp_player_settings_scroll(player_settings_top)
+        scroll_offset = self._player_settings_scroll
 
         for i, (agent_id, _) in enumerate(self.agent_options):
-            radio_y = player_settings_top + radio_y_offset + i * radio_y_spacing
+            radio_y = content_top + i * radio_y_spacing - scroll_offset
 
             # 黒プレイヤーのラジオボタンのRectを計算してクリック判定
             black_radio_rect = pygame.Rect(board_left, radio_y, radio_button_size, radio_button_size)

@@ -16,6 +16,8 @@ class Color:
     DISABLED_TEXT = (192, 192, 192) # 無効なテキストの色
     BUTTON = (64, 64, 64)          # ボタンの背景色
     BUTTON_TEXT = (200, 200, 200)     # ボタンのテキスト色
+    SCROLLBAR_TRACK = (72, 72, 72)   # スクロールバーのトラック色
+    SCROLLBAR_THUMB = (200, 200, 200) # スクロールバーのつまみ色
     GREEN      = (0, 255, 0)        # 緑色
     RED        = (255, 0, 0)        # 赤色
     MODAL_BACKGROUND = (0, 0, 0, 128) # モーダルダイアログの背景色 (半透明)
@@ -46,6 +48,10 @@ class Screen:
     BUTTON_VERTICAL_MARGIN = 5 # ボタンの上下マージン
     BUTTON_BORDER_WIDTH = 2  # ボタンの枠線の太さ
     BUTTON_BOTTOM_MARGIN = 10 # ボタンの下マージン
+    PLAYER_SETTINGS_VIEWPORT_MAX_HEIGHT = 240 # エージェント選択部の表示領域の最大高さ
+    PLAYER_SETTINGS_SCROLLBAR_WIDTH = 8 # エージェント選択部のスクロールバー幅
+    PLAYER_SETTINGS_SCROLLBAR_MARGIN = 4 # スクロールバーと端の余白
+    PLAYER_SETTINGS_SCROLL_STEP = RADIO_Y_SPACING # 1ホイール分のスクロール量
     # サイドの最小余白（ピクセル） — これを小さくすると左右の空白が減る
     SIDE_PADDING = 8
     # --- バッジの配置・パディング微調整 (Screenに移動) ---

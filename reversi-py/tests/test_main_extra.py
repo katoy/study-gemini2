@@ -13,6 +13,7 @@ import pygame
 import main
 from game import Game
 from gui import GameGUI
+from config.theme import Screen
 
 
 def make_app():
@@ -55,6 +56,29 @@ def test_handle_ai_or_pass_respects_retry_backoff():
 
         assert app.is_ai_thinking is False
         assert app.ai_thread is None
+    finally:
+        patcher.stop()
+
+
+def test_handle_player_settings_scroll_applies_only_inside_area():
+    """ホイールスクロールはプレイヤー設定領域にあるときだけ反映される"""
+    app, _, mock_gui, patcher = make_app()
+    try:
+        mock_gui.is_player_settings_point.return_value = True
+        with patch('main.pygame.mouse.get_pos', return_value=(100, 450)):
+            app._handle_player_settings_scroll(1)
+
+        mock_gui._calculate_player_settings_top.assert_called_once()
+        mock_gui.is_player_settings_point.assert_called_once_with((100, 450), 400)
+        mock_gui.scroll_player_settings.assert_called_once_with(Screen.PLAYER_SETTINGS_SCROLL_STEP, 400)
+
+        mock_gui.scroll_player_settings.reset_mock()
+        mock_gui.is_player_settings_point.reset_mock()
+        mock_gui.is_player_settings_point.return_value = False
+        with patch('main.pygame.mouse.get_pos', return_value=(100, 450)):
+            app._handle_player_settings_scroll(-1)
+
+        mock_gui.scroll_player_settings.assert_not_called()
     finally:
         patcher.stop()
 

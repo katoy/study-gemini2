@@ -9,6 +9,7 @@ import queue
 from game import Game
 from gui import GameGUI
 from config.i18n import _t
+from config.theme import Screen
 # For resolving agent display names in logs
 from config.agents_config import get_agent_definition
 
@@ -123,7 +124,24 @@ class App:
                 # 左クリック (ボタン番号 1) のみ処理（最初のクリックを採用）
                 if event.button == 1 and mouse_click_pos is None:
                     mouse_click_pos = event.pos
+                elif event.button in (4, 5):
+                    self._handle_player_settings_scroll(1 if event.button == 5 else -1)
+            elif event.type == pygame.MOUSEWHEEL:
+                self._handle_player_settings_scroll(-event.y)
         return mouse_click_pos
+
+    def _handle_player_settings_scroll(self, wheel_delta: int) -> None:
+        """プレイヤー設定のホイールスクロールを処理する"""
+        if wheel_delta == 0:
+            return
+
+        player_settings_top = self.gui._calculate_player_settings_top()
+        mouse_pos = pygame.mouse.get_pos()
+        if not self.gui.is_player_settings_point(mouse_pos, player_settings_top):
+            return
+
+        scroll_delta = wheel_delta * Screen.PLAYER_SETTINGS_SCROLL_STEP
+        self.gui.scroll_player_settings(scroll_delta, player_settings_top)
 
     # === 状態管理 ===
 

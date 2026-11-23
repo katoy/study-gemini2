@@ -552,15 +552,15 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         board_rect = self.gui._calculate_board_rect()
         left_margin = board_rect.left
         white_player_label_x = self.gui.screen_width // 2 + Screen.RADIO_BUTTON_MARGIN
-        radio_y_offset = Screen.RADIO_Y_OFFSET
+        content_top = self.gui._get_player_settings_content_top(player_settings_top)
         radio_y_spacing = Screen.RADIO_Y_SPACING
         radio_size = Screen.RADIO_BUTTON_SIZE
-        radio_y_first = player_settings_top + radio_y_offset + 1 * radio_y_spacing
+        radio_y_first = content_top + 1 * radio_y_spacing
         click_pos_black_first = (left_margin + radio_size // 2, radio_y_first + radio_size // 2)
         player, agent_id = self.gui.get_clicked_radio_button(click_pos_black_first, player_settings_top)
         self.assertEqual(player, -1)
         self.assertEqual(agent_id, 1)
-        radio_y_random = player_settings_top + radio_y_offset + 2 * radio_y_spacing
+        radio_y_random = content_top + 2 * radio_y_spacing
         click_pos_white_random = (white_player_label_x + radio_size // 2, radio_y_random + radio_size // 2)
         player, agent_id = self.gui.get_clicked_radio_button(click_pos_white_random, player_settings_top)
         self.assertEqual(player, 1)
@@ -569,6 +569,53 @@ class TestGameGUI(unittest.TestCase): # GameGUI のテストクラスは残す
         player, agent_id = self.gui.get_clicked_radio_button(click_pos_none, player_settings_top)
         self.assertIsNone(player)
         self.assertIsNone(agent_id)
+
+    def test_player_settings_content_top_below_header(self):
+        """ラジオボタン一覧の先頭がヘッダーラベル（黒/白プレイヤー）の下にあるか"""
+        player_settings_top = 300
+        content_top = self.gui._get_player_settings_content_top(player_settings_top)
+        self.assertGreaterEqual(content_top, player_settings_top + self.gui.font.get_height())
+
+    def test_scroll_player_settings_clamps_to_bounds(self):
+        """scroll_player_settings が上下の端で止まるか"""
+        self.gui.agent_options = [(i, f"Agent {i}") for i in range(12)]
+        player_settings_top = 300
+        max_scroll = self.gui._get_player_settings_max_scroll(player_settings_top)
+        self.assertGreater(max_scroll, 0)
+
+        changed = self.gui.scroll_player_settings(10_000, player_settings_top)
+        self.assertTrue(changed)
+        self.assertEqual(self.gui._player_settings_scroll, max_scroll)
+
+        changed = self.gui.scroll_player_settings(-10_000, player_settings_top)
+        self.assertTrue(changed)
+        self.assertEqual(self.gui._player_settings_scroll, 0)
+
+    def test_get_clicked_radio_button_respects_scroll_offset(self):
+        """スクロール後でもクリック判定がずれないか"""
+        self.gui.agent_options = [(i, f"Agent {i}") for i in range(12)]
+        player_settings_top = 300
+        board_rect = self.gui._calculate_board_rect()
+        left_margin = board_rect.left
+        radio_y_spacing = Screen.RADIO_Y_SPACING
+        radio_size = Screen.RADIO_BUTTON_SIZE
+
+        self.gui.scroll_player_settings(10_000, player_settings_top)
+        scroll_offset = self.gui._player_settings_scroll
+        self.assertGreater(scroll_offset, 0)
+
+        click_row_index = 6
+        click_y = (
+            self.gui._get_player_settings_content_top(player_settings_top)
+            + click_row_index * radio_y_spacing
+            - scroll_offset
+            + radio_size // 2
+        )
+        click_pos_black = (left_margin + radio_size // 2, click_y)
+
+        player, agent_id = self.gui.get_clicked_radio_button(click_pos_black, player_settings_top)
+        self.assertEqual(player, -1)
+        self.assertEqual(agent_id, click_row_index)
 
     @patch('builtins.print')
     def test_get_clicked_radio_button_no_options(self, mock_print):
