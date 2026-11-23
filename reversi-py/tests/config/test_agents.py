@@ -136,6 +136,8 @@ class TestConfigAgents(unittest.TestCase):
             "alphazero_nega6000_v9",
             "alphazero_nega6000_hybrid",
             "alphazero_solver",
+            "minimax",
+            "alphazero_minimax",
         ]
         for defn in api_agents:
             with self.subTest(agent_id=defn['id']):

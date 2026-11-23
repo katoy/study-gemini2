@@ -43,6 +43,7 @@ try:
     from agents.gain_agent import GainAgent
     from agents.mcts_agent import MonteCarloTreeSearchAgent
     from agents.negamax_agent import NegamaxAgent
+    from agents.minimax_agent import MinimaxAgent
     from agents.transposition_negamax_agent import TranspositionNegamaxAgent
     from agents.pattern_agent import PatternAgent
     from agents.alpha_zero_agent import AlphaZeroAgent
@@ -53,11 +54,11 @@ except ImportError as e:
 app = FastAPI()
 
 VALID_AGENT_TYPES = frozenset({
-    "first", "random", "gain", "mcts", "negamax", "negamax_3k", "negamax_6k", "transposition",
-    "pattern", "alphazero", "alphazero_stage1", "alphazero_nega3000",
+    "first", "random", "gain", "mcts", "negamax", "negamax_3k", "negamax_6k", "minimax",
+    "transposition", "pattern", "alphazero", "alphazero_stage1", "alphazero_nega3000",
     "alphazero_nega6000", "alphazero_nega6000_v2",
     "alphazero_nega6000_v6_improved_loss", "alphazero_nega6000_v9", "alphazero_nega6000_hybrid",
-    "alphazero_solver"
+    "alphazero_solver", "alphazero_minimax"
 })
 
 # 盤面サイズの許容範囲。巨大盤面による CPU/メモリ枯渇（DoS）を防ぐ
@@ -97,6 +98,10 @@ def _select_agent(agent_type: str):
         return NegamaxAgent(time_limit_ms=3000)
     if agent_type == "negamax_6k":
         return NegamaxAgent(time_limit_ms=6000)
+    if agent_type == "minimax":
+        return MinimaxAgent(
+            time_limit_ms=int(os.getenv("MINIMAX_TIME_LIMIT_MS", "500"))
+        )
     if agent_type == "transposition":
         return TranspositionNegamaxAgent(
             time_limit_ms=int(os.getenv("TRANSPOSITION_TIME_LIMIT_MS", "3000"))
@@ -167,6 +172,15 @@ def _select_agent(agent_type: str):
             model_path=model_path,
             endgame_empties=endgame_empties,
             endgame_time_limit_ms=endgame_time_limit_ms,
+        )
+    if agent_type == "alphazero_minimax":
+        return AlphaZeroAgent(
+            n_simulations=int(os.getenv("ALPHAZERO_MINIMAX_N_SIMULATIONS", "200")),
+            model_path=os.getenv(
+                "ALPHAZERO_MINIMAX_MODEL",
+                "models/alpha_zero_minimax80_best.pth",
+            ),
+            endgame_empties=0,
         )
     return None
 

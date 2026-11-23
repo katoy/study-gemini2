@@ -55,3 +55,4 @@ models/*.pth.tar
 !models/alpha_zero_negamax500_80pct.pth
 !models/alpha_zero_all90plus.pth
 !models/alpha_zero_nega*.pth
+!models/alpha_zero_minimax80_best.pth

@@ -251,6 +251,58 @@ class TestApiServer(unittest.TestCase):
             self.assertEqual(call_kwargs["endgame_time_limit_ms"], 15000)
             self.assertEqual(call_kwargs["model_path"], "models/alpha_zero_nega6000_v8.pth")
 
+    def test_play_agent_type_minimax(self) -> None:
+        payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "minimax"}
+        with patch("server.api_server.MinimaxAgent") as MockMinimax:
+            MockMinimax.return_value.play.return_value = (2, 3)
+            response = self.client.post("/play", json=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["move"], [2, 3])
+        MockMinimax.assert_called_once()
+        self.assertEqual(MockMinimax.call_args.kwargs["time_limit_ms"], 500)
+
+    def test_minimax_time_limit_env_var(self) -> None:
+        """MINIMAX_TIME_LIMIT_MS 環境変数が反映される。"""
+        import os
+        from unittest.mock import patch as mock_patch
+
+        with mock_patch.dict(os.environ, {"MINIMAX_TIME_LIMIT_MS": "750"}):
+            from server.api_server import _select_agent
+
+            agent = _select_agent("minimax")
+        self.assertEqual(agent.time_limit_ms, 750)
+
+    def test_play_agent_type_alphazero_minimax(self) -> None:
+        payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "alphazero_minimax"}
+        with patch("server.api_server.AlphaZeroAgent") as MockAlphaZero:
+            MockAlphaZero.return_value.play.return_value = (2, 3)
+            response = self.client.post("/play", json=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["move"], [2, 3])
+
+    def test_alphazero_minimax_env_vars(self) -> None:
+        """ALPHAZERO_MINIMAX_* 環境変数が反映される。"""
+        import os
+        from unittest.mock import patch as mock_patch
+
+        with mock_patch.dict(
+            os.environ,
+            {
+                "ALPHAZERO_MINIMAX_N_SIMULATIONS": "250",
+                "ALPHAZERO_MINIMAX_MODEL": "models/custom.pth",
+            },
+        ):
+            with patch("server.api_server.AlphaZeroAgent") as MockAlphaZero:
+                from server.api_server import _select_agent
+
+                _select_agent("alphazero_minimax")
+
+            MockAlphaZero.assert_called_once_with(
+                n_simulations=250,
+                model_path="models/custom.pth",
+                endgame_empties=0,
+            )
+
     def test_play_invalid_agent_type(self):
         payload = {"board": VALID_BOARD, "turn": 1, "agent_type": "unknown"}
         response = self.client.post("/play", json=payload)

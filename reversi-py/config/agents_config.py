@@ -168,6 +168,25 @@ AGENT_DEFINITIONS = [
             'agent_type': 'alphazero_solver',
         }
     },
+    {
+        'id': 17,
+        'class': ApiAgent,
+        'display_name': 'API (Minimax)',
+        'params': {
+            'api_url': 'http://127.0.0.1:5001/play',
+            'agent_type': 'minimax',
+            'timeout': 10,
+        }
+    },
+    {
+        'id': 18,
+        'class': ApiAgent,
+        'display_name': 'AlphaZero-Minimax80',
+        'params': {
+            'api_url': 'http://127.0.0.1:5001/play',
+            'agent_type': 'alphazero_minimax',
+        }
+    },
 ]
 
 # --- ヘルパー関数 ---
