@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # alpha-zero-general OthelloNNet のハイパーパラメータ
-# 値・レイヤ名・形状は学習済みモデル（alpha_zero_8x8_best.pth.tar）と一致させること
+# 値・レイヤ名・形状は学習済みモデル（alpha_zero_minimax80_best.pth）と一致させること
 _NUM_CHANNELS: int = 512
 _FC1_UNITS: int = 1024
 _FC2_UNITS: int = 512

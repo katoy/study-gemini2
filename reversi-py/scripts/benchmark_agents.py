@@ -69,11 +69,7 @@ def main() -> None:
             "mcts",
             "gain",
             "random",
-            "alphazero_n6k",
-            "alphazero_n6k_v2",
-            "alphazero_n6k_v6",
-            "alphazero_n6k_v9",
-            "alphazero_n6k_hybrid",
+            "alphazero_minimax80",
         ],
         default="mcts",
         help="対戦相手（デフォルト: mcts）")
@@ -99,20 +95,8 @@ def main() -> None:
     elif args.opponent == "random":
         opponent_name = "random"
         win_threshold = 0.60
-    elif args.opponent == "alphazero_n6k":
-        opponent_name = f"AlphaZero-N6K(sim={args.alphazero_simulations})"
-        win_threshold = 0.40
-    elif args.opponent == "alphazero_n6k_v2":
-        opponent_name = f"AlphaZero-N6Kv2(sim={args.alphazero_simulations})"
-        win_threshold = 0.40
-    elif args.opponent == "alphazero_n6k_v6":
-        opponent_name = f"AlphaZero-N6Kv6(sim={args.alphazero_simulations})"
-        win_threshold = 0.40
-    elif args.opponent == "alphazero_n6k_v9":
-        opponent_name = f"AlphaZero-N6Kv9(sim={args.alphazero_simulations})"
-        win_threshold = 0.40
-    elif args.opponent == "alphazero_n6k_hybrid":
-        opponent_name = f"AlphaZero-N6K-Hybrid(sim={args.alphazero_simulations})"
+    elif args.opponent == "alphazero_minimax80":
+        opponent_name = f"AlphaZero-Minimax80(sim={args.alphazero_simulations})"
         win_threshold = 0.40
     else:
         opponent_name = args.opponent
@@ -126,30 +110,10 @@ def main() -> None:
 
     for i in range(args.games):
         random.seed(i)
-        if args.opponent == "alphazero_n6k":
+        if args.opponent == "alphazero_minimax80":
             opponent = AlphaZeroAgent(
                 n_simulations=args.alphazero_simulations,
-                model_path="models/alpha_zero_nega6000.pth",
-            )
-        elif args.opponent == "alphazero_n6k_v2":
-            opponent = AlphaZeroAgent(
-                n_simulations=args.alphazero_simulations,
-                model_path="models/alpha_zero_nega6000_v2.pth",
-            )
-        elif args.opponent == "alphazero_n6k_v6":
-            opponent = AlphaZeroAgent(
-                n_simulations=args.alphazero_simulations,
-                model_path="models/alpha_zero_nega6000_v6_improved_loss.pth",
-            )
-        elif args.opponent == "alphazero_n6k_v9":
-            opponent = AlphaZeroAgent(
-                n_simulations=args.alphazero_simulations,
-                model_path="models/alpha_zero_nega6000_v9.pth",
-            )
-        elif args.opponent == "alphazero_n6k_hybrid":
-            opponent = AlphaZeroAgent(
-                n_simulations=args.alphazero_simulations,
-                model_path="models/alpha_zero_nega6000_hybrid.pth",
+                model_path="models/alpha_zero_minimax80_best.pth",
             )
         else:
             opponent = make_opponent(args)

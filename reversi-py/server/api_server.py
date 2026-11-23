@@ -55,10 +55,7 @@ app = FastAPI()
 
 VALID_AGENT_TYPES = frozenset({
     "first", "random", "gain", "mcts", "negamax", "negamax_3k", "negamax_6k", "minimax",
-    "transposition", "pattern", "alphazero", "alphazero_stage1", "alphazero_nega3000",
-    "alphazero_nega6000", "alphazero_nega6000_v2",
-    "alphazero_nega6000_v6_improved_loss", "alphazero_nega6000_v9", "alphazero_nega6000_hybrid",
-    "alphazero_solver", "alphazero_minimax"
+    "transposition", "pattern", "alphazero_minimax"
 })
 
 # 盤面サイズの許容範囲。巨大盤面による CPU/メモリ枯渇（DoS）を防ぐ
@@ -110,68 +107,6 @@ def _select_agent(agent_type: str):
         return PatternAgent(
             weights_path=os.getenv("PATTERN_WEIGHTS_PATH", "data/pattern_weights_8x8.json"),
             time_limit_ms=int(os.getenv("PATTERN_TIME_LIMIT_MS", "3000"))
-        )
-    if agent_type == "alphazero":
-        return AlphaZeroAgent(
-            n_simulations=int(os.getenv("ALPHAZERO_N_SIMULATIONS", "50"))
-        )
-    if agent_type == "alphazero_stage1":
-        return AlphaZeroAgent(
-            n_simulations=int(os.getenv("ALPHAZERO_STAGE1_N_SIMULATIONS", "30")),
-            model_path="models/alpha_zero_stage1_nega500.pth"
-        )
-    if agent_type == "alphazero_nega3000":
-        return AlphaZeroAgent(
-            n_simulations=int(os.getenv("ALPHAZERO_NEGA3000_N_SIMULATIONS", "150")),
-            model_path="models/alpha_zero_nega3000.pth"
-        )
-    if agent_type == "alphazero_nega6000":
-        return AlphaZeroAgent(
-            n_simulations=int(os.getenv("ALPHAZERO_NEGA6000_N_SIMULATIONS", "200")),
-            model_path="models/alpha_zero_nega6000.pth"
-        )
-    if agent_type == "alphazero_nega6000_v2":
-        return AlphaZeroAgent(
-            n_simulations=int(os.getenv("ALPHAZERO_NEGA6000_V2_N_SIMULATIONS", "200")),
-            model_path="models/alpha_zero_nega6000_v2.pth"
-        )
-    if agent_type == "alphazero_nega6000_v6_improved_loss":
-        return AlphaZeroAgent(
-            n_simulations=int(os.getenv("ALPHAZERO_NEGA6000_V6_IMPROVED_LOSS_N_SIMULATIONS", "200")),
-            model_path="models/alpha_zero_nega6000_v6_improved_loss.pth"
-        )
-    if agent_type == "alphazero_nega6000_v9":
-        return AlphaZeroAgent(
-            n_simulations=int(os.getenv("ALPHAZERO_NEGA6000_V9_N_SIMULATIONS", "200")),
-            model_path=os.getenv("ALPHAZERO_NEGA6000_V9_MODEL", "models/alpha_zero_nega6000_v9.pth")
-        )
-    if agent_type == "alphazero_nega6000_hybrid":
-        n_sim = int(os.getenv("ALPHAZERO_NEGA6000_HYBRID_N_SIMULATIONS", "200"))
-        model_path = os.getenv("ALPHAZERO_NEGA6000_HYBRID_MODEL", "models/alpha_zero_nega6000_hybrid.pth")
-        logger.info(f"[Hybrid] n_simulations={n_sim}, model_path={model_path}")
-        return AlphaZeroAgent(n_simulations=n_sim, model_path=model_path)
-    if agent_type == "alphazero_solver":
-        model_path = os.getenv(
-            "ALPHAZERO_SOLVER_MODEL",
-            "models/alpha_zero_nega6000_v8.pth"
-        )
-        n_simulations = int(os.getenv(
-            "ALPHAZERO_SOLVER_N_SIMULATIONS",
-            "200"
-        ))
-        endgame_empties = int(os.getenv(
-            "ALPHAZERO_SOLVER_ENDGAME_EMPTIES",
-            "12"
-        ))
-        endgame_time_limit_ms = int(os.getenv(
-            "ALPHAZERO_SOLVER_TIME_LIMIT_MS",
-            "10000"
-        ))
-        return AlphaZeroAgent(
-            n_simulations=n_simulations,
-            model_path=model_path,
-            endgame_empties=endgame_empties,
-            endgame_time_limit_ms=endgame_time_limit_ms,
         )
     if agent_type == "alphazero_minimax":
         return AlphaZeroAgent(

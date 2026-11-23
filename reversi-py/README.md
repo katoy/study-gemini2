@@ -7,7 +7,7 @@
 Python と Pygame で作られたリバーシゲームです。
 
 - 人間 vs 人間、人間 vs AI、AI vs AI に対応
-- **18 種類の AI 戦略**（First / Random / Gain / MCTS / Negamax-3K / Negamax-6K / Minimax / Transposition / Pattern / AlphaZero / AlphaZero-N3K / AlphaZero-N6K / AlphaZero-N6Kv2 / AlphaZero-N6Kv6 / AlphaZero-N6Kv9 / AlphaZero-N6K-Hybrid / AlphaZero-Solver / AlphaZero-Minimax80）を API サーバー経由で提供
+- **10 種類の AI 戦略**（First / Random / Gain / MCTS / Negamax-3K / Negamax-6K / Minimax / Transposition / Pattern / AlphaZero-Minimax80）を API サーバー経由で提供
 - 「待った」（Undo）、リスタート、リセット、パス処理に対応
 - 日本語 UI とフォント設定に対応
 - **包括的なテスト体制**: 314 テスト（アプリ + サーバー + 統合 + 強さ検証）、カバレッジ 90%+（Tier 1）/ 100%（単体テスト）
@@ -28,14 +28,6 @@ Python と Pygame で作られたリバーシゲームです。
 - `API (Minimax)`: 明示的 Max/Min 実装の αβ枝刈り + 反復深化 + 終盤 12 空き読み切り（既定 500ms）
 - `API (Transposition)`: αβ枝刈り + トランスポジションテーブル + PVS + Killer move（同時間で 2-3 倍深く探索）
 - `API (Pattern)`: αβ枝刈り + Edax 式パターン評価（エッジ・コーナー・対角線パターン、TD 学習済み）
-- `AlphaZero`: MCTS + PyTorch ResNet（自己対戦学習対応）
-- `AlphaZero-N3K`: AlphaZero モデル Phase 2（Negamax 3000ms に対して訓練済み）
-- `AlphaZero-N6K`: AlphaZero モデル Phase 3（Negamax 6000ms に対して訓練済み）
-- `AlphaZero-N6Kv2`: AlphaZero モデル（Negamax 6000ms 拡張版 v2）
-- `AlphaZero-N6Kv6`: AlphaZero モデル（改善損失関数版 v6）
-- `AlphaZero-N6Kv9`: AlphaZero モデル（拡張継続訓練版 v9）
-- `AlphaZero-N6K-Hybrid`: AlphaZero モデル（ハイブリッド訓練版）
-- `AlphaZero-Solver`: AlphaZero モデル + 終盤 12 空き探索ソルバー併用
 - `AlphaZero-Minimax80`: 純粋 `OthelloNNet` + `MCTS`（`n_simulations=200`, `endgame_empties=0`、終盤ソルバー未使用）で `MinimaxAgent(500ms)` に対し勝率 80% 超を達成したモデル（`models/alpha_zero_minimax80_best.pth`）
 
 `API (...)` エージェントはいずれも、`server/api_server.py` で起動する API サーバーから手を取得します。
@@ -412,7 +404,7 @@ API ドキュメント:
 
 - `board`: 正方形の 2 次元配列（各セルは -1: 黒、0: 空、1: 白）。サイズは 4〜16（DoS 防止の上限あり）
 - `turn`: 手番（-1: 黒、1: 白）
-- `agent_type`: `first` / `random` / `gain` / `mcts` / `negamax` / `negamax_3k` / `negamax_6k` / `minimax` / `transposition` / `pattern` / `alphazero` / `alphazero_stage1` / `alphazero_nega3000` / `alphazero_nega6000` / `alphazero_nega6000_v2` / `alphazero_nega6000_v6_improved_loss` / `alphazero_nega6000_v9` / `alphazero_nega6000_hybrid` / `alphazero_solver` / `alphazero_minimax` のいずれか（省略時は `random`）
+- `agent_type`: `first` / `random` / `gain` / `mcts` / `negamax` / `negamax_3k` / `negamax_6k` / `minimax` / `transposition` / `pattern` / `alphazero_minimax` のいずれか（省略時は `random`）
 
 レスポンスは `{"move": [row, col]}`、合法手がない場合は `{"move": null}` です。
 
@@ -430,7 +422,7 @@ API ドキュメント:
 4. プレイヤー設定で以下を選べます
    - `人間`: 人間が手を指します
    - `API (First)`, `API (Random)`, `API (Gain)`, `API (MCTS)`, `API (Negamax-3K)`, `API (Negamax-6K)`, `API (Minimax)`, `API (Transposition)`, `API (Pattern)`: API サーバー経由の AI（サーバー起動が必要）
-   - `AlphaZero`, `AlphaZero-N3K`, `AlphaZero-N6K`, `AlphaZero-N6Kv2`, `AlphaZero-N6Kv6`, `AlphaZero-N6Kv9`, `AlphaZero-N6K-Hybrid`, `AlphaZero-Solver`, `AlphaZero-Minimax80`: 訓練済み AlphaZero モデル
+   - `AlphaZero-Minimax80`: 訓練済み AlphaZero モデル（`models/alpha_zero_minimax80_best.pth`）
 
 5. 「待った」ボタンで手を戻せます（AI 対戦時は自分が打つ直前の状態まで戻ります）
 
@@ -513,25 +505,7 @@ uv run python scripts/benchmark_agents.py --mcts-iterations 100 --time-limit-ms 
 - `--opponent mcts` 時: 80% 以上の勝率
 - `--opponent gain` / `--opponent random` 時: 60% 以上の勝率
 
-### AlphaZero 訓練（自己対戦学習）
-
-AlphaZero エージェントはニューラルネットワークを使用するため、強さを向上させるには訓練が必要です。自己対戦による学習スクリプトを提供しています。
-
-#### 訓練実行
-
-```bash
-# MCTS + 正しい自己対戦学習（policy+value 損失・arena 評価ゲート）
-uv run python scripts/train_alphazero.py
-```
-
-#### 追加訓練（Negamax-3K / Negamax-6K 両対応）
-
-`alpha_zero_nega6000_v6_improved_loss.pth` から継続して、
-Negamax-3K と Negamax-6K の両方に対する勝率を 95% 以上に引き上げる場合:
-
-```bash
-uv run python scripts/train_extend_nega6000_v7_dual_negamax.py
-```
+### AlphaZero 訓練
 
 #### 強さテスト
 
@@ -539,25 +513,6 @@ uv run python scripts/train_extend_nega6000_v7_dual_negamax.py
 # Negamax・GainAgent に対する勝率を確認
 uv run pytest -m strength -v
 ```
-
-#### AlphaZero 強さ評価結果
-
-学習済みモデル（`models/alpha_zero_all90plus.pth`）の総合評価（30 ゲーム先後入替）:
-
-| 対戦相手 | 勝率 | 内訳 |
-|---|---|---|
-| Random | **100.0%** | 30/30 勝 ✅ |
-| GainAgent | **100.0%** | 30/30 勝 ✅ |
-| MCTS(100iter) | **93.3%** | 28/30 勝 ✅ |
-| Negamax(50ms) | **100.0%** | 30/30 勝 ✅ |
-| **Negamax(100ms)** | **93.3%** | 28/30 勝 ✅ |
-| **Negamax(200ms)** | **90.0%** | 27/30 勝 ✅ |
-| **Negamax(500ms)** | **90.0%** | 27/30 勝 ✅ |
-
-**評価方針:**
-- MCTS シミュレーション数: 30
-- 各対戦相手との対局: 30 ゲーム（先後入替）
-- 全ケースで 90%+ の勝率を達成（2026-06-16 実装）
 
 #### 対 Minimax 勝率 80% 超ハイブリッド訓練（純粋 NN + MCTS）
 
@@ -595,7 +550,7 @@ uv run python scripts/evaluate_vs_minimax.py \
 
 #### GUI での使用
 
-GUI で「プレイヤー設定」から `AlphaZero`、`AlphaZero-Minimax80`、`API (Minimax)` などを選択すると、API サーバー経由で学習済みモデルまたは探索 AI と対戦できます。
+GUI で「プレイヤー設定」から `AlphaZero-Minimax80`、`API (Minimax)` などを選択すると、API サーバー経由で学習済みモデルまたは探索 AI と対戦できます。
 
 **注記:**
 - 学習済みモデルが見つからない場合、自動的に未学習モデルで動作します

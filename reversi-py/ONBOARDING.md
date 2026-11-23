@@ -68,7 +68,7 @@ uv sync --all-extras
 **2. Play the game:**
 - UI should open in Pygame
 - Select human vs AI, or AI vs AI
-- Try different agents (Negamax, PatternAgent, AlphaZero-N3K, AlphaZero-N6K)
+- Try different agents (Negamax, PatternAgent, AlphaZero-Minimax80)
 
 **3. Run tests:**
 ```bash

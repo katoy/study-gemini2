@@ -1,6 +1,6 @@
 """AlphaZero を Minimax/Negamax エージェントに対し勝率 80% 超まで訓練するスクリプト。
 
-Stage 0: ベースライン選定（既定は alpha_zero_nega6000_v8.pth）
+Stage 0: ベースライン選定（既定は alpha_zero_minimax80_best.pth）
 Stage 1A: 大規模オフライン教師事前学習（64-bit BitboardTeacher + 対 Minimax 混合対局 + D4 拡張）
 Stage 1B: 対 Minimax/Negamax 標的型 DAgger（敗着/訪問局面の集中的矯正）
 Stage 2: 安定化並列自己対戦 AlphaZero RL（適正バッファ + 低温探索 + MPS GPU 学習）
@@ -47,11 +47,7 @@ from training.alphazero.evaluation import EvalResult, evaluate_against_agent
 from training.alphazero.losses import alphazero_loss
 from training.alphazero.replay_buffer import ReplayBuffer
 
-DEFAULT_WARM_START_CANDIDATES = (
-    "models/alpha_zero_all90plus.pth",
-    "models/alpha_zero_nega6000_v7_dual_negamax.pth",
-    "models/alpha_zero_nega6000_v8.pth",
-)
+DEFAULT_WARM_START_CANDIDATES = ("models/alpha_zero_minimax80_best.pth",)
 
 
 @dataclass
@@ -104,7 +100,7 @@ class HybridTrainConfig:
     workers: int = 8
     device: str = "auto"
     board_size: int = 8
-    warm_start: str = "models/alpha_zero_nega6000_v8.pth"
+    warm_start: str = "models/alpha_zero_minimax80_best.pth"
     best_model: str = "models/alpha_zero_minimax80_best.pth"
     latest_model: str = "models/alpha_zero_minimax80_latest.pth"
     force_train: bool = False
