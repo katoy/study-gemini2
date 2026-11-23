@@ -116,7 +116,7 @@ flowchart LR
 ## 動作環境
 
 - Python 3.14.2 以上
-- Pygame
+- pygame-ce（Pygame のコミュニティ版。`import pygame` で使え、Python 3.14 用のビルド済みパッケージがある）
 
 API サーバーを使う場合は、追加で以下が必要です。
 
