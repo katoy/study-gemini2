@@ -12,6 +12,7 @@ Negamax、Transposition、Pattern、AlphaZero エージェントが初期化で�
     uv run pytest -m strength tests/test_strength.py -v
 """
 import random
+from typing import Any, cast
 
 import pytest
 
@@ -267,11 +268,23 @@ class TestAlphaZeroMinimax80VsTransposition:
 
 # GUI のプレイヤー設定にある対戦相手（人間と AlphaZero-Minimax80 自身を除く）の agent_type 一覧
 ALPHAZERO_MINIMAX80_AGENT_TYPE = "alphazero_minimax"
-GUI_OPPONENT_AGENT_TYPES = [
-    d["params"]["agent_type"]
-    for d in AGENT_DEFINITIONS
-    if d["id"] != 0 and d["params"]["agent_type"] != ALPHAZERO_MINIMAX80_AGENT_TYPE
-]
+HUMAN_AGENT_ID = 0
+
+
+def _gui_opponent_agent_types() -> list[str]:
+    """GUI の選択肢から人間と AlphaZero-Minimax80 を除いた agent_type を定義順に返す。"""
+    agent_types = []
+    for definition in AGENT_DEFINITIONS:
+        defn = cast(dict[str, Any], definition)
+        if defn["id"] == HUMAN_AGENT_ID:
+            continue
+        agent_type = defn["params"]["agent_type"]
+        if agent_type != ALPHAZERO_MINIMAX80_AGENT_TYPE:
+            agent_types.append(agent_type)
+    return agent_types
+
+
+GUI_OPPONENT_AGENT_TYPES = _gui_opponent_agent_types()
 # 乱数を使うエージェント（Random / Gain / MCTS）の結果を再現可能にするための固定シード
 OPPONENT_RANDOM_SEED = 0
 
