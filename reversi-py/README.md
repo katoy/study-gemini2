@@ -17,22 +17,26 @@ Python と Pygame で作られたリバーシゲームです。
 
 ## AI エージェント
 
-プレイヤー設定では、次の選択肢を使えます。
+GUI の「プレイヤー設定」では、次の 11 種類（人間 + AI 10 種類）を選べます。
+AI はすべて `server/api_server.py` の API サーバーから手を取得するため、AI を使う場合は API サーバーの起動が必要です（`./scripts/start_with_server.sh` を推奨）。
 
-- `人間`
-- `API (First)`: 最初に見つかった合法手を選ぶ
-- `API (Random)`: 合法手からランダムに選ぶ
-- `API (Gain)`: 獲得石数が最大の手を選ぶ
-- `API (MCTS)`: モンテカルロ木探索で手を選ぶ
-- `API (Negamax-3K)`: αβ枝刈り + 反復深化 + 終盤読み切り（位置重み・着手可能数・確定石で評価）
-- `API (Negamax-6K)`: αβ枝刈り + 反復深化 + 終盤読み切り（位置重み・着手可能数・確定石で評価）
-- `API (Minimax)`: 明示的 Max/Min 実装の αβ枝刈り + 反復深化 + 終盤 12 空き読み切り（既定 500ms）
-- `API (Transposition)`: αβ枝刈り + トランスポジションテーブル + PVS + Killer move（同時間で 2-3 倍深く探索）
-- `API (Pattern)`: αβ枝刈り + Edax 式パターン評価（エッジ・コーナー・対角線パターン、TD 学習済み）
-- `AlphaZero-Minimax80`: 純粋 `OthelloNNet` + `MCTS`（`n_simulations=200`, `endgame_empties=0`、終盤ソルバー未使用）で `MinimaxAgent(500ms)` に対し勝率 80% 超を達成したモデル（`models/alpha_zero_minimax80_best.pth`）
+| 表示名 | `agent_type` | 実装クラス | 概要 |
+| --- | --- | --- | --- |
+| `人間` | — | — | 盤面をクリックして着手 |
+| `API (First)` | `first` | `FirstAgent` | 最初に見つかった合法手を選ぶ |
+| `API (Random)` | `random` | `RandomAgent` | 合法手からランダムに選ぶ |
+| `API (Gain)` | `gain` | `GainAgent` | 獲得石数が最大の手を選ぶ |
+| `API (MCTS)` | `mcts` | `MonteCarloTreeSearchAgent` | モンテカルロ木探索 |
+| `API (Negamax-3K)` | `negamax_3k` | `NegamaxAgent` | αβ枝刈り + 反復深化 + 終盤読み切り（位置重み・着手可能数・確定石で評価、3000ms） |
+| `API (Negamax-6K)` | `negamax_6k` | `NegamaxAgent` | 同上（6000ms） |
+| `API (Minimax)` | `minimax` | `MinimaxAgent` | 明示的 Max/Min 実装の αβ枝刈り + 反復深化 + 終盤 12 空き読み切り（既定 500ms） |
+| `API (Transposition)` | `transposition` | `TranspositionNegamaxAgent` | αβ枝刈り + トランスポジションテーブル + PVS + Killer move（同時間で 2-3 倍深く探索、既定 3000ms） |
+| `API (Pattern)` | `pattern` | `PatternAgent` | αβ枝刈り + Edax 式パターン評価（エッジ・コーナー・対角線パターン、TD 学習済み、既定 3000ms） |
+| `AlphaZero-Minimax80` | `alphazero_minimax` | `AlphaZeroAgent` | 純粋 `OthelloNNet` + `MCTS`（`n_simulations=200`, `endgame_empties=0`）。`MinimaxAgent(500ms)` に対し勝率 80% 超を達成したモデル（`models/alpha_zero_minimax80_best.pth`） |
 
-`API (...)` エージェントはいずれも、`server/api_server.py` で起動する API サーバーから手を取得します。
-AI を使う場合は API サーバーの起動が必要です（`./scripts/start_with_server.sh` を推奨）。
+- AlphaZero 系エージェントは `AlphaZero-Minimax80` の 1 種類に整理済みです（旧 N3K / N6K / Hybrid / Solver などは削除）。
+- API では GUI に出していない `negamax`（思考時間を `NEGAMAX_TIME_LIMIT_MS` で指定、既定 3000ms）も利用できます。
+- エージェント定義は `config/agents_config.py` の `AGENT_DEFINITIONS` にあります。ID は保存済み設定との互換のため欠番があります。
 
 ## 構成図
 
@@ -454,39 +458,27 @@ uv run pytest tests/server/ -v
 
 Negamax エージェントの強さを検証する 2 層テスト体制です。
 
-#### Tier 1: 高速強さテスト（CI 組み込み、8x8 盤面）
+#### Tier 1: 強さテスト（CI 組み込み、8x8 盤面）
 
-複数の AI エージェントを 8x8 盤面で検証する 7 つの高速テスト（10 秒以内）。
+複数の AI エージェントを 8x8 盤面で検証する 16 テスト。実際の対局を含むため、全件実行には 10 分以上かかります。
 
 ```bash
 # 明示的に実行
 uv run pytest -m strength tests/test_strength.py -v
 ```
 
-期待: `7 passed in X.Xs` （X は 15 秒以内）
-
 **テスト内容:**
-- **Negamax（強さテスト）**: GainAgent に対して 2 ゲームで勝利確認
-  - `test_negamax_black_wins`: 黒番で勝利（石差 > 0）
-  - `test_negamax_white_wins`: 白番で勝利（石差 < 0）
-  
-- **Transposition**: 初期化・動作確認（8x8 盤面）
-  - `test_transposition_initializes`: 正常に初期化される
-  - `test_transposition_returns_move`: 合法手を返す
-  
-- **Pattern**: 初期化・属性確認（8x8 盤面）
-  - `test_pattern_initializes`: 正常に初期化される
-  - 属性チェック（evaluator 存在確認）
-  
-- **AlphaZero**: 初期化・動作確認・訓練済みモデル検証
-  - `test_alpha_zero_initializes`: 正常に初期化される
-  - `test_alpha_zero_returns_move`: 合法手を返す
-  - `test_alpha_zero_with_trained_model`: 学習済みモデルで動作する
+- **Negamax 対 GainAgent**: 先後入替で勝利確認（2 テスト）
+- **Transposition**: 初期化・合法手を返すことの確認（2 テスト）
+- **Pattern**: 初期化・evaluator の存在確認（1 テスト）
+- **AlphaZero**: 初期化・合法手・学習済みモデル（`models/alpha_zero_minimax80_best.pth`）での動作確認（3 テスト）
+- **Transposition 対 Negamax / 対 Pattern**: 先後入替で勝利確認（4 テスト）
+- **PatternEvaluator 統合版 Negamax 対 GainAgent**: 先後入替で勝利確認（2 テスト）
+- **AlphaZero-Minimax80 対 Transposition(500ms)**: `n_simulations=200` で先後入替の勝利確認（2 テスト）
 
-**注記**: 
+**注記**:
 - 通常の `uv run pytest` 実行では strength テストは自動除外されます（pytest マーカーで管理）
 - CI で `pytest -m strength` を明示的に実行
-- Negamax は実際の対戦テスト、Transposition/Pattern/AlphaZero は初期化・動作確認
 
 #### Tier 2: 詳細ベンチマーク（ローカル検証）
 
@@ -704,24 +696,44 @@ sequenceDiagram
 
 ### アプリケーション
 
-- `main.py`: アプリケーションのエントリーポイント
-- `game.py`: ゲーム進行、履歴、パス、勝敗判定
-- `board.py`: 盤面ロジック
-- `gui.py`: Pygame GUI
-- `agents/`: AI エージェント実装
-- `config/agents_config.py`: エージェント定義
+- `main.py`: エントリーポイント（`App`: メインループ、イベント処理、AI 実行管理）
+- `game.py`: ゲーム進行、履歴（待った）、パス、勝敗判定
+- `board.py`: 盤面ロジック（合法手判定、石の反転）
+- `gui.py`: Pygame GUI（`GameGUI`: レイアウト計算、描画、入力処理、プレイヤー設定欄のスクロール）
+- `ui_elements.py`: ボタン・ラベル・ラジオボタンなどの UI 部品
+- `theme.json`: GUI テーマ設定
+- `fonts/`: 日本語フォント
+- `data/translations/`: UI 文言の翻訳（日本語 / 英語）
+
+### 設定
+
+- `config/agents_config.py`: エージェント定義（`AGENT_DEFINITIONS`）
+- `config/agent_config_utils.py`: エージェント定義の取得ヘルパー
+- `config/game_constants.py`: ゲーム定数
+- `config/theme.py`: 色・画面レイアウト定数
+- `config/i18n.py`: 多言語対応（翻訳の読み込み）
 
 ### AI エージェント
 
 - `agents/base_agent.py`: Agent 基底クラス
-- `agents/negamax_agent.py`: NegamaxAgent（αβ枝刈り + 反復深化）
+- `agents/api_agent.py`: ApiAgent（API サーバーに着手を問い合わせる GUI 側エージェント）
+- `agents/first_agent.py` / `agents/random_agent.py` / `agents/gain_agent.py`: シンプルな AI
+- `agents/mcts_agent.py`: MonteCarloTreeSearchAgent（モンテカルロ木探索）
+- `agents/negamax_agent.py`: NegamaxAgent（αβ枝刈り + 反復深化 + 終盤読み切り）
 - `agents/minimax_agent.py`: MinimaxAgent（明示的 Max/Min αβ枝刈り + 反復深化 + 終盤 12 空き読み切り）
 - `agents/transposition_negamax_agent.py`: TranspositionNegamaxAgent（TT + PVS + Killer）
 - `agents/pattern_evaluator.py`: PatternEvaluator（Edax 式パターン評価）
 - `agents/pattern_agent.py`: PatternAgent（パターン評価 + αβ）
-- `agents/networks/reversi_net.py`: ReversiNet（PyTorch ResNet）
+- `agents/alpha_zero_agent.py`: AlphaZeroAgent（MCTS + NN、任意で終盤ソルバー委譲）
+- `agents/alphazero/mcts.py`: AlphaZero 用 PUCT MCTS
+- `agents/alphazero/encoding.py`: 盤面テンソル変換
 - `agents/networks/othello_net.py`: OthelloNNet（8x8 AlphaZero 用 PyTorch ネットワーク）
-- `agents/alpha_zero_agent.py`: AlphaZeroAgent（MCTS + NN）
+- `agents/networks/reversi_net.py`: ReversiNet（PyTorch ResNet）
+
+### 学習済みデータ
+
+- `models/alpha_zero_minimax80_best.pth`: AlphaZero-Minimax80 の学習済みモデル（git 追跡する唯一のモデル）
+- `data/pattern_weights_8x8.json`: PatternAgent の学習済み重み
 
 ### AlphaZero 訓練・評価モジュール
 
@@ -729,29 +741,45 @@ sequenceDiagram
 - `training/alphazero/augmentation.py`: 盤面・方策の D4 8 対称拡張
 - `training/alphazero/replay_buffer.py`: ソース別管理付き FIFO `ReplayBuffer`
 - `training/alphazero/evaluation.py`: 同一開口ペア対局評価・`evaluate_against_agent`・Wilson 信頼区間
+- `training/alphazero/losses.py`: 損失関数（policy soft-target CE + value MSE）
+- `training/alphazero/checkpoint.py`: チェックポイントの保存・読み込み
 - `scripts/train_alphazero_minimax.py`: 対 Minimax 勝率 80% 超 3 段階ハイブリッド訓練スクリプト
 - `scripts/evaluate_vs_minimax.py`: 学習済みモデルの単一プロセス独立評価 CLI
 
 ### サーバー
 
 - `server/api_server.py`: FastAPI REST API サーバー（エンドポイント: POST /play）
+- `postman/`: Postman コレクション・環境設定
 
 ### テストと CI
 
-- `tests/`: テストコード（314 テスト = 307 単体テスト + 7 強さテスト）
+- `tests/`: テストコード（394 テスト = 378 単体テスト + 16 強さテスト）
   - `tests/agents/test_*.py`: エージェント単体テスト
-  - `tests/server/test_api_server.py`: サーバーテスト（23 テスト）
+  - `tests/training/test_*.py`: AlphaZero 訓練モジュールのテスト
+  - `tests/config/test_*.py`: エージェント定義・多言語対応のテスト
+  - `tests/server/test_api_server.py`: サーバーテスト（35 テスト）
   - `tests/integration/test_api_integration.py`: 統合テスト（9 テスト）
-  - `tests/test_strength.py`: AI 強さ検証テスト（7 テスト、Tier 1、8x8 盤面、strength マーカー）
-    - Negamax 強さテスト（2 テスト）
-    - Transposition 初期化・動作テスト（2 テスト）
-    - Pattern 初期化テスト（1 テスト）
-    - AlphaZero 初期化・動作テスト（2 テスト）
-- `scripts/ci_check.sh`: ローカル CI チェックスクリプト（6 ステップ）
+  - `tests/postman/`: Newman による API テスト
+  - `tests/test_strength.py`: AI 強さ検証テスト（16 テスト、Tier 1、8x8 盤面、strength マーカー）
+    - Negamax 対 Gain（2 テスト）
+    - Transposition 初期化・動作（2 テスト）
+    - Pattern 初期化（1 テスト）
+    - AlphaZero 初期化・動作・学習済みモデル（3 テスト）
+    - Transposition 対 Negamax / 対 Pattern（4 テスト）
+    - PatternEvaluator 統合版 Negamax 対 Gain（2 テスト）
+    - AlphaZero-Minimax80 対 Transposition（2 テスト）
+
+### スクリプト
+
+- `scripts/start.sh` / `scripts/start_with_server.sh` / `scripts/stop_with_server.sh` / `scripts/restart_server.sh`: ローカル起動・停止
+- `scripts/docker_start.sh` / `scripts/docker_stop.sh`: Docker での起動・停止
+- `scripts/check.sh` / `scripts/ci_check.sh`: ローカル CI チェック
+- `scripts/check_coverage.py`: カバレッジ確認
+- `scripts/test_gui_init.py`: GUI 初期化の統合テスト
+- `scripts/run_postman_api_tests.sh`: Postman（Newman）API テスト
 - `scripts/train_pattern_weights.py`: PatternAgent の重みを TD 学習で訓練
 - `scripts/benchmark_agents.py`: ベンチマークスクリプト（Tier 2、複数オプション対応）
 - `.github/workflows/ci.yml`: GitHub Actions 定義（Lint / Type / Test / Strength / Coverage）
-
 
 ## 補足
 
