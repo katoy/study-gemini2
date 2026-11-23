@@ -54,3 +54,16 @@ addopts = "-m 'not strength'"
 
 [tool.setuptools]
 packages = ["agents", "config", "server"]
+
+# Linux（Docker・CI）では CPU 版の PyTorch を使う
+# PyPI の Linux 版は GPU 用の CUDA ライブラリ（約 3.5GB）を同梱するが、GPU は使わないため不要
+# macOS・Windows は従来どおり PyPI の版を使う
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
