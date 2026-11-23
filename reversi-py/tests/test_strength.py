@@ -11,6 +11,9 @@ Negamax、Transposition、Pattern、AlphaZero エージェントが初期化で�
 
     uv run pytest -m strength tests/test_strength.py -v
 """
+import random
+from typing import Any, cast
+
 import pytest
 
 from agents.gain_agent import GainAgent
@@ -19,7 +22,9 @@ from agents.transposition_negamax_agent import TranspositionNegamaxAgent
 from agents.pattern_agent import PatternAgent
 from agents.pattern_evaluator import PatternEvaluator
 from agents.alpha_zero_agent import AlphaZeroAgent
+from config.agents_config import AGENT_DEFINITIONS
 from game import Game
+from server.api_server import _select_agent
 
 
 def play_one_game(black_agent, white_agent, board_size: int) -> int:
@@ -259,3 +264,63 @@ class TestAlphaZeroMinimax80VsTransposition:
         diff = play_one_game(trans, az, self.BOARD_SIZE)
         assert diff < 0, f"AlphaZero-Minimax80(白) が Transposition(黒) に負けた (石差={diff})"
 
+
+
+# GUI のプレイヤー設定にある対戦相手（人間と AlphaZero-Minimax80 自身を除く）の agent_type 一覧
+ALPHAZERO_MINIMAX80_AGENT_TYPE = "alphazero_minimax"
+HUMAN_AGENT_ID = 0
+
+
+def _gui_opponent_agent_types() -> list[str]:
+    """GUI の選択肢から人間と AlphaZero-Minimax80 を除いた agent_type を定義順に返す。"""
+    agent_types = []
+    for definition in AGENT_DEFINITIONS:
+        defn = cast(dict[str, Any], definition)
+        if defn["id"] == HUMAN_AGENT_ID:
+            continue
+        agent_type = defn["params"]["agent_type"]
+        if agent_type != ALPHAZERO_MINIMAX80_AGENT_TYPE:
+            agent_types.append(agent_type)
+    return agent_types
+
+
+GUI_OPPONENT_AGENT_TYPES = _gui_opponent_agent_types()
+# 乱数を使うエージェント（Random / Gain / MCTS）の結果を再現可能にするための固定シード
+OPPONENT_RANDOM_SEED = 0
+
+
+@pytest.mark.strength
+class TestAlphaZeroMinimax80BeatsGuiAgents:
+    """AlphaZero-Minimax80 が GUI で選べる他の全 AI に先手・後手とも勝つことを確認する。
+
+    エージェントは API サーバーの ``_select_agent`` で生成し、GUI から対戦するときと
+    同じ設定（思考時間・探索回数・モデル）で対局させる。
+    """
+
+    BOARD_SIZE = 8
+
+    @pytest.mark.parametrize("opponent_type", GUI_OPPONENT_AGENT_TYPES)
+    @pytest.mark.parametrize("alphazero_color", ["black", "white"])
+    def test_alphazero_minimax80_beats_gui_agent(self, opponent_type: str, alphazero_color: str) -> None:
+        """AlphaZero-Minimax80 が指定の手番で opponent_type に勝つ。"""
+        from pathlib import Path
+
+        model_path = Path("models/alpha_zero_minimax80_best.pth")
+        if not model_path.exists():
+            pytest.skip(f"モデルファイルが存在しません: {model_path}")
+
+        random.seed(OPPONENT_RANDOM_SEED)
+        az = _select_agent(ALPHAZERO_MINIMAX80_AGENT_TYPE)
+        opponent = _select_agent(opponent_type)
+        assert az is not None and opponent is not None
+
+        if alphazero_color == "black":
+            diff = play_one_game(az, opponent, self.BOARD_SIZE)
+            az_diff = diff
+        else:
+            diff = play_one_game(opponent, az, self.BOARD_SIZE)
+            az_diff = -diff
+        assert az_diff > 0, (
+            f"AlphaZero-Minimax80({alphazero_color}) が {opponent_type} に勝てなかった "
+            f"(AlphaZero 視点の石差={az_diff:+d})"
+        )

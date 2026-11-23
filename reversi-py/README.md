@@ -11,8 +11,8 @@ Python と Pygame で作られたリバーシゲームです。
 - 「待った」（Undo）、リスタート、リセット、パス処理に対応
 - 日本語 UI とフォント設定に対応
 - プレイヤー設定欄はエージェントが増えて表示領域（最大 240px）を超えるとマウスホイールでスクロール可能（スクロールバー表示）
-- **包括的なテスト体制**: 394 テスト（アプリ + サーバー + 統合 + 強さ検証）、カバレッジ 90%+（Tier 1）/ 100%（単体テスト）
-- **AI 強さ検証**: Tier 1（8x8 盤面での高速強さテスト、16 テスト） / Tier 2（詳細ベンチマーク）で複数 AI の強さを確認
+- **包括的なテスト体制**: 416 テスト（アプリ + サーバー + 統合 + 強さ検証）、カバレッジ 90%+（Tier 1）/ 100%（単体テスト）
+- **AI 強さ検証**: Tier 1（8x8 盤面での強さテスト、34 テスト） / Tier 2（詳細ベンチマーク）で複数 AI の強さを確認
 - **GitHub Actions CI**: Lint / 型チェック / テスト / Strength テスト / カバレッジ / サーバーテスト
 
 ## AI エージェント
@@ -32,7 +32,7 @@ AI はすべて `server/api_server.py` の API サーバーから手を取得す
 | `API (Minimax)` | `minimax` | `MinimaxAgent` | 明示的 Max/Min 実装の αβ枝刈り + 反復深化 + 終盤 12 空き読み切り（既定 500ms） |
 | `API (Transposition)` | `transposition` | `TranspositionNegamaxAgent` | αβ枝刈り + トランスポジションテーブル + PVS + Killer move（同時間で 2-3 倍深く探索、既定 3000ms） |
 | `API (Pattern)` | `pattern` | `PatternAgent` | αβ枝刈り + Edax 式パターン評価（エッジ・コーナー・対角線パターン、TD 学習済み、既定 3000ms） |
-| `AlphaZero-Minimax80` | `alphazero_minimax` | `AlphaZeroAgent` | 純粋 `OthelloNNet` + `MCTS`（`n_simulations=200`, `endgame_empties=0`）。`MinimaxAgent(500ms)` に対し勝率 80% 超を達成したモデル（`models/alpha_zero_minimax80_best.pth`） |
+| `AlphaZero-Minimax80` | `alphazero_minimax` | `AlphaZeroAgent` | `OthelloNNet` + `MCTS`（`n_simulations=800`）+ 空き 14 以下で Negamax 終盤読み切り。GUI の他の全 AI に先手・後手とも勝つことを強さテストで確認（モデル: `models/alpha_zero_minimax80_best.pth`、1 手 平均約 1 秒） |
 
 - AlphaZero 系エージェントは `AlphaZero-Minimax80` の 1 種類に整理済みです（旧 N3K / N6K / Hybrid / Solver などは削除）。
 - API では GUI に出していない `negamax`（思考時間を `NEGAMAX_TIME_LIMIT_MS` で指定、既定 3000ms）も利用できます。
@@ -388,7 +388,9 @@ uv run python -m server.api_server
 - `API_PORT`
 - `LOG_LEVEL`
 - `MINIMAX_TIME_LIMIT_MS`（`agent_type="minimax"` 時の思考時間上限 ms、既定 `500`）
-- `ALPHAZERO_MINIMAX_N_SIMULATIONS`（`agent_type="alphazero_minimax"` 時の MCTS 探索回数、既定 `200`）
+- `ALPHAZERO_MINIMAX_N_SIMULATIONS`（`agent_type="alphazero_minimax"` 時の MCTS 探索回数、既定 `800`）
+- `ALPHAZERO_MINIMAX_ENDGAME_EMPTIES`（`agent_type="alphazero_minimax"` で Negamax 終盤読み切りに切り替える空きマス数、既定 `14`。`0` で無効）
+- `ALPHAZERO_MINIMAX_ENDGAME_TIME_LIMIT_MS`（`agent_type="alphazero_minimax"` の終盤読み切りの思考時間上限 ms、既定 `10000`）
 - `ALPHAZERO_MINIMAX_MODEL`（`agent_type="alphazero_minimax"` のモデルパス、既定 `models/alpha_zero_minimax80_best.pth`）
 
 API ドキュメント:
@@ -460,7 +462,7 @@ Negamax エージェントの強さを検証する 2 層テスト体制です。
 
 #### Tier 1: 強さテスト（CI 組み込み、8x8 盤面）
 
-複数の AI エージェントを 8x8 盤面で検証する 16 テスト。実際の対局を含むため、全件実行には 10 分以上かかります。
+複数の AI エージェントを 8x8 盤面で検証する 34 テスト。実際の対局を含むため、全件実行には 1 時間程度かかります。
 
 ```bash
 # 明示的に実行
@@ -475,6 +477,7 @@ uv run pytest -m strength tests/test_strength.py -v
 - **Transposition 対 Negamax / 対 Pattern**: 先後入替で勝利確認（4 テスト）
 - **PatternEvaluator 統合版 Negamax 対 GainAgent**: 先後入替で勝利確認（2 テスト）
 - **AlphaZero-Minimax80 対 Transposition(500ms)**: `n_simulations=200` で先後入替の勝利確認（2 テスト）
+- **AlphaZero-Minimax80 対 GUI の全 AI**: GUI のプレイヤー設定にある人間と自分以外の 9 種類（First / Random / Gain / MCTS / Negamax-3K / Negamax-6K / Transposition / Pattern / Minimax）に、GUI と同じ設定（`_select_agent`）で先手・後手 1 局ずつ勝つことを確認（18 テスト）
 
 **注記**:
 - 通常の `uv run pytest` 実行では strength テストは自動除外されます（pytest マーカーで管理）
@@ -753,14 +756,14 @@ sequenceDiagram
 
 ### テストと CI
 
-- `tests/`: テストコード（394 テスト = 378 単体テスト + 16 強さテスト）
+- `tests/`: テストコード（416 テスト = 382 単体テスト + 34 強さテスト）
   - `tests/agents/test_*.py`: エージェント単体テスト
   - `tests/training/test_*.py`: AlphaZero 訓練モジュールのテスト
   - `tests/config/test_*.py`: エージェント定義・多言語対応のテスト
   - `tests/server/test_api_server.py`: サーバーテスト（35 テスト）
   - `tests/integration/test_api_integration.py`: 統合テスト（9 テスト）
   - `tests/postman/`: Newman による API テスト
-  - `tests/test_strength.py`: AI 強さ検証テスト（16 テスト、Tier 1、8x8 盤面、strength マーカー）
+  - `tests/test_strength.py`: AI 強さ検証テスト（34 テスト、Tier 1、8x8 盤面、strength マーカー）
     - Negamax 対 Gain（2 テスト）
     - Transposition 初期化・動作（2 テスト）
     - Pattern 初期化（1 テスト）
@@ -768,6 +771,7 @@ sequenceDiagram
     - Transposition 対 Negamax / 対 Pattern（4 テスト）
     - PatternEvaluator 統合版 Negamax 対 Gain（2 テスト）
     - AlphaZero-Minimax80 対 Transposition（2 テスト）
+    - AlphaZero-Minimax80 対 GUI の全 AI（先手・後手、18 テスト）
 
 ### スクリプト
 

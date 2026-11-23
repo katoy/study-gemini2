@@ -109,13 +109,16 @@ def _select_agent(agent_type: str):
             time_limit_ms=int(os.getenv("PATTERN_TIME_LIMIT_MS", "3000"))
         )
     if agent_type == "alphazero_minimax":
+        # 既定は 800 回探索 + 空き 14 以下で Negamax 終盤読み切り
+        # （GUI の他の全 AI に先手・後手とも勝てる設定として実測で選定）
         return AlphaZeroAgent(
-            n_simulations=int(os.getenv("ALPHAZERO_MINIMAX_N_SIMULATIONS", "200")),
+            n_simulations=int(os.getenv("ALPHAZERO_MINIMAX_N_SIMULATIONS", "800")),
             model_path=os.getenv(
                 "ALPHAZERO_MINIMAX_MODEL",
                 "models/alpha_zero_minimax80_best.pth",
             ),
-            endgame_empties=0,
+            endgame_empties=int(os.getenv("ALPHAZERO_MINIMAX_ENDGAME_EMPTIES", "14")),
+            endgame_time_limit_ms=int(os.getenv("ALPHAZERO_MINIMAX_ENDGAME_TIME_LIMIT_MS", "10000")),
         )
     return None
 

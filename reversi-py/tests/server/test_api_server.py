@@ -217,6 +217,8 @@ class TestApiServer(unittest.TestCase):
             {
                 "ALPHAZERO_MINIMAX_N_SIMULATIONS": "250",
                 "ALPHAZERO_MINIMAX_MODEL": "models/custom.pth",
+                "ALPHAZERO_MINIMAX_ENDGAME_EMPTIES": "0",
+                "ALPHAZERO_MINIMAX_ENDGAME_TIME_LIMIT_MS": "5000",
             },
         ):
             with patch("server.api_server.AlphaZeroAgent") as MockAlphaZero:
@@ -228,6 +230,32 @@ class TestApiServer(unittest.TestCase):
                 n_simulations=250,
                 model_path="models/custom.pth",
                 endgame_empties=0,
+                endgame_time_limit_ms=5000,
+            )
+
+    def test_alphazero_minimax_defaults(self) -> None:
+        """alphazero_minimax の既定は 800 回探索 + 空き 14 以下の終盤読み切り。"""
+        import os
+        from unittest.mock import patch as mock_patch
+
+        env_keys = (
+            "ALPHAZERO_MINIMAX_N_SIMULATIONS",
+            "ALPHAZERO_MINIMAX_MODEL",
+            "ALPHAZERO_MINIMAX_ENDGAME_EMPTIES",
+            "ALPHAZERO_MINIMAX_ENDGAME_TIME_LIMIT_MS",
+        )
+        clean_env = {k: v for k, v in os.environ.items() if k not in env_keys}
+        with mock_patch.dict(os.environ, clean_env, clear=True):
+            with patch("server.api_server.AlphaZeroAgent") as MockAlphaZero:
+                from server.api_server import _select_agent
+
+                _select_agent("alphazero_minimax")
+
+            MockAlphaZero.assert_called_once_with(
+                n_simulations=800,
+                model_path="models/alpha_zero_minimax80_best.pth",
+                endgame_empties=14,
+                endgame_time_limit_ms=10000,
             )
 
     def test_play_invalid_agent_type(self):

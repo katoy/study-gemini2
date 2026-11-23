@@ -5,7 +5,14 @@ TD 学習によって学習済みのパターン重みを使用して評価す�
 import time
 from typing import TYPE_CHECKING, Optional
 
-from .negamax_agent import _apply, _flips_for_move, _undo, _valid_moves
+from .negamax_agent import (
+    _NODES_PER_TIME_CHECK,
+    _SearchTimeout,
+    _apply,
+    _flips_for_move,
+    _undo,
+    _valid_moves,
+)
 from .pattern_evaluator import PatternEvaluator
 from .base_agent import Agent
 
@@ -79,9 +86,9 @@ class PatternAgent(Agent):
 
         for move in moves:
             self._nodes_checked += 1
-            if self._nodes_checked % 512 == 0:
-                if self._time_exceeded():
-                    break
+            # 時間切れなら探索全体を打ち切る（途中の深さの結果は使わない）
+            if self._nodes_checked % _NODES_PER_TIME_CHECK == 0 and self._time_exceeded():
+                raise _SearchTimeout()
 
             flips = _flips_for_move(board, n, move[0], move[1], turn)
             _apply(board, move, flips, turn)
@@ -106,17 +113,27 @@ class PatternAgent(Agent):
         self._start_time = time.monotonic()
         self._nodes_checked = 0
 
-        board = game.board.board
+        # 時間切れで探索を途中で抜けても元の盤面を壊さないよう、コピーを探索する
+        board = [row[:] for row in game.board.board]
         n = game.board_size
         turn = game.turn
 
-        best_move = None
+        valid_moves = _valid_moves(board, n, turn)
+        if not valid_moves:
+            return None
+        # 深さ 1 も読み切れない場合に備え、合法手の先頭を初期値にする
+        best_move: Optional[tuple[int, int]] = valid_moves[0]
         for d in range(1, self._max_depth + 1):
             try:
                 value, move = self._negamax(board, n, turn, d, -float('inf'), float('inf'), False)
-                if move is not None:
-                    best_move = move
+            except _SearchTimeout:
+                # 読み切れなかった深さの結果は捨て、直前の深さの最善手を使う
+                break
             except KeyboardInterrupt:
+                break
+            if move is not None:
+                best_move = move
+            if self._time_exceeded():
                 break
 
         return best_move
