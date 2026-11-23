@@ -2,6 +2,8 @@
 
 ![Reversi Screenshot](scrennshots/000.png)
 
+（API (Gain)（黒）対 API (Random)（白）の対局。アニメーション GIF）
+
 ## 概要
 
 Python と Pygame で作られたリバーシゲームです。
@@ -785,6 +787,16 @@ sequenceDiagram
 - `scripts/train_pattern_weights.py`: PatternAgent の重みを TD 学習で訓練
 - `scripts/benchmark_agents.py`: ベンチマークスクリプト（Tier 2、複数オプション対応）
 - `.github/workflows/ci.yml`: GitHub Actions 定義（Lint / Type / Test / Strength / Coverage）
+
+### ドキュメント・その他
+
+- `scrennshots/000.png`: README 冒頭の対局デモ（アニメーション GIF。GUI を画面なしで動かして AI 対 AI の対局を録画したもの）
+- `graphify-out/`: graphify で生成したコードベースの知識グラフ
+  - `graph.html`: ブラウザで開くインタラクティブなグラフ
+  - `GRAPH_REPORT.md`: 主要ノード・コミュニティ（113 グループ）などのレポート
+  - `graph.json`: グラフの生データ
+  - 更新方法: コード変更後に `graphify update .`、コミュニティ名の付け直しは `graphify label .`
+- `ONBOARDING.md`: 新規参加者向けのオンボーディングガイド
 
 ## 補足
 
