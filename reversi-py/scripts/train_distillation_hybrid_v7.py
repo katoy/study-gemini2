@@ -35,12 +35,15 @@ from training.alphazero.losses import alphazero_loss
 from training.alphazero.evaluation import evaluate_against_negamax
 
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-torch.backends.mps.is_available = lambda: False
+torch.backends.mps.is_available = lambda: False  # type: ignore[assignment]
 n_threads = int(os.cpu_count() or 4)
 torch.set_num_threads(n_threads)
-torch.set_num_interop_threads(1)
+try:
+    torch.set_num_interop_threads(1)
+except RuntimeError:
+    pass
 torch.set_float32_matmul_precision("high")
-torch.backends.mkldnn.enabled = True
+torch.backends.mkldnn.enabled = True  # type: ignore[assignment]
 
 
 def log_time(message: str) -> str:
@@ -176,7 +179,7 @@ def main(cfg: DistillationConfig) -> None:
     print(f"{'=' * 70}\n", flush=True)
 
     import io
-    if isinstance(sys.stdout, io.TextIOBase):
+    if isinstance(sys.stdout, io.TextIOWrapper):
         sys.stdout.reconfigure(line_buffering=True)
 
     device = "cpu"

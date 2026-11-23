@@ -30,12 +30,15 @@ from training.alphazero.losses import alphazero_loss
 from training.alphazero.evaluation import evaluate_against_negamax
 
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-torch.backends.mps.is_available = lambda: False
+torch.backends.mps.is_available = lambda: False  # type: ignore[assignment]
 n_threads = int(os.cpu_count() or 4)
 torch.set_num_threads(n_threads)
-torch.set_num_interop_threads(1)
+try:
+    torch.set_num_interop_threads(1)
+except RuntimeError:
+    pass
 torch.set_float32_matmul_precision("high")
-torch.backends.mkldnn.enabled = True
+torch.backends.mkldnn.enabled = True  # type: ignore[assignment]
 
 NEGAMAX_VARIANTS = {
     "negamax_3k": 3000,
@@ -58,12 +61,12 @@ class TrainConfig:
     temp_moves: int = 6
     dirichlet_alpha: float = 0.3
     dirichlet_eps: float = 0.25
-    batch_size: int = 256
+    batch_size: int = 128
     lr: float = 5e-5
     eval_games: int = 20
     eval_interval: int = 5
     board_size: int = 8
-    warm_start: str = "models/alpha_zero_nega6000_v9_latest.pth"
+    warm_start: str = "models/alpha_zero_nega6000_v7_dual_negamax.pth"
     latest_model: str = "models/alpha_zero_nega6000_v9_latest.pth"
     best_model: str = "models/alpha_zero_nega6000_v9.pth"
     win_rate_target: float = 0.95
@@ -228,7 +231,7 @@ def main(cfg: TrainConfig) -> None:
 
     import io
 
-    if isinstance(sys.stdout, io.TextIOBase):
+    if isinstance(sys.stdout, io.TextIOWrapper):
         sys.stdout.reconfigure(line_buffering=True)
 
     device = "cpu"

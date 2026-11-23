@@ -44,6 +44,7 @@ per-file-ignores = { "tests/**" = ["E402"] }
 
 [tool.mypy]
 ignore_missing_imports = true
+explicit_package_bases = true
 
 [tool.pytest.ini_options]
 markers = [
