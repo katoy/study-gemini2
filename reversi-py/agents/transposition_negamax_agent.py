@@ -53,6 +53,7 @@ class TranspositionNegamaxAgent(Agent):
 
         # Zobrist ハッシュテーブル（遅延初期化）
         self._zobrist: list[list[list[int]]] = []
+        self._zobrist_turn: int = 0
 
         # トランスポジションテーブル
         self._tt: dict[int, TTEntry] = {}
@@ -84,6 +85,7 @@ class TranspositionNegamaxAgent(Agent):
             ]
             for _ in range(n)
         ]
+        self._zobrist_turn = random.getrandbits(64)
 
     def _compute_initial_hash(self, board: list[list[int]], n: int) -> int:
         """盤面から初期ハッシュを計算。"""
@@ -119,12 +121,12 @@ class TranspositionNegamaxAgent(Agent):
         r, c = move
         # 着手マス: 空 → turn
         h ^= self._zobrist[r][c][1]  # 空の寄与を削除
-        h ^= self._zobrist[r][c][(turn + 1) // 2]  # turn の寄与を追加
+        h ^= self._zobrist[r][c][turn + 1]  # turn の寄与を追加
 
         # 反転したマス: -turn → turn
         for fr, fc in flips:
-            h ^= self._zobrist[fr][fc][(-turn + 1) // 2]  # -turn の寄与を削除
-            h ^= self._zobrist[fr][fc][(turn + 1) // 2]  # turn の寄与を追加
+            h ^= self._zobrist[fr][fc][-turn + 1]  # -turn の寄与を削除
+            h ^= self._zobrist[fr][fc][turn + 1]  # turn の寄与を追加
 
         return h
 
@@ -173,16 +175,21 @@ class TranspositionNegamaxAgent(Agent):
         n: int,
         turn: int,
         endgame: bool,
+        terminal: bool = False,
     ) -> float:
-        """盤面を評価。"""
+        """盤面を評価（終局は *10000、終盤モードは石差、それ以外は発見的評価）。"""
         stones = sum(1 for row in board for v in row if v != 0)
         fill = stones / (n * n)
-        empties = n * n - stones
 
-        if endgame or empties <= self._endgame_empties:
+        if terminal:
             black = sum(1 for row in board for v in row if v == -1)
             white = sum(1 for row in board for v in row if v == 1)
-            return turn * (black - white) * 10000
+            return float(turn * (white - black) * 10000)
+
+        if endgame:
+            black = sum(1 for row in board for v in row if v == -1)
+            white = sum(1 for row in board for v in row if v == 1)
+            return float(turn * (white - black))
 
         table = _build_weight_table(n)
 
@@ -228,23 +235,26 @@ class TranspositionNegamaxAgent(Agent):
         beta: float,
         h: int,
         passed: bool,
+        endgame: bool = False,
     ) -> tuple[float, Optional[tuple[int, int]]]:
         """αβ枝刈り negamax + TT + Killer + History。
 
         Returns:
             (評価値, 最善手)のタプル。
         """
+        tt_key = h ^ self._zobrist_turn if turn == 1 else h
+
         # TT ルックアップ
-        tt_value = self._tt_lookup(h, depth, alpha, beta)
+        tt_value = self._tt_lookup(tt_key, depth, alpha, beta)
         if tt_value is not None:
-            tt_best = self._tt.get(h, {}).get('best_move')
+            tt_best = self._tt.get(tt_key, {}).get('best_move')
             return (tt_value, tt_best)
 
         # 深さ 0
         if depth == 0:
-            value = self._evaluate(board, n, turn, endgame=False)
-            self._tt_store(h, depth, -value, 'EXACT')
-            return (-value, None)
+            value = self._evaluate(board, n, turn, endgame=endgame, terminal=False)
+            self._tt_store(tt_key, depth, value, 'EXACT')
+            return (value, None)
 
         # 合法手取得
         moves = _valid_moves(board, n, turn)
@@ -252,25 +262,30 @@ class TranspositionNegamaxAgent(Agent):
         # パス処理
         if not moves:
             if passed:
-                value = self._evaluate(board, n, turn, endgame=True)
-                self._tt_store(h, depth, -value, 'EXACT')
-                return (-value, None)
+                value = self._evaluate(board, n, turn, endgame=endgame, terminal=True)
+                self._tt_store(tt_key, depth, value, 'EXACT')
+                return (value, None)
 
-            value, _ = self._negamax(board, n, -turn, depth, -beta, -alpha, h, passed=True)
-            self._tt_store(h, depth, -value, 'EXACT')
-            return (-value, None)
+            value, _ = self._negamax(
+                board, n, -turn, depth, -beta, -alpha, h, passed=True, endgame=endgame
+            )
+            value = -value
+            self._tt_store(tt_key, depth, value, 'EXACT')
+            return (value, None)
 
         # 手のオーダリング
-        tt_best = self._tt.get(h, {}).get('best_move')
+        tt_best = self._tt.get(tt_key, {}).get('best_move')
         ordered_moves = []
         if tt_best and tt_best in moves:
             ordered_moves.append(tt_best)
 
+        table = _build_weight_table(n)
         remaining = [m for m in moves if m != tt_best]
         remaining.sort(
             key=lambda m: (
-                self._history.get((turn, m), 0),
                 m in self._killers[depth],
+                self._history.get((turn, m), 0),
+                table[m[0]][m[1]],
             ),
             reverse=True,
         )
@@ -292,7 +307,9 @@ class TranspositionNegamaxAgent(Agent):
             _apply(board, move, flips, turn)
             h_new = self._update_hash(h, move, flips, turn)
 
-            value, _ = self._negamax(board, n, -turn, depth - 1, -beta, -alpha, h_new, False)
+            value, _ = self._negamax(
+                board, n, -turn, depth - 1, -beta, -alpha, h_new, False, endgame=endgame
+            )
             value = -value
 
             _undo(board, move, flips, turn)
@@ -315,12 +332,20 @@ class TranspositionNegamaxAgent(Agent):
         else:
             flag = 'EXACT'
 
-        self._tt_store(h, depth, best_value, flag, best_move)
+        self._tt_store(tt_key, depth, best_value, flag, best_move)
 
         return (best_value, best_move)
 
-    def play(self, game: "Game") -> Optional[tuple[int, int]]:
-        """与えられたゲーム状態で最善手を返す。"""
+    def play_with_score(
+        self, game: "Game"
+    ) -> tuple[Optional[tuple[int, int]], float]:
+        """最善手とその探索評価値を返す。"""
+        valid_moves: list[tuple[int, int]] = game.get_valid_moves()
+        if not valid_moves:
+            return None, 0.0
+        if len(valid_moves) == 1:
+            return valid_moves[0], 0.0
+
         self._start_time = time.monotonic()
         self._nodes_checked = 0
         self._tt.clear()
@@ -330,16 +355,37 @@ class TranspositionNegamaxAgent(Agent):
         board = [row[:] for row in game.board.board]
         n = game.board_size
         turn = game.turn
+        empties = sum(row.count(0) for row in board)
+        endgame = empties <= self._endgame_empties
+        depth_cap = min(self._max_depth, empties)
 
         h = self._compute_initial_hash(board, n)
 
-        best_move = None
-        for d in range(1, self._max_depth + 1):
+        best_move: Optional[tuple[int, int]] = valid_moves[0]
+        best_value = 0.0
+        for d in range(1, depth_cap + 1):
             try:
-                value, move = self._negamax(board, n, turn, d, -float('inf'), float('inf'), h, False)
+                value, move = self._negamax(
+                    board,
+                    n,
+                    turn,
+                    d,
+                    -float('inf'),
+                    float('inf'),
+                    h,
+                    False,
+                    endgame=endgame,
+                )
                 if move is not None:
                     best_move = move
+                    best_value = float(value)
             except _SearchTimeout:
                 break
+            if d >= empties:
+                break
 
-        return best_move
+        return best_move, best_value
+
+    def play(self, game: "Game") -> Optional[tuple[int, int]]:
+        """与えられたゲーム状態で最善手を返す。"""
+        return self.play_with_score(game)[0]
