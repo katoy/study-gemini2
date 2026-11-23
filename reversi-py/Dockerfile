@@ -48,7 +48,8 @@ RUN uv sync --frozen --extra server --extra ml
 # startpoint.sh に実行権限を付与
 RUN chmod +x /app/startpoint.sh
 
-# API サーバーをホストからも使えるよう、全インターフェースで待ち受ける
+# ポート公開（-p）で届くよう、コンテナ内では全インターフェースで待ち受ける
+# ホスト側の公開先は docker_start.sh で 127.0.0.1 に限定している
 ENV API_HOST=0.0.0.0
 ENV API_PORT=5001
 

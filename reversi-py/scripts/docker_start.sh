@@ -30,11 +30,12 @@ if [ -n "$(docker ps -aq -f "name=^${CONTAINER_NAME}$")" ]; then
 fi
 
 # コンテナ起動
+# VNC（弱いパスワード）と API（認証なし）を LAN に晒さないよう、ホストのループバックにだけ公開する
 echo "🚀 コンテナを起動中..."
 docker run -d \
     --name "$CONTAINER_NAME" \
-    -p "$VNC_PORT:5901" \
-    -p "$API_PORT:5001" \
+    -p "127.0.0.1:$VNC_PORT:5901" \
+    -p "127.0.0.1:$API_PORT:5001" \
     -e VNC_PASSWORD="$VNC_PASSWORD" \
     "$IMAGE_NAME" > /dev/null
 
