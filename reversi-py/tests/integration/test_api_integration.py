@@ -65,7 +65,8 @@ class TestServerEndpoint:
             response = requests.post(
                 f"{api_server_url}/play",
                 json={"board": STANDARD_BOARD, "turn": 1, "agent_type": agent_type},
-                timeout=5,
+                # negamax_6k は最大 6 秒考えるため、GUI 側（agents_config）と同じ 10 秒にする
+                timeout=10,
             )
             assert response.status_code == 200, (
                 f"agent_type={agent_type!r} returned {response.status_code}"
