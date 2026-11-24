@@ -27,7 +27,7 @@ Python と Pygame で作られたリバーシゲームです。
 - **終局後の敗着・勝機解説と打ち直し**: 負けた側（引き分け時は双方）の勝ち逃し・負け/アイコ決定手・主な悪手を特定し（終盤 空き 12 マス以下は安全上限 3 秒/手で最終石差を完全読み切り・完了時即終了）、戦術理由と推奨手順を解説。任意の局面から打ち直しが可能（負けた側の 1 手だけ人間が打ち、以後は画面で設定したプレイヤーで進行。完全読み切りで勝敗が決まっている局面ならその旨を表示）
 - 日本語 UI とフォント設定に対応
 - プレイヤー設定欄はエージェントが増えて表示領域（最大 240px）を超えるとマウスホイールでスクロール可能（スクロールバー表示）
-- **包括的なテスト体制**: 460 テスト（単体 416・統合 10・強さ検証 34）、カバレッジ 90%+（GitHub Actions CI）/ 99%+（ローカル `ci_check.sh`）/ 100%（`check.sh`）
+- **包括的なテスト体制**: 476 テスト（単体 432・統合 10・強さ検証 34）、カバレッジ 90%+（GitHub Actions CI）/ 99%+（ローカル `ci_check.sh`）/ 100%（`check.sh`）
 - **AI 強さ検証**: Tier 1（8x8 盤面での強さテスト、34 テスト） / Tier 2（詳細ベンチマーク）で複数 AI の強さを確認
 - **GitHub Actions CI**: Lint / 型チェック / テスト / Strength テスト / カバレッジ / サーバーテスト
 
@@ -480,6 +480,39 @@ uv run pytest -m strength -v
 | 別シード独立検証 | `NegamaxAgent` (500ms) | `123` | 50 | **84.0%** (`42W-0D-8L`) | `+9.32` | `[71.5%, 91.7%]` |
 | 対 `MinimaxAgent` 合算 | `MinimaxAgent` (500ms) | `42, 123` | 100 | **85.0%** (`85W-1D-14L`) | `+10.68` | — |
 
+### 対 Edax（外部の強豪エンジン）での強さの目安
+
+世界トップ級のオセロエンジン [Edax](https://github.com/abulmo/edax-reversi) とレベル別に対戦させ、世間的な強さの目安を測ります。
+AlphaZero は GUI（API サーバー）と同じ設定（`n_simulations=800`、空き 14 マス以下で終盤を完全読み切り）で動かします。
+Edax は定石ブックなし・1 スレッドで、局面を毎手 `setboard` で渡して `go` で着手させます（`agents/edax_agent.py`）。
+
+```bash
+# Edax のビルド（評価関数 data/eval.dat はリポジトリの bin/data に同梱）
+git clone https://github.com/abulmo/edax-reversi.git ~/tools/edax-reversi
+cd ~/tools/edax-reversi/src && make build ARCH=armv8.5-a OS=osx CC=clang  # Apple Silicon の場合
+
+# レベルごとに 20 局（同一開口 × 先後入替）で評価
+uv run python scripts/evaluate_vs_edax.py \
+  --edax ~/tools/edax-reversi/bin/mEdax-armv8.5-a --levels 1 2 3 4 6 8 --games 20
+```
+
+結果（シード `42`、各レベル 20 局、勝率は引き分けを含まない）:
+
+| Edax レベル | 勝率 (W-D-L) | 平均石差 | 95% Wilson CI |
+| --- | --- | --- | --- |
+| 1 | **100.0%** (`20W-0D-0L`) | `+34.55` | `[83.9%, 100.0%]` |
+| 2 | **85.0%** (`17W-1D-2L`) | `+17.10` | `[64.0%, 94.8%]` |
+| 3 | **70.0%** (`14W-0D-6L`) | `+13.25` | `[48.1%, 85.5%]` |
+| 4 | **50.0%** (`10W-1D-9L`) | `+1.10` | `[29.9%, 70.1%]` |
+| 6 | 15.0% (`3W-0D-17L`) | `-20.80` | `[5.2%, 36.0%]` |
+| 8 | 5.0% (`1W-0D-19L`) | `-28.00` | `[0.9%, 23.6%]` |
+| 10 | 0.0% (`0W-0D-20L`) | `-31.30` | `[0.0%, 16.1%]` |
+| 12 | 0.0% (`0W-1D-19L`) | `-27.30` | `[0.0%, 16.1%]` |
+
+- 定石ブックなしの Edax **レベル 4 とほぼ互角**です。レベル 6 以上にはほとんど勝てません
+- 終盤 14 マスは完全読み切りのため、負けは主に中盤の判断で付いています（強くするには中盤の評価＝学習量の強化が必要）
+- 人間との直接比較はしていませんが、中級者には勝てても、有段者には負け越す程度と見込まれます
+
 ### GUI での使用と注記
 
 GUI で「プレイヤー設定」から `AlphaZero-Minimax80`、`API (Minimax)` などを選択すると、API サーバー経由で学習済みモデルまたは探索 AI と対戦できます。
@@ -719,6 +752,7 @@ sequenceDiagram
 - `training/alphazero/checkpoint.py`: チェックポイントの保存・読み込み
 - `scripts/train_alphazero_minimax.py`: 対 Minimax 勝率 80% 超 3 段階ハイブリッド訓練スクリプト
 - `scripts/evaluate_vs_minimax.py`: 学習済みモデルの単一プロセス独立評価 CLI
+- `scripts/evaluate_vs_edax.py`: 外部エンジン Edax とのレベル別対戦による強さ評価 CLI（`agents/edax_agent.py` で Edax を操作）
 
 ### 終局後解析（`analysis/`）
 
@@ -734,7 +768,7 @@ sequenceDiagram
 
 ### テストと CI
 
-- `tests/`: テストコード（460 テスト = 416 単体テスト + 10 統合テスト + 34 強さテスト）
+- `tests/`: テストコード（476 テスト = 432 単体テスト + 10 統合テスト + 34 強さテスト）
   - `tests/agents/test_*.py`: エージェント単体テスト
     - `tests/agents/test_time_limits.py`: 時間制限付きの 6 種類（Negamax / Minimax / Transposition / Pattern / MCTS / AlphaZero 終盤読み切り）が実局面で制限内に返り、盤面を書き換えないことを確認（6 テスト）
   - `tests/analysis/test_*.py`: 終局後解析・解説生成・妥当性（反事実／戦術／不変条件）の単体テスト（18 テスト）
