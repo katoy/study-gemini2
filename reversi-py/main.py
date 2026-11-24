@@ -3,9 +3,13 @@ import copy
 import pygame
 import sys
 import logging
+from typing import Any, Optional
 from utils.logging_utils import ThrottlingFilter
 import threading
 import queue
+from analysis.game_analyzer import _initial_board, analyze_game
+from analysis.models import GameAnalysis
+from board import Board
 from game import Game
 from gui import GameGUI
 from config.i18n import _t
@@ -70,6 +74,18 @@ class App:
         # AI が手を返せなかった場合の再試行抑制（この時刻まで再起動しない）
         self._ai_retry_not_before: int = 0
 
+        # --- 終局後解説モード用 ---
+        self.is_analyzing: bool = False
+        self.analysis_progress: tuple[int, int] = (0, 0)
+        self.analysis_result: Optional[GameAnalysis] = None
+        self.analysis_mode: bool = False
+        self.analysis_move_index: int = 0
+        self.analysis_pv_step: int = 0
+        self.analysis_thread: Optional[threading.Thread] = None
+        self.analysis_queue: queue.Queue[tuple[str, Any, int]] = queue.Queue()
+        self._analysis_generation: int = 0
+        self.resume_pending: bool = False
+
     def run(self):
         """
         ゲームのメインループを実行する。
@@ -128,19 +144,26 @@ class App:
                     self._handle_player_settings_scroll(1 if event.button == 5 else -1)
             elif event.type == pygame.MOUSEWHEEL:
                 self._handle_player_settings_scroll(-event.y)
+            elif event.type == pygame.KEYDOWN:
+                if self.analysis_mode and self.game_started and self.game.game_over:
+                    self._handle_analysis_key(event.key)
         return mouse_click_pos
 
     def _handle_player_settings_scroll(self, wheel_delta: int) -> None:
-        """プレイヤー設定のホイールスクロールを処理する"""
+        """プレイヤー設定（または解説パネル）のホイールスクロールを処理する"""
         if wheel_delta == 0:
             return
 
         player_settings_top = self.gui._calculate_player_settings_top()
         mouse_pos = pygame.mouse.get_pos()
+        scroll_delta = wheel_delta * Screen.PLAYER_SETTINGS_SCROLL_STEP
+        if self.analysis_mode and self.game_started and self.game.game_over:
+            if self.gui.is_analysis_panel_point(mouse_pos, player_settings_top):
+                self.gui.scroll_analysis_panel(scroll_delta, player_settings_top)
+            return
         if not self.gui.is_player_settings_point(mouse_pos, player_settings_top):
             return
 
-        scroll_delta = wheel_delta * Screen.PLAYER_SETTINGS_SCROLL_STEP
         self.gui.scroll_player_settings(scroll_delta, player_settings_top)
 
     # === 状態管理 ===
@@ -160,6 +183,8 @@ class App:
         Args:
             mouse_click_pos: マウスのクリック位置 (クリックがなければ None)。
         """
+        self._poll_analysis_queue()
+
         # --- AIの思考結果をチェック ---
         if self.is_ai_thinking:
             try:
@@ -184,13 +209,15 @@ class App:
             elif self.game.game_over:
                 # ゲームオーバー時のクリック処理 (リスタート、リセット、終了)
                 self._handle_click_game_over(mouse_click_pos)
+            elif self.resume_pending:
+                self._handle_click_resume_pending(mouse_click_pos)
             else:  # ゲーム中
                 # ゲーム中のクリック処理 (リスタート、リセット、終了、盤面クリック)
                 self._handle_click_in_game(mouse_click_pos)
 
         # === AI・パス処理 ===
         # ゲームが開始していて、かつゲームオーバーでない場合にのみ処理
-        if self.game_started and not self.game.game_over:
+        if self.game_started and not self.game.game_over and not self.resume_pending:
             self._handle_ai_or_pass()
 
     def _handle_click_before_start(self, mouse_click_pos: tuple[int, int]):
@@ -206,9 +233,14 @@ class App:
 
     def _handle_click_game_over(self, mouse_click_pos: tuple[int, int]):
         """ゲームオーバー時のクリック処理"""
+        if self.analysis_mode and self.analysis_result is not None:
+            self._handle_analysis_click(mouse_click_pos)
+            return
+
         # --- 修正: gui の is_*_button_clicked を呼び出す ---
         if self.gui.is_restart_button_clicked(mouse_click_pos, game_over=True):
             self._invalidate_ai_thinking() # 思考中の古い AI 結果を無効化
+            self._invalidate_analysis()
             self.game.reset()
             # 現在のプレイヤー設定を引き継いでリセット
             self.game.set_players(self.black_player_id, self.white_player_id)
@@ -216,6 +248,7 @@ class App:
             logging.info("Game restarted.") # pragma: no cover
         elif self.gui.is_reset_button_clicked(mouse_click_pos, game_over=True):
             self._invalidate_ai_thinking() # 思考中の古い AI 結果を無効化
+            self._invalidate_analysis()
             self.game.reset()
             # プレイヤー設定も初期化 (両者人間)
             self.black_player_id = 0
@@ -225,6 +258,9 @@ class App:
             logging.info("Game reset to initial state.") # pragma: no cover
         elif self.gui.is_quit_button_clicked(mouse_click_pos, game_over=True):
             self.running = False # メインループを終了
+        elif self.gui.is_analyze_button_clicked(mouse_click_pos, game_over=True) is True:
+            if not self.is_analyzing:
+                self._start_analysis()
         else:
             self._handle_player_settings_click(mouse_click_pos)
         # else: pragma: no cover
@@ -424,6 +460,330 @@ class App:
                     _t("game.ai_error", default="AI エラー: 再試行します...")
                 )
 
+    # === 解説モード ===
+
+    def _invalidate_analysis(self) -> None:
+        """進行中の解析とキャッシュ済み解説結果を無効化する。"""
+        self._analysis_generation += 1
+        self.is_analyzing = False
+        self.analysis_progress = (0, 0)
+        self.analysis_result = None
+        self.analysis_mode = False
+        self.resume_pending = False
+        self.analysis_move_index = 0
+        self.analysis_pv_step = 0
+        while not self.analysis_queue.empty():
+            self.analysis_queue.get_nowait()
+
+    def _start_analysis(self) -> None:
+        """終局後の敗着解説を開始する（キャッシュがあれば即座に表示）。"""
+        if self.analysis_result is not None:
+            self._enter_analysis_mode()
+            return
+        if not self.game.history:
+            return
+        self.is_analyzing = True
+        self.analysis_progress = (0, 0)
+        history_snapshot = [
+            (move, turn, [row[:] for row in board])
+            for move, turn, board in self.game.history
+        ]
+        gen = self._analysis_generation
+        self.analysis_thread = threading.Thread(
+            target=self._run_analysis_worker,
+            args=(history_snapshot, self.game.board_size, gen),
+        )
+        self.analysis_thread.daemon = True
+        self.analysis_thread.start()
+
+    def _run_analysis_worker(
+        self,
+        history_snapshot: list[tuple[tuple[int, int], int, list[list[int]]]],
+        board_size: int,
+        generation: int,
+    ) -> None:
+        """バックグラウンドスレッドで対局解析を実行する。"""
+        try:
+            result = analyze_game(
+                history=history_snapshot,
+                board_size=board_size,
+                on_progress=lambda done, total: self.analysis_queue.put(
+                    ("progress", (done, total), generation)
+                ),
+            )
+            self.analysis_queue.put(("done", result, generation))
+        except Exception as e:
+            logging.error(f"Error in analysis thread: {e}")
+            self.analysis_queue.put(("error", str(e), generation))
+
+    def _poll_analysis_queue(self) -> None:
+        """解析スレッドからの進捗・完了イベントを処理する。"""
+        while True:
+            try:
+                kind, payload, gen = self.analysis_queue.get_nowait()
+            except queue.Empty:
+                break
+            if gen != self._analysis_generation:
+                continue
+            if kind == "progress":
+                self.analysis_progress = payload
+            elif kind == "done":
+                self.is_analyzing = False
+                self.analysis_result = payload
+                logging.info(f"Game analysis completed: {payload.headline}")  # pragma: no cover
+                if payload.missed_win_move_index is not None:  # pragma: no cover
+                    mw = payload.moves_by_index[payload.missed_win_move_index]  # pragma: no cover
+                    logging.info(f"Missed win: {mw.summary}")  # pragma: no cover
+                if payload.loss_sealed_move_index is not None:  # pragma: no cover
+                    ls = payload.moves_by_index[payload.loss_sealed_move_index]  # pragma: no cover
+                    logging.info(f"Loss sealed: {ls.summary}")  # pragma: no cover
+                if payload.draw_sealed_move_index is not None:  # pragma: no cover
+                    ds = payload.moves_by_index[payload.draw_sealed_move_index]  # pragma: no cover
+                    logging.info(f"Draw sealed: {ds.summary}")  # pragma: no cover
+                for m in payload.key_mistakes:
+                    logging.info(m.summary)  # pragma: no cover
+                self._enter_analysis_mode()
+            elif kind == "error":
+                self.is_analyzing = False
+
+    def _enter_analysis_mode(self) -> None:
+        """解説モードに入り、決定的敗着（または最大悪手）を初期表示する。"""
+        if self.analysis_result is None or not self.game.history:
+            return
+        self.analysis_mode = True
+        self.analysis_pv_step = 0
+        if self.analysis_result.key_mistakes:
+            self.analysis_move_index = self.analysis_result.key_mistakes[0].move_index
+        else:
+            self.analysis_move_index = len(self.game.history) - 1
+        self.gui.reset_analysis_scroll()
+
+    def _set_analysis_move_index(self, move_index: int) -> None:
+        """解説対象の手数インデックスを移動する。"""
+        if not self.game.history:
+            return
+        clamped = max(0, min(len(self.game.history) - 1, move_index))
+        self.analysis_move_index = clamped
+        self.analysis_pv_step = 0
+        self.gui.reset_analysis_scroll()
+
+    def _step_analysis_mistake(self, direction: int) -> None:
+        """主な悪手（key_mistakes）間を前後移動する。"""
+        if self.analysis_result is None or not self.analysis_result.key_mistakes:
+            return
+        indices = [m.move_index for m in self.analysis_result.key_mistakes]
+        if self.analysis_move_index in indices:
+            cur_pos = indices.index(self.analysis_move_index)
+            next_pos = (cur_pos + direction) % len(indices)
+            self._set_analysis_move_index(indices[next_pos])
+        else:
+            self._set_analysis_move_index(indices[0])
+
+    def _advance_analysis_pv(self) -> None:
+        """推奨手順（PV）のコマ送りステップを進める（末尾に達したら 0 に戻る）。"""
+        if self.analysis_result is None:
+            return
+        ma = self.analysis_result.moves_by_index.get(self.analysis_move_index)
+        if ma is None or not ma.pv:
+            return
+        self.analysis_pv_step = (self.analysis_pv_step + 1) % (len(ma.pv) + 1)
+
+    def _resume_from_analysis_move(self, move_index: int) -> None:
+        """解説中の任意局面へ巻き戻し、継続プレイヤーを指定できる打ち直し準備状態へ入る。"""
+        if not (0 <= move_index < len(self.game.history)):
+            return
+        ma = (
+            self.analysis_result.moves_by_index.get(move_index)
+            if self.analysis_result is not None
+            else None
+        )
+        target_turn = self.game.history[move_index][1]
+
+        self.game.replay(move_index - 1)
+        self.game.turn = target_turn
+        self.game._invalidate_valid_moves_cache()
+
+        self._invalidate_ai_thinking()
+        self.analysis_mode = False
+        self.resume_pending = True
+        self.game.game_over = False
+        self.game_started = True
+
+        msg = _t(
+            "game.resumed_from_move",
+            default="第{move}手から打ち直し",
+            move=move_index + 1,
+        )
+        if ma is not None:
+            r, c = ma.best_move
+            msg = f"{msg}（推奨: {chr(ord('A') + c)}{r + 1}）"
+        self.game.set_message(f"{msg} — プレイヤーを選んで「対局再開」")
+
+    def _confirm_resume_play(self) -> None:
+        """打ち直し準備状態を確定し、選択中のプレイヤー設定で対局を再開する。"""
+        self.resume_pending = False
+        self._invalidate_analysis()
+        self.game.set_message("")
+
+    def _back_to_analysis_from_resume(self) -> None:
+        """打ち直し準備状態から解説画面へ戻る。"""
+        self.resume_pending = False
+        if self.game.history:
+            self.game.replay(len(self.game.history) - 1)
+        self.game.game_over = True
+        self.analysis_mode = True
+
+    def _handle_click_resume_pending(self, mouse_click_pos: tuple[int, int]) -> None:
+        """打ち直し準備状態（プレイヤー選択待ち）でのクリックを処理する。"""
+        action = self.gui.get_clicked_resume_pending_button(mouse_click_pos)
+        if action == "back_to_analysis":
+            self._back_to_analysis_from_resume()
+            return
+        if action == "confirm_resume":
+            self._confirm_resume_play()
+            return
+        if action == "reset":
+            self._invalidate_ai_thinking()
+            self._invalidate_analysis()
+            self.game.reset()
+            self.black_player_id = 0
+            self.white_player_id = 0
+            self.game.set_players(self.black_player_id, self.white_player_id)
+            self.game_started = False
+            return
+        if action == "quit":
+            self.running = False
+            return
+
+        player_settings_top = self.gui._calculate_player_settings_top()
+        clicked_player, _ = self.gui.get_clicked_radio_button(
+            mouse_click_pos, player_settings_top
+        )
+        if clicked_player is not None:
+            self._handle_player_settings_click(mouse_click_pos)
+            return
+
+        if self.game.agents[self.game.turn] is None:
+            cell = self.gui.get_clicked_cell(mouse_click_pos)
+            if cell in self.game.get_valid_moves():
+                self._confirm_resume_play()
+                self._handle_human_move(mouse_click_pos)
+
+    def _handle_analysis_click(self, mouse_click_pos: tuple[int, int]) -> None:
+        """解説モード中のマウスクリックを処理する。"""
+        action = self.gui.get_clicked_analysis_button(mouse_click_pos)
+        if action == "prev_mistake":
+            self._step_analysis_mistake(-1)
+            return
+        if action == "next_mistake":
+            self._step_analysis_mistake(1)
+            return
+        if action == "resume":
+            self._resume_from_analysis_move(self.analysis_move_index)
+            return
+        if action == "close":
+            self.analysis_mode = False
+            return
+
+        if self.analysis_result is None or not self.game.history:
+            return
+        ma = self.analysis_result.moves_by_index.get(self.analysis_move_index)
+        has_pv = bool(ma is not None and ma.pv)
+        panel_top = self.gui._calculate_player_settings_top()
+        nav_action, nav_idx = self.gui.get_clicked_analysis_nav(
+            mouse_click_pos, panel_top, len(self.game.history), has_pv
+        )
+        if nav_action == "step_prev":
+            self._set_analysis_move_index(self.analysis_move_index - 1)
+        elif nav_action == "step_next":
+            self._set_analysis_move_index(self.analysis_move_index + 1)
+        elif nav_action == "toggle_pv":
+            self._advance_analysis_pv()
+        elif nav_action == "jump_move" and nav_idx is not None:
+            self._set_analysis_move_index(nav_idx)
+
+    def _handle_analysis_key(self, key: int) -> None:
+        """解説モード中のキーボード操作を処理する。"""
+        if key == pygame.K_LEFT:
+            self._set_analysis_move_index(self.analysis_move_index - 1)
+        elif key == pygame.K_RIGHT:
+            self._set_analysis_move_index(self.analysis_move_index + 1)
+        elif key == pygame.K_UP:
+            self._step_analysis_mistake(-1)
+        elif key == pygame.K_DOWN:
+            self._step_analysis_mistake(1)
+        elif key == pygame.K_SPACE:
+            self._advance_analysis_pv()
+        elif key == pygame.K_ESCAPE:
+            self.analysis_mode = False
+
+    def _get_analysis_board_view(
+        self,
+    ) -> tuple[
+        list[list[int]],
+        int,
+        int,
+        Optional[tuple[int, int]],
+        Optional[tuple[int, int]],
+        Optional[tuple[int, int]],
+    ]:
+        """解説画面に表示する盤面・石数・ハイライト座標を返す。"""
+        assert self.analysis_result is not None
+        idx = self.analysis_move_index
+        played_move, move_turn, _ = self.game.history[idx]
+        ma = self.analysis_result.moves_by_index.get(idx)
+        if ma is not None:
+            base_board = [row[:] for row in ma.board_before]
+        elif idx == 0:
+            base_board = _initial_board(self.game.board_size)
+        else:
+            base_board = [row[:] for row in self.game.history[idx - 1][2]]
+
+        board_obj = Board(self.game.board_size)
+        board_obj.board = [row[:] for row in base_board]
+
+        if self.analysis_pv_step > 0 and ma is not None and ma.pv:
+            cur_turn = move_turn
+            last_pv: Optional[tuple[int, int]] = None
+            for step_move in ma.pv[: self.analysis_pv_step]:
+                if step_move not in board_obj.get_valid_moves(cur_turn):
+                    cur_turn = -cur_turn
+                board_obj.place_stone(step_move[0], step_move[1], cur_turn)
+                last_pv = step_move
+                cur_turn = -cur_turn
+            b_cnt, w_cnt = board_obj.count_stones()
+            return board_obj.get_board(), b_cnt, w_cnt, None, None, last_pv
+
+        b_cnt, w_cnt = board_obj.count_stones()
+        best_move = ma.best_move if ma is not None else None
+        return board_obj.get_board(), b_cnt, w_cnt, played_move, best_move, None
+
+    def _render_analysis(self, player_settings_top: int) -> None:
+        """解説モード画面を描画する。"""
+        assert self.analysis_result is not None
+        board_data, b_cnt, w_cnt, played_move, best_move, last_pv = (
+            self._get_analysis_board_view()
+        )
+        self.gui.draw_analysis_board(
+            board_data,
+            b_cnt,
+            w_cnt,
+            played_move=played_move,
+            best_move=best_move,
+            last_pv_move=last_pv,
+        )
+        self.gui.draw_analysis_buttons()
+        raw_played, move_turn, _ = self.game.history[self.analysis_move_index]
+        self.gui.draw_analysis_panel(
+            analysis=self.analysis_result,
+            move_index=self.analysis_move_index,
+            pv_step=self.analysis_pv_step,
+            total_moves=len(self.game.history),
+            move_turn=move_turn,
+            played_move=raw_played,
+            panel_top=player_settings_top,
+        )
+
     # === 描画 ===
 
     def _render(self):
@@ -453,6 +813,10 @@ class App:
 
     def _render_game_over(self, player_settings_top: int):
         """ゲームオーバー画面を描画"""
+        if self.analysis_mode and self.analysis_result is not None:
+            self._render_analysis(player_settings_top)
+            return
+
         # 勝敗結果を取得
         winner = self.game.get_winner()
         # 勝敗メッセージを作成
@@ -464,7 +828,13 @@ class App:
         else:
             winner_message = _t("game.draw") # pragma: no cover
         # game.message がパスなどで上書きされている可能性があるので、ここで最終的な勝敗メッセージを設定
-        self.game.set_message(winner_message)
+        if self.is_analyzing:
+            done, total = self.analysis_progress
+            self.game.set_message(
+                _t("game.analyzing", default="解析中... ({done}/{total})", done=done, total=total)
+            )
+        else:
+            self.game.set_message(winner_message)
 
         # 画面要素を描画
         self.gui.draw_board(self.game)
@@ -473,6 +843,7 @@ class App:
         # プレイヤー設定UIを描画 (リセット用に操作可能 enabled=True)
         self.gui.draw_player_settings(self.game, player_settings_top, enabled=True)
         # 各ボタンを描画 (game_over=True で位置調整)
+        self.gui.draw_analyze_button(game_over=True)
         self.gui.draw_restart_button(game_over=True)
         self.gui.draw_reset_button(game_over=True)
         self.gui.draw_quit_button(game_over=True)
@@ -487,10 +858,13 @@ class App:
         # 手番表示を描画
         self.gui.draw_turn_message(self.game)
         # 各ボタンを描画 (game_over=False)
-        self.gui.draw_undo_button(game_over=False)
-        self.gui.draw_restart_button(game_over=False)
-        self.gui.draw_reset_button(game_over=False)
-        self.gui.draw_quit_button(game_over=False)
+        if self.resume_pending:
+            self.gui.draw_resume_pending_buttons()
+        else:
+            self.gui.draw_undo_button(game_over=False)
+            self.gui.draw_restart_button(game_over=False)
+            self.gui.draw_reset_button(game_over=False)
+            self.gui.draw_quit_button(game_over=False)
         # パスメッセージなどを描画
         self.gui.draw_message(self.game.get_message())
         # プレイヤー設定UIを描画 (ゲーム中も操作可能 enabled=True)

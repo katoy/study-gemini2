@@ -24,9 +24,10 @@ Python と Pygame で作られたリバーシゲームです。
 - 人間 vs 人間、人間 vs AI、AI vs AI に対応
 - **10 種類の AI 戦略**（First / Random / Gain / MCTS / Negamax-3K / Negamax-6K / Transposition / Pattern / Minimax / AlphaZero-Minimax80）を API サーバー経由で提供
 - 「待った」（Undo）、リスタート、リセット、パス処理に対応
+- **終局後の敗着・勝機解説と打ち直し**: 負けた側（引き分け時は双方）の勝ち逃し・負け/アイコ決定手・主な悪手を特定し（終盤 空き 12 マス以下は安全上限 3 秒/手で最終石差を完全読み切り・完了時即終了）、戦術理由と推奨手順を解説。任意の局面で継続プレイヤー（人間 / AI）を指定して打ち直しが可能
 - 日本語 UI とフォント設定に対応
 - プレイヤー設定欄はエージェントが増えて表示領域（最大 240px）を超えるとマウスホイールでスクロール可能（スクロールバー表示）
-- **包括的なテスト体制**: 424 テスト（単体 380・統合 10・強さ検証 34）、カバレッジ 90%+（GitHub Actions CI）/ 99%+（ローカル `ci_check.sh`）/ 100%（`check.sh`）
+- **包括的なテスト体制**: 448 テスト（単体 404・統合 10・強さ検証 34）、カバレッジ 90%+（GitHub Actions CI）/ 99%+（ローカル `ci_check.sh`）/ 100%（`check.sh`）
 - **AI 強さ検証**: Tier 1（8x8 盤面での強さテスト、34 テスト） / Tier 2（詳細ベンチマーク）で複数 AI の強さを確認
 - **GitHub Actions CI**: Lint / 型チェック / テスト / Strength テスト / カバレッジ / サーバーテスト
 
@@ -245,7 +246,8 @@ curl http://localhost:5001/docs
 4. プレイヤー設定で [AI エージェント](#ai-エージェント) 一覧の 11 種類（人間 + AI 10 種類）を選べます
    - 選択肢が表示領域（最大 240px）に収まらない場合は、欄の上でマウスホイールを回すとスクロールできます
 5. 「待った」ボタンで手を戻せます（AI 対戦時は自分が打つ直前の状態まで戻ります）
-6. ゲームの進行や AI の着手ログはコンソールにも出力されます
+6. 終局後の「解説」ボタンで、敗着（負けが決まった手）や推奨手順・理由を盤面とタイムラインで確認できます。さらに「ここから打つ」を押すと任意の局面へ戻り、黒・白それぞれの継続プレイヤー（人間 / 任意の AI）を選び直して「対局再開」できます
+7. ゲームの進行や AI の着手ログはコンソールにも出力されます
 
 ## AI エージェント
 
@@ -327,7 +329,7 @@ uv run python -m server.api_server
 uv run pytest --ignore=tests/integration -q
 ```
 
-目安: 380 件のテスト（`pyproject.toml` の `addopts` により `strength` マーカーテストは自動除外）
+目安: 404 件のテスト（`pyproject.toml` の `addopts` により `strength` マーカーテストは自動除外）
 
 ### サーバー単体テスト
 
@@ -713,6 +715,12 @@ sequenceDiagram
 - `scripts/train_alphazero_minimax.py`: 対 Minimax 勝率 80% 超 3 段階ハイブリッド訓練スクリプト
 - `scripts/evaluate_vs_minimax.py`: 学習済みモデルの単一プロセス独立評価 CLI
 
+### 終局後解析（`analysis/`）
+
+- `analysis/models.py`: 解析結果データモデル（`MoveAnalysis` / `GameAnalysis`）
+- `analysis/game_analyzer.py`: ビットボード探索による全手評価・PV 復元・決定的敗着の特定（`analyze_game`）
+- `analysis/explanation.py`: 座標表記変換・戦術理由検出・日本語解説文の生成
+
 ### サーバー
 
 - `server/api_server.py`: FastAPI REST API サーバー（エンドポイント: `POST /play`）
@@ -721,9 +729,11 @@ sequenceDiagram
 
 ### テストと CI
 
-- `tests/`: テストコード（424 テスト = 380 単体テスト + 10 統合テスト + 34 強さテスト）
+- `tests/`: テストコード（448 テスト = 404 単体テスト + 10 統合テスト + 34 強さテスト）
   - `tests/agents/test_*.py`: エージェント単体テスト
     - `tests/agents/test_time_limits.py`: 時間制限付きの 6 種類（Negamax / Minimax / Transposition / Pattern / MCTS / AlphaZero 終盤読み切り）が実局面で制限内に返り、盤面を書き換えないことを確認（6 テスト）
+  - `tests/analysis/test_*.py`: 終局後解析・解説生成・妥当性（反事実／戦術／不変条件）の単体テスト（18 テスト）
+  - `tests/test_main_analysis.py`: 解説モード・打ち直し継続プレイヤー選択のテスト（6 テスト）
   - `tests/training/test_*.py`: AlphaZero 訓練モジュールのテスト
   - `tests/config/test_*.py`: エージェント定義・多言語対応のテスト
   - `tests/server/test_api_server.py`: サーバーテスト（36 テスト）

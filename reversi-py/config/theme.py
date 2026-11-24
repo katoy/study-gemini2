@@ -24,6 +24,15 @@ class Color:
     MODAL_CONTENT = (128, 128, 128)   # モーダルダイアログのコンテンツ領域の色
     # 両AIが表示するバッジの半透明背景色
     BADGE_BG = (0, 0, 0, 160)
+    # 解説モード用カラー
+    ANALYSIS_PLAYED_COLOR = (235, 70, 70)     # 実戦手（悪手）の強調色
+    ANALYSIS_BEST_COLOR = (70, 210, 110)      # 推奨最善手の強調色
+    ANALYSIS_REFUTATION_COLOR = (255, 165, 0) # 反撃・PV 最新手の強調色
+    ANALYSIS_PANEL_BG = (52, 52, 52)          # 解説パネル背景色
+    ANALYSIS_PANEL_BORDER = (160, 160, 160)   # 解説パネル枠線色
+    ANALYSIS_HEADER_COLOR = (255, 215, 100)   # 解説パネル見出し色
+    ANALYSIS_TIMELINE_BG = (80, 80, 80)       # タイムラインバー背景色
+    ANALYSIS_TIMELINE_ACTIVE = (100, 180, 255) # 現在手マーカー色
 
 
 class Screen:

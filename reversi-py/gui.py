@@ -3,6 +3,7 @@ import pygame  # noqa: E402
 pygame.init()  # pygame 初期化を先に実行して pygame.font モジュールの循環インポートを回避
 
 from pathlib import Path  # noqa: E402
+from typing import TYPE_CHECKING, Optional  # noqa: E402
 # --- config.agents からヘルパー関数をインポート ---
 from config.agents_config import get_agent_options  # noqa: E402
 # --- config.theme からインポート ---
@@ -12,6 +13,9 @@ from config.i18n import _t  # noqa: E402
 # <<< 追加: ui_elements から UI要素をインポート >>>
 from ui_elements import Button, RadioButton, Label  # noqa: E402
 # ---------------------------------------------
+
+if TYPE_CHECKING:
+    from analysis.models import GameAnalysis
 
 class GameGUI:
     """Pygame ベースのリバーシゲーム UI。
@@ -65,6 +69,8 @@ class GameGUI:
         self._label_cache: dict[tuple, Label] = {}
         # プレイヤー設定のスクロール位置（ピクセル）
         self._player_settings_scroll = 0
+        # 解説パネルのスクロール位置（ピクセル）
+        self._analysis_scroll = 0
         # 必要な高さを計算し、指定された高さより大きければ調整する
         required_height = self._compute_min_height()
         if self.screen_height < required_height:
@@ -887,5 +893,433 @@ class GameGUI:
         """待ったボタンがクリックされたか判定"""
         button_rect = self._calculate_button_rect(False, game_over, False, False, is_undo_button=True)
         return bool(button_rect.collidepoint(pos))
+
+    # === 解説モード ===
+
+    def _get_button_fit(self, rect: pygame.Rect, text: str) -> Button:
+        """文字幅に応じてフォントを自動調整した Button を返す。"""
+        font = (
+            self.agent_label_font
+            if self.font.size(text)[0] > rect.width - 8
+            else self.font
+        )
+        cache_key = (rect.x, rect.y, rect.width, rect.height, text, id(font))
+        if cache_key not in self._button_cache:
+            self._button_cache[cache_key] = Button(rect, text, font)
+        return self._button_cache[cache_key]
+
+    def draw_analyze_button(self, game_over: bool = True) -> None:
+        """終局画面の左端スロットに解説ボタンを描画する。"""
+        button_rect = self._calculate_button_rect(
+            False, game_over, False, False, is_undo_button=True
+        )
+        self._get_button_fit(button_rect, _t("ui.analyze")).draw(self.screen)
+
+    def is_analyze_button_clicked(
+        self, pos: tuple[int, int], game_over: bool = True
+    ) -> bool:
+        """解説ボタンがクリックされたか判定する。"""
+        button_rect = self._calculate_button_rect(
+            False, game_over, False, False, is_undo_button=True
+        )
+        return bool(button_rect.collidepoint(pos))
+
+    def _get_analysis_button_specs(self) -> list[tuple[str, str, pygame.Rect]]:
+        """解説モード用 4 ボタンの (アクション名, ラベル, Rect) を返す。"""
+        return [
+            (
+                "prev_mistake",
+                _t("ui.prev_mistake"),
+                self._calculate_button_rect(False, True, False, False, is_undo_button=True),
+            ),
+            (
+                "next_mistake",
+                _t("ui.next_mistake"),
+                self._calculate_button_rect(False, True, False, False),
+            ),
+            (
+                "resume",
+                _t("ui.resume_here"),
+                self._calculate_button_rect(False, True, True, False),
+            ),
+            (
+                "close",
+                _t("ui.close_analysis"),
+                self._calculate_button_rect(False, True, False, True),
+            ),
+        ]
+
+    def draw_analysis_buttons(self) -> None:
+        """解説モード用の操作ボタン行を描画する。"""
+        for _, label, rect in self._get_analysis_button_specs():
+            self._get_button_fit(rect, label).draw(self.screen)
+
+    def get_clicked_analysis_button(self, pos: tuple[int, int]) -> Optional[str]:
+        """クリックされた解説モードボタンのアクション名を返す。"""
+        for action, _, rect in self._get_analysis_button_specs():
+            if rect.collidepoint(pos):
+                return action
+        return None
+
+    def _get_resume_pending_button_specs(self) -> list[tuple[str, str, pygame.Rect]]:
+        """打ち直し準備状態用 4 ボタンの (アクション名, ラベル, Rect) を返す。"""
+        return [
+            (
+                "back_to_analysis",
+                _t("ui.back_to_analysis"),
+                self._calculate_button_rect(False, False, False, False, is_undo_button=True),
+            ),
+            (
+                "confirm_resume",
+                _t("ui.confirm_resume"),
+                self._calculate_button_rect(False, False, False, False),
+            ),
+            (
+                "reset",
+                _t("ui.reset"),
+                self._calculate_button_rect(False, False, True, False),
+            ),
+            (
+                "quit",
+                _t("ui.quit"),
+                self._calculate_button_rect(False, False, False, True),
+            ),
+        ]
+
+    def draw_resume_pending_buttons(self) -> None:
+        """打ち直し準備状態用のボタン行を描画する。"""
+        for _, label, rect in self._get_resume_pending_button_specs():
+            self._get_button_fit(rect, label).draw(self.screen)
+
+    def get_clicked_resume_pending_button(self, pos: tuple[int, int]) -> Optional[str]:
+        """クリックされた打ち直し準備ボタンのアクション名を返す。"""
+        for action, _, rect in self._get_resume_pending_button_specs():
+            if rect.collidepoint(pos):
+                return action
+        return None
+
+    def _draw_board_coordinates(self, board_rect: pygame.Rect) -> None:
+        """盤面の列 (A〜H)・行 (1〜8) 座標ラベルを描画する。"""
+        col_y = max(4, board_rect.top - 20)
+        row_x = max(2, board_rect.left - 16)
+        for i in range(8):
+            col_surf = self.agent_label_font.render(chr(ord("A") + i), True, Color.WHITE)
+            col_rect = col_surf.get_rect(
+                center=(
+                    board_rect.left + i * self.cell_size + self.cell_size // 2,
+                    col_y + col_surf.get_height() // 2,
+                )
+            )
+            self.screen.blit(col_surf, col_rect)
+
+            row_surf = self.agent_label_font.render(str(i + 1), True, Color.WHITE)
+            row_rect = row_surf.get_rect(
+                center=(
+                    row_x + row_surf.get_width() // 2,
+                    board_rect.top + i * self.cell_size + self.cell_size // 2,
+                )
+            )
+            self.screen.blit(row_surf, row_rect)
+
+    def _cell_rect(self, board_rect: pygame.Rect, row: int, col: int) -> pygame.Rect:
+        return pygame.Rect(
+            board_rect.left + col * self.cell_size,
+            board_rect.top + row * self.cell_size,
+            self.cell_size,
+            self.cell_size,
+        )
+
+    def draw_analysis_board(
+        self,
+        board_data: list[list[int]],
+        black_count: int,
+        white_count: int,
+        played_move: Optional[tuple[int, int]] = None,
+        best_move: Optional[tuple[int, int]] = None,
+        last_pv_move: Optional[tuple[int, int]] = None,
+    ) -> None:
+        """解説モード用の盤面・座標・手ハイライト・石数を描画する。"""
+        board_rect = self._calculate_board_rect()
+        self._draw_board_background(board_rect)
+        self._draw_board_grid(board_rect)
+        self._draw_stones(board_data, board_rect)
+        self._draw_board_coordinates(board_rect)
+
+        if best_move is not None:
+            r, c = best_move
+            center = (
+                board_rect.left + c * self.cell_size + self.cell_size // 2,
+                board_rect.top + r * self.cell_size + self.cell_size // 2,
+            )
+            outer_r = max(4, self.cell_size // 2 - 4)
+            inner_r = max(2, self.cell_size // 7)
+            pygame.draw.circle(self.screen, Color.ANALYSIS_BEST_COLOR, center, outer_r, 3)
+            pygame.draw.circle(self.screen, Color.ANALYSIS_BEST_COLOR, center, inner_r)
+
+        if played_move is not None:
+            rect = self._cell_rect(board_rect, played_move[0], played_move[1]).inflate(-4, -4)
+            pygame.draw.rect(self.screen, Color.ANALYSIS_PLAYED_COLOR, rect, 3)
+            inset = max(4, self.cell_size // 5)
+            cell = self._cell_rect(board_rect, played_move[0], played_move[1])
+            pygame.draw.line(
+                self.screen,
+                Color.ANALYSIS_PLAYED_COLOR,
+                (cell.left + inset, cell.top + inset),
+                (cell.right - inset, cell.bottom - inset),
+                2,
+            )
+            pygame.draw.line(
+                self.screen,
+                Color.ANALYSIS_PLAYED_COLOR,
+                (cell.right - inset, cell.top + inset),
+                (cell.left + inset, cell.bottom - inset),
+                2,
+            )
+
+        if last_pv_move is not None:
+            rect = self._cell_rect(board_rect, last_pv_move[0], last_pv_move[1]).inflate(-6, -6)
+            pygame.draw.rect(self.screen, Color.ANALYSIS_REFUTATION_COLOR, rect, 3)
+
+        stone_count_y = board_rect.bottom + Screen.TURN_MESSAGE_TOP_MARGIN
+        left_margin = board_rect.left
+        self._get_label(
+            (left_margin, stone_count_y),
+            _t("game.black_stones", count=black_count),
+            Color.BLACK,
+        ).draw(self.screen)
+        self._get_label(
+            (self.screen_width - left_margin, stone_count_y),
+            _t("game.white_stones", count=white_count),
+            Color.WHITE,
+            is_right_aligned=True,
+        ).draw(self.screen)
+
+    def _analysis_panel_rect(self, panel_top: int) -> pygame.Rect:
+        """下部解説パネル全体の領域を計算する。"""
+        board_rect = self._calculate_board_rect()
+        left = min(board_rect.left, Screen.SIDE_PADDING * 2)
+        width = max(200, self.screen_width - left * 2)
+        height = max(120, self.screen_height - panel_top - 10)
+        return pygame.Rect(left, panel_top, width, height)
+
+    def _analysis_nav_rects(
+        self, panel_rect: pygame.Rect, has_pv: bool
+    ) -> dict[str, pygame.Rect]:
+        """解説パネル上部のナビゲーションバー（< / タイムライン / > / 手順確認）領域を返す。"""
+        nav_y = panel_rect.top + 6
+        nav_h = 26
+        btn_w = 28
+        gap = 6
+        pad = 8
+        pv_w = 80 if has_pv else 0
+
+        step_prev = pygame.Rect(panel_rect.left + pad, nav_y, btn_w, nav_h)
+        right_edge = panel_rect.right - pad
+        rects: dict[str, pygame.Rect] = {"step_prev": step_prev}
+        if has_pv:
+            pv_rect = pygame.Rect(right_edge - pv_w, nav_y, pv_w, nav_h)
+            rects["toggle_pv"] = pv_rect
+            right_edge = pv_rect.left - gap
+
+        step_next = pygame.Rect(right_edge - btn_w, nav_y, btn_w, nav_h)
+        rects["step_next"] = step_next
+
+        tl_left = step_prev.right + gap
+        tl_width = max(40, step_next.left - gap - tl_left)
+        rects["timeline"] = pygame.Rect(tl_left, nav_y + 4, tl_width, nav_h - 8)
+        return rects
+
+    def _wrap_text(self, text: str, max_width: int) -> list[str]:
+        """日本語テキストを pixel 幅 max_width 以内で折り返す。"""
+        lines: list[str] = []
+        for raw_line in text.splitlines():
+            if not raw_line:
+                lines.append("")
+                continue
+            buf = ""
+            for ch in raw_line:
+                candidate = buf + ch
+                if self.agent_label_font.size(candidate)[0] <= max_width or not buf:
+                    buf = candidate
+                else:
+                    lines.append(buf)
+                    buf = ch
+            if buf:
+                lines.append(buf)
+        return lines
+
+    def _build_analysis_body_lines(
+        self,
+        analysis: "GameAnalysis",
+        move_index: int,
+        pv_step: int,
+        total_moves: int,
+        move_turn: int,
+        played_move: tuple[int, int],
+    ) -> list[tuple[str, tuple[int, int, int]]]:
+        """解説パネルに表示する (テキスト, 文字色) の行リストを構築する。"""
+        turn_str = "黒" if move_turn == -1 else "白"
+        coord = f"{chr(ord('A') + played_move[1])}{played_move[0] + 1}"
+        header = f"第{move_index + 1}/{total_moves}手 [{turn_str}]  実戦: {coord}"
+        if pv_step > 0:
+            header += f"  （手順確認 {pv_step}手目）"
+
+        max_w = self._analysis_panel_rect(0).width - 28
+        result: list[tuple[str, tuple[int, int, int]]] = [
+            (header, Color.ANALYSIS_HEADER_COLOR),
+        ]
+        for line in self._wrap_text(f"総評: {analysis.headline}", max_w):
+            result.append((line, Color.WHITE))
+
+        branch_parts: list[str] = []
+        for idx, prefix in (
+            (analysis.missed_win_move_index, "勝ち逃し"),
+            (analysis.loss_sealed_move_index, "負け決定"),
+            (analysis.draw_sealed_move_index, "アイコ決定"),
+        ):
+            if idx is not None and idx in analysis.moves_by_index:
+                bm = analysis.moves_by_index[idx]
+                bm_lbl = f"{chr(ord('A') + bm.played_move[1])}{bm.played_move[0] + 1}"
+                branch_parts.append(f"{prefix}=第{bm.move_number}手 {bm_lbl}")
+        if branch_parts:
+            branch_line = f"勝敗分岐: {' / '.join(branch_parts)}"
+            for line in self._wrap_text(branch_line, max_w):
+                result.append((line, Color.ANALYSIS_HEADER_COLOR))
+
+        ma = analysis.moves_by_index.get(move_index)
+        if ma is not None:
+            for line in self._wrap_text(ma.explanation, max_w):
+                result.append((line, Color.WHITE))
+        else:
+            note = (
+                "この局面は詳細解析の対象外（勝者の着手、または合法手が 1 手のみ）です。"
+                "「ここから打つ」を押すとこの局面から打ち直すことができます。"
+            )
+            for line in self._wrap_text(note, max_w):
+                result.append((line, Color.DISABLED_TEXT))
+        return result
+
+    def reset_analysis_scroll(self) -> None:
+        """解説パネルのスクロール位置を先頭に戻す。"""
+        self._analysis_scroll = 0
+
+    def is_analysis_panel_point(self, pos: tuple[int, int], panel_top: int) -> bool:
+        """指定座標が解説パネル領域内か判定する。"""
+        return bool(self._analysis_panel_rect(panel_top).collidepoint(pos))
+
+    def scroll_analysis_panel(self, scroll_delta: int, panel_top: int) -> bool:
+        """解説パネルのスクロール位置を更新する。"""
+        new_scroll = max(0, self._analysis_scroll + scroll_delta)
+        changed = new_scroll != self._analysis_scroll
+        self._analysis_scroll = new_scroll
+        return changed
+
+    def get_clicked_analysis_nav(
+        self,
+        pos: tuple[int, int],
+        panel_top: int,
+        total_moves: int,
+        has_pv: bool,
+    ) -> tuple[Optional[str], Optional[int]]:
+        """解説パネル上段ナビゲーションバーのクリック判定を行う。"""
+        panel_rect = self._analysis_panel_rect(panel_top)
+        rects = self._analysis_nav_rects(panel_rect, has_pv)
+        if rects["step_prev"].collidepoint(pos):
+            return "step_prev", None
+        if rects["step_next"].collidepoint(pos):
+            return "step_next", None
+        if "toggle_pv" in rects and rects["toggle_pv"].collidepoint(pos):
+            return "toggle_pv", None
+        tl = rects["timeline"]
+        if tl.inflate(0, 8).collidepoint(pos) and total_moves > 0:
+            ratio = (pos[0] - tl.left) / max(1, tl.width)
+            idx = max(0, min(total_moves - 1, int(ratio * total_moves)))
+            return "jump_move", idx
+        return None, None
+
+    def draw_analysis_panel(
+        self,
+        analysis: "GameAnalysis",
+        move_index: int,
+        pv_step: int,
+        total_moves: int,
+        move_turn: int,
+        played_move: tuple[int, int],
+        panel_top: int,
+    ) -> None:
+        """下部解説パネル（タイムラインバー＋解説テキスト）を描画する。"""
+        panel_rect = self._analysis_panel_rect(panel_top)
+        pygame.draw.rect(self.screen, Color.ANALYSIS_PANEL_BG, panel_rect)
+        pygame.draw.rect(self.screen, Color.ANALYSIS_PANEL_BORDER, panel_rect, 1)
+
+        ma = analysis.moves_by_index.get(move_index)
+        has_pv = bool(ma is not None and ma.pv)
+        rects = self._analysis_nav_rects(panel_rect, has_pv)
+
+        # ナビゲーションボタン
+        self._get_button_fit(rects["step_prev"], "<").draw(self.screen)
+        self._get_button_fit(rects["step_next"], ">").draw(self.screen)
+        if has_pv:
+            pv_label = _t("ui.show_before") if pv_step > 0 else _t("ui.show_pv")
+            self._get_button_fit(rects["toggle_pv"], pv_label).draw(self.screen)
+
+        # タイムラインバー
+        tl = rects["timeline"]
+        pygame.draw.rect(self.screen, Color.ANALYSIS_TIMELINE_BG, tl)
+        if total_moves > 0:
+            for m in analysis.key_mistakes:
+                mx = tl.left + int((m.move_index + 0.5) / total_moves * tl.width)
+                pygame.draw.line(
+                    self.screen,
+                    Color.ANALYSIS_PLAYED_COLOR,
+                    (mx, tl.top - 2),
+                    (mx, tl.bottom + 2),
+                    3,
+                )
+            cx = tl.left + int((move_index + 0.5) / total_moves * tl.width)
+            cursor_rect = pygame.Rect(cx - 3, tl.top - 3, 6, tl.height + 6)
+            pygame.draw.rect(self.screen, Color.ANALYSIS_TIMELINE_ACTIVE, cursor_rect)
+        pygame.draw.rect(self.screen, Color.ANALYSIS_PANEL_BORDER, tl, 1)
+
+        # 本文領域の描画
+        body_top = rects["step_prev"].bottom + 6
+        body_rect = pygame.Rect(
+            panel_rect.left + 10,
+            body_top,
+            panel_rect.width - 20,
+            max(20, panel_rect.bottom - body_top - 6),
+        )
+        lines = self._build_analysis_body_lines(
+            analysis, move_index, pv_step, total_moves, move_turn, played_move
+        )
+        line_h = self.agent_label_font.get_height() + 4
+        total_h = len(lines) * line_h
+        max_scroll = max(0, total_h - body_rect.height)
+        self._analysis_scroll = max(0, min(self._analysis_scroll, max_scroll))
+
+        prev_clip = self.screen.get_clip()
+        self.screen.set_clip(body_rect)
+        try:
+            y = body_rect.top - self._analysis_scroll
+            for text, color in lines:
+                if y + line_h >= body_rect.top and y <= body_rect.bottom:
+                    surf = self.agent_label_font.render(text, True, color)
+                    self.screen.blit(surf, (body_rect.left, y))
+                y += line_h
+        finally:
+            self.screen.set_clip(prev_clip)
+
+        if max_scroll > 0:
+            track = pygame.Rect(panel_rect.right - 8, body_rect.top, 4, body_rect.height)
+            pygame.draw.rect(self.screen, Color.SCROLLBAR_TRACK, track)
+            thumb_h = max(16, int(body_rect.height * body_rect.height / total_h))
+            thumb_y = body_rect.top + int(
+                (body_rect.height - thumb_h) * (self._analysis_scroll / max_scroll)
+            )
+            pygame.draw.rect(
+                self.screen,
+                Color.SCROLLBAR_THUMB,
+                pygame.Rect(track.left, thumb_y, 4, thumb_h),
+            )
 
     # ---------------------------------------------

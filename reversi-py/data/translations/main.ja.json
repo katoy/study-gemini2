@@ -10,7 +10,9 @@
       "white_pass": "白はパスです。",
       "black_stones": "黒: {count}",
       "white_stones": "白: {count}",
-      "thinking": "思考中..."
+      "thinking": "思考中...",
+      "analyzing": "解析中... ({done}/{total})",
+      "resumed_from_move": "第{move}手から打ち直し"
     },
     "ui": {
       "start": "ゲーム開始",
@@ -18,6 +20,15 @@
       "reset": "リセット",
       "quit": "終了",
       "undo": "待った",
+      "analyze": "解説",
+      "prev_mistake": "前悪手",
+      "next_mistake": "次悪手",
+      "resume_here": "ここから打つ",
+      "close_analysis": "閉じる",
+      "show_pv": "手順確認",
+      "show_before": "局面へ",
+      "back_to_analysis": "解説へ戻る",
+      "confirm_resume": "対局再開",
       "black_player": "黒プレイヤー",
     "white_player": "白プレイヤー",
     "ai_black": "AI（黒）",

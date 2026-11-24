@@ -10,7 +10,9 @@
       "white_pass": "White passed.",
       "black_stones": "Black: {count}",
       "white_stones": "White: {count}",
-      "thinking": "Thinking..."
+      "thinking": "Thinking...",
+      "analyzing": "Analyzing... ({done}/{total})",
+      "resumed_from_move": "Resumed from move {move}"
     },
     "ui": {
       "start": "Start",
@@ -18,6 +20,15 @@
       "reset": "Reset",
       "quit": "Quit",
       "undo": "Undo",
+      "analyze": "Review",
+      "prev_mistake": "Prev",
+      "next_mistake": "Next",
+      "resume_here": "Play Here",
+      "close_analysis": "Close",
+      "show_pv": "Show PV",
+      "show_before": "Before",
+      "back_to_analysis": "Back",
+      "confirm_resume": "Resume",
       "black_player": "Black Player",
     "white_player": "White Player",
     "ai_black": "AI (Black)",
