@@ -12,7 +12,15 @@
       "white_stones": "White: {count}",
       "thinking": "Thinking...",
       "analyzing": "Analyzing... ({done}/{total})",
-      "resumed_from_move": "Resumed from move {move}"
+      "resumed_from_move": "Resumed from move {move}",
+      "color_black": "Black",
+      "color_white": "White",
+      "resume_switched_to_human": "{color}: you play this one move (then the selected players continue)",
+      "resume_recommended": "Best move: {move}",
+      "resume_loss_sealed": "Solved: {color} cannot win if the opponent plays perfectly\n(best: lose by {diff})",
+      "resume_draw_sealed": "Solved: {color} cannot win if the opponent plays perfectly\n(best: draw)",
+      "resume_instruction": "Click the board or press Resume to continue",
+      "resume_instruction_ai": "Press Resume to continue from the AI's turn"
     },
     "ui": {
       "start": "Start",

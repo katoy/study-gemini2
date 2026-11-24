@@ -294,3 +294,76 @@ def test_evaluate_after_move_paths() -> None:
     score_n, reply_n, _ = _evaluate_after_move(m_my, m_opp, -1, (2, 3), 20, 0)
     assert reply_n is not None
     assert isinstance(score_n, float)
+
+
+def _exhaustive_disc_diff(board: list[list[int]], turn: int, passed: bool = False) -> int:
+    """全探索で手番側の最善石差を求める（読み切り結果の検算用。空きが少ない局面専用）。"""
+    my, opp = board_to_bitboards(board, turn)
+    game = _EvalGame(board, turn)
+    moves = game.get_valid_moves()
+    if not moves:
+        if passed:
+            return my.bit_count() - opp.bit_count()
+        return -_exhaustive_disc_diff(board, -turn, passed=True)
+    best = -65
+    for r, c in moves:
+        g = Game(board_size=8)
+        g.board.board = [row[:] for row in board]
+        g.turn = turn
+        g._invalidate_valid_moves_cache()
+        g.place_stone(r, c)
+        best = max(best, -_exhaustive_disc_diff(g.board.board, -turn))
+    return best
+
+
+def test_solve_position_disc_diff_matches_exhaustive_search() -> None:
+    """空き 12 以下の局面で、全探索と同じ最善石差を返す。"""
+    from analysis.game_analyzer import solve_position_disc_diff
+
+    game = _play_scripted_game(54)
+    board = [row[:] for row in game.board.board]
+    empties = sum(row.count(0) for row in board)
+    assert 0 < empties <= 12
+    expected = _exhaustive_disc_diff(board, game.turn)
+    assert solve_position_disc_diff(board, game.turn) == expected
+
+
+def test_solve_position_disc_diff_edge_cases() -> None:
+    """空きが多い・終局済み・パス・強制 1 手の各局面を扱える。"""
+    from analysis.game_analyzer import solve_position_disc_diff
+
+    # 空きが上限より多い局面は読まない
+    assert solve_position_disc_diff(Game(board_size=8).board.board, -1) is None
+
+    # 終局済み（全マス埋まり）: 黒 40・白 24 → 黒番から見て +16、白番から見て -16
+    full = [[-1] * 8 for _ in range(5)] + [[1] * 8 for _ in range(3)]
+    assert solve_position_disc_diff(full, -1) == 16
+    assert solve_position_disc_diff(full, 1) == -16
+
+    # 黒に合法手が無く白だけ打てる局面（パス）: 白の最善の符号を反転した値になる
+    pass_board = [[1] * 8 for _ in range(8)]
+    pass_board[0][0] = 0
+    pass_board[0][1] = -1
+    pass_board[0][2] = 1
+    # 黒は (0,0) に打っても挟めないためパス、白は (0,0) に打って黒 1 石を返せる
+    assert solve_position_disc_diff(pass_board, -1) == -64
+    assert solve_position_disc_diff(pass_board, 1) == 64
+
+    # 強制 1 手の局面でも読み切れる
+    forced = [[1] * 8 for _ in range(8)]
+    forced[0][0] = 0
+    forced[0][1] = 1
+    forced[0][2] = -1
+    forced[7][7] = -1
+    assert solve_position_disc_diff(forced, -1) == _exhaustive_disc_diff(forced, -1)
+
+    # 時間内に読み切れない場合は None
+    with patch("analysis.game_analyzer.BitboardTeacherAgent") as mock_agent_cls:
+        agent = mock_agent_cls.return_value
+        agent.play_with_score.return_value = ((0, 0), 30000.0)
+        game = _play_scripted_game(54)
+        board = game.board.board
+        my, opp = board_to_bitboards(board, game.turn)
+        # 置換表の深さが空き数より浅い = 読み切れていない
+        agent._tt = {(my, opp): (1, 0, 0.0, 0)}
+        assert solve_position_disc_diff(board, game.turn) is None

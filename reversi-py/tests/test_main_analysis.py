@@ -393,7 +393,8 @@ def test_resume_from_analysis_move_player_selection_and_branch() -> None:
         assert game.turn == -1
         assert game.history_index == -1
         assert app.analysis_result is not None
-        assert "プレイヤーを選んで" in game.get_message()
+        assert game.get_message() == "第1手から打ち直し"
+        assert app.resume_notices
 
         # AI が勝手には起動しない
         with patch("main.threading.Thread") as mock_thread:
@@ -547,3 +548,316 @@ def test_real_gui_analysis_rendering_and_hit_testing(monkeypatch) -> None:
         for expected_action, _, rect in rp_specs:
             assert gui.get_clicked_resume_pending_button(rect.center) == expected_action
         assert gui.get_clicked_resume_pending_button((-10, -10)) is None
+
+
+
+
+
+
+
+
+
+
+def test_resume_sealed_notice() -> None:
+    """完全読み切りで人間側の勝ちが無いときだけ、負け確定・引き分けまでの文言を返す。"""
+    from dataclasses import replace
+
+    app, game, _, patcher = _make_app_with_real_game(4)
+    try:
+        ma = replace(
+            _make_sample_analysis(game.history).moves_by_index[0],
+            turn=1,
+            is_exact=True,
+        )
+        # 手番 = 人間側（白）の最善が -4 → 白の 4 石差負け確定
+        assert app._resume_sealed_notice(replace(ma, best_disc_diff=-4), 1, 1) == (
+            "完全読み切り: 相手が最善なら白に勝ち目なし\n（最善でも 4 石差負け）"
+        )
+        # 最善 0 → 引き分けまで
+        assert app._resume_sealed_notice(replace(ma, best_disc_diff=0), 1, 1) == (
+            "完全読み切り: 相手が最善なら白に勝ち目なし\n（最善でも引き分け）"
+        )
+        # 最善が勝ち → 表示しない
+        assert app._resume_sealed_notice(replace(ma, best_disc_diff=2), 1, 1) is None
+        # 手番が相手（黒）の場合は符号を反転して人間側（白）から見る
+        black_ma = replace(ma, turn=-1, best_disc_diff=6)
+        assert app._resume_sealed_notice(black_ma, -1, 1) == (
+            "完全読み切り: 相手が最善なら白に勝ち目なし\n（最善でも 6 石差負け）"
+        )
+        # 読み切りでない・解析結果なしで空きが多い → 表示しない
+        assert app._resume_sealed_notice(replace(ma, is_exact=False), 1, 1) is None
+        assert app._resume_sealed_notice(None, -1, -1) is None
+
+        # 解析結果なしでも、終盤なら読み切って表示する
+        with patch("main.solve_position_disc_diff", return_value=-10) as mock_solve:
+            assert app._resume_sealed_notice(None, -1, -1) == (
+                "完全読み切り: 相手が最善なら黒に勝ち目なし\n（最善でも 10 石差負け）"
+            )
+        mock_solve.assert_called_once_with(game.board.board, -1)
+    finally:
+        patcher.stop()
+
+
+def test_resume_shows_sealed_notice_from_real_endgame() -> None:
+    """解析結果が無くても、終盤の局面から打ち直すと実際に読み切って結果を表示する。"""
+    from analysis.game_analyzer import solve_position_disc_diff
+
+    app, game, _, patcher = _make_app_with_real_game(60)
+    try:
+        app.black_player_id = 1
+        app.white_player_id = 2
+        game.set_players(1, 2)
+        app.analysis_result = None
+        move_index = len(game.history) - 4
+        human_side = app._resume_human_side(game.history[move_index][1])
+        app._resume_from_analysis_move(move_index)
+
+        mover_diff = solve_position_disc_diff(game.board.board, game.turn)
+        assert mover_diff is not None
+        human_diff = mover_diff if human_side == game.turn else -mover_diff
+        sealed = [n for n in app.resume_notices if n.startswith("完全読み切り")]
+        if human_diff > 0:
+            assert sealed == []
+        else:
+            assert len(sealed) == 1
+    finally:
+        patcher.stop()
+
+
+def test_draw_resume_notices_renders_on_real_gui(monkeypatch) -> None:
+    """実物の GameGUI で補足表示が描画でき、長い行は盤面幅に縮小される。"""
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    pygame.init()
+    font_mock = MagicMock()
+    # 2 行目は盤面幅より広い文字列として描画させ、縮小処理を通す
+    font_mock.render.side_effect = lambda text, *_: pygame.Surface(
+        (len(text) * 16, 16)
+    )
+    font_mock.get_height.return_value = 16
+    font_mock.size.side_effect = lambda t: (len(t) * 8, 16)
+    with patch("gui.GameGUI._load_font", return_value=font_mock):
+        gui = GameGUI(allow_width_shrink=True)
+        gui.draw_resume_notices([])
+        font_mock.render.reset_mock()
+        with patch("gui.pygame.transform.smoothscale", wraps=pygame.transform.smoothscale) as scale:
+            gui.draw_resume_notices(["短い行", "とても長い行" * 20])
+        assert font_mock.render.call_count == 2
+        scale.assert_called_once()
+
+
+def test_resume_notice_band_avoids_human_moves(monkeypatch) -> None:
+    """人間の合法手が上端の帯に隠れる場合だけ、帯を盤面の下端に置く。"""
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    pygame.init()
+    font_mock = MagicMock()
+    font_mock.render.return_value = pygame.Surface((40, 16))
+    font_mock.get_height.return_value = 16
+    font_mock.size.side_effect = lambda t: (len(t) * 8, 16)
+    with patch("gui.GameGUI._load_font", return_value=font_mock):
+        gui = GameGUI(allow_width_shrink=True)
+        rect = gui._calculate_board_rect()
+        band_height = 16 * 3 + 12
+        # 隠す手が無い / 上端に無い → 上端
+        assert gui._resume_notice_band_top(rect, band_height, []) == rect.top
+        assert gui._resume_notice_band_top(rect, band_height, [(4, 4)]) == rect.top
+        # 上端に隠れる手があり下端には無い → 下端
+        assert gui._resume_notice_band_top(rect, band_height, [(0, 3)]) == (
+            rect.bottom - band_height
+        )
+        # 上端・下端の両方に手がある → 上端のまま
+        assert gui._resume_notice_band_top(rect, band_height, [(0, 3), (7, 3)]) == rect.top
+        gui.draw_resume_notices(["行"], [(0, 3)])
+
+
+def test_resume_overrides_loser_for_one_move_and_restores_on_back() -> None:
+    """「ここから打つ」で負けた側（白）を 1 手だけ人間にし、画面の設定は変えない。解説へ戻ると元に戻る。"""
+    app, game, mock_gui, patcher = _make_app_with_real_game(4)
+    try:
+        app.black_player_id = 1
+        app.white_player_id = 2
+        game.set_players(1, 2)
+        app.analysis_result = _make_sample_analysis(game.history)  # loser=1（白）
+
+        app._resume_from_analysis_move(0)  # 第1手（黒・AI の手番）
+
+        # 画面のプレイヤー設定（ラジオボタン）はそのまま、白のエージェントだけ一時的に人間
+        assert (app.black_player_id, app.white_player_id) == (1, 2)
+        assert game.agent_ids == {-1: 1, 1: 2}
+        assert game.agents[1] is None
+        assert game.agents[-1] is not None
+        assert app._resume_human_override == 1
+        assert game.get_message() == "第1手から打ち直し"
+        assert app.resume_notices[0] == "白は 1 手だけ人間が打ちます（以後は画面の設定で進行）"
+        assert "推奨手: D3" in app.resume_notices
+        # 手番は AI（黒）なので「対局再開」で再開する案内になる
+        assert app.resume_notices[-1] == "「対局再開」で AI の手番から再開"
+
+        # 解説へ戻ると画面の設定どおりのエージェントに戻る
+        mock_gui.get_clicked_resume_pending_button.return_value = "back_to_analysis"
+        app._update_state((10, 10))
+        assert game.agents[1] is not None
+        assert app._resume_human_override is None
+        assert app.resume_notices == []
+
+        # 続けて打ち直しても上書きは 1 側だけ
+        app._resume_from_analysis_move(1)
+        app._resume_from_analysis_move(0)
+        assert game.agents[1] is None and game.agents[-1] is not None
+        app._back_to_analysis_from_resume()
+        assert game.agents[1] is not None
+    finally:
+        patcher.stop()
+
+
+def test_resume_keeps_players_when_loser_already_human() -> None:
+    """負けた側がすでに人間なら上書きせず、手番が人間なら盤面クリックの案内を出す。"""
+    app, game, _, patcher = _make_app_with_real_game(4)
+    try:
+        app.black_player_id = 1
+        app.white_player_id = 0
+        game.set_players(1, 0)
+        app.analysis_result = _make_sample_analysis(game.history)  # loser=1（白）
+
+        app._resume_from_analysis_move(1)  # 第2手（白・人間の手番）
+
+        assert (app.black_player_id, app.white_player_id) == (1, 0)
+        assert app._resume_human_override is None
+        assert not any("人間が打ちます" in n for n in app.resume_notices)
+        assert app.resume_notices[-1] == "盤面をクリックするか「対局再開」で再開"
+    finally:
+        patcher.stop()
+
+
+def test_resume_draw_and_no_analysis_choose_human_side() -> None:
+    """引き分けなら打ち直す手番の側、解析結果が無ければ最終盤面で負けた側を 1 手だけ人間にする。"""
+    from dataclasses import replace
+
+    app, game, _, patcher = _make_app_with_real_game(4)
+    try:
+        app.black_player_id = 1
+        app.white_player_id = 2
+        game.set_players(1, 2)
+        app.analysis_result = replace(
+            _make_sample_analysis(game.history), loser=0, winner=0
+        )
+        app._resume_from_analysis_move(1)  # 第2手は白の手番
+        assert app._resume_human_override == 1
+        app._back_to_analysis_from_resume()
+
+        # 解析結果なしで最終盤面が同数（4 手後は 4 対 4）: 打ち直す手番の側
+        app.analysis_result = None
+        app._resume_from_analysis_move(0)  # 第1手は黒の手番
+        assert app._resume_human_override == -1
+        assert (app.black_player_id, app.white_player_id) == (1, 2)
+    finally:
+        patcher.stop()
+
+    # 解析結果なし: 最終盤面の石数で負けた側を求める（5 手後は黒が多い → 白が負け）
+    app, game, _, patcher = _make_app_with_real_game(5)
+    try:
+        app.black_player_id = 1
+        app.white_player_id = 2
+        game.set_players(1, 2)
+        final_board = game.history[-1][2]
+        black = sum(row.count(-1) for row in final_board)
+        white = sum(row.count(1) for row in final_board)
+        assert black > white
+        app._resume_from_analysis_move(0)
+        assert app._resume_human_override == 1
+    finally:
+        patcher.stop()
+
+
+def test_human_move_after_resume_continues_with_configured_players() -> None:
+    """人間が打ち直しの 1 手を打つと、以後は画面で設定されたプレイヤー（AI 同士）で進む。"""
+    from dataclasses import replace
+
+    app, game, mock_gui, patcher = _make_app_with_real_game(4)
+    try:
+        app.black_player_id = 1
+        app.white_player_id = 2
+        game.set_players(1, 2)
+        app.analysis_result = replace(
+            _make_sample_analysis(game.history), loser=-1, winner=1
+        )
+        app._resume_from_analysis_move(0)  # 黒（負けた側）が 1 手だけ人間
+        assert game.agents[-1] is None
+        assert app.resume_notices[-1] == "盤面をクリックするか「対局再開」で再開"
+
+        mock_gui.get_clicked_cell.return_value = (3, 2)
+        with patch("main.threading.Thread") as mock_thread:
+            app._update_state((100, 100))
+        # 人間の手が打たれ、黒は画面の設定（API First）に戻り、白（API Random）が考え始める
+        assert app.resume_pending is False
+        assert app.resume_notices == []
+        assert game.history[-1][0] == (3, 2)
+        assert len(game.history) == 1
+        assert game.turn == 1
+        assert app._resume_human_override is None
+        assert game.agents[-1] is not None
+        assert game.agents[1] is not None
+        assert (app.black_player_id, app.white_player_id) == (1, 2)
+        assert app.is_ai_thinking is True
+        mock_thread.return_value.start.assert_called_once()
+        app._invalidate_ai_thinking()
+    finally:
+        patcher.stop()
+
+
+def test_resume_override_waits_for_ai_turn_and_follows_radio_changes() -> None:
+    """AI の手番から再開しても人間化は維持され、人間が打つまで解除されない。ラジオでの選び直しに従う。"""
+    app, game, mock_gui, patcher = _make_app_with_real_game(4)
+    try:
+        app.black_player_id = 1
+        app.white_player_id = 2
+        game.set_players(1, 2)
+        app.analysis_result = _make_sample_analysis(game.history)  # loser=1（白）
+        app._resume_from_analysis_move(0)  # 黒（AI）の手番、白が 1 手だけ人間
+
+        # 黒側をラジオで選び直しても、白の人間化は維持される
+        mock_gui.get_clicked_radio_button.return_value = (-1, 3)
+        app._update_state((50, 450))
+        assert app.black_player_id == 3
+        assert game.agents[-1] is not None
+        assert game.agents[1] is None
+        assert app._resume_human_override == 1
+
+        # 「対局再開」後も、白が打つまでは人間のまま
+        mock_gui.get_clicked_radio_button.return_value = (None, None)
+        mock_gui.get_clicked_resume_pending_button.return_value = "confirm_resume"
+        with patch("main.threading.Thread"):
+            app._update_state((10, 10))
+        app._invalidate_ai_thinking()
+        assert app._resume_human_override == 1
+        assert game.agents[1] is None
+
+        # 黒の手を進めて白（人間）が 1 手打つと、白は画面の設定（API Random）に戻る
+        r, c = game.get_valid_moves()[0]
+        game.place_stone(r, c)
+        game.switch_turn()
+        mock_gui.get_clicked_cell.return_value = game.get_valid_moves()[0]
+        app._handle_human_move((100, 100))
+        assert app._resume_human_override is None
+        assert game.agents[1] is not None
+        assert (app.black_player_id, app.white_player_id) == (3, 2)
+
+        # 人間化中の側をラジオで選び直した場合は、その選択を優先して人間化を解除する
+        app.analysis_result = _make_sample_analysis(game.history)
+        app._resume_from_analysis_move(0)
+        assert app._resume_human_override == 1
+        mock_gui.get_clicked_resume_pending_button.return_value = None
+        mock_gui.get_clicked_radio_button.return_value = (1, 4)
+        app._update_state((300, 450))
+        assert app._resume_human_override is None
+        assert app.white_player_id == 4
+        assert game.agents[1] is not None
+
+        # リセットでも人間化は解除される
+        mock_gui.get_clicked_radio_button.return_value = (None, None)
+        app.analysis_result = _make_sample_analysis(game.history)
+        app._resume_from_analysis_move(0)
+        mock_gui.get_clicked_resume_pending_button.return_value = "reset"
+        app._update_state((0, 0))
+        assert app._resume_human_override is None
+    finally:
+        patcher.stop()

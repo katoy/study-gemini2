@@ -12,7 +12,15 @@
       "white_stones": "白: {count}",
       "thinking": "思考中...",
       "analyzing": "解析中... ({done}/{total})",
-      "resumed_from_move": "第{move}手から打ち直し"
+      "resumed_from_move": "第{move}手から打ち直し",
+      "color_black": "黒",
+      "color_white": "白",
+      "resume_switched_to_human": "{color}は 1 手だけ人間が打ちます（以後は画面の設定で進行）",
+      "resume_recommended": "推奨手: {move}",
+      "resume_loss_sealed": "完全読み切り: 相手が最善なら{color}に勝ち目なし\n（最善でも {diff} 石差負け）",
+      "resume_draw_sealed": "完全読み切り: 相手が最善なら{color}に勝ち目なし\n（最善でも引き分け）",
+      "resume_instruction": "盤面をクリックするか「対局再開」で再開",
+      "resume_instruction_ai": "「対局再開」で AI の手番から再開"
     },
     "ui": {
       "start": "ゲーム開始",

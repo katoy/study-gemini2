@@ -162,6 +162,57 @@ def _evaluate_after_move(
     return score_for_mover, first_opponent_reply, solved
 
 
+def solve_position_disc_diff(
+    board: list[list[int]],
+    turn: int,
+    endgame_empties: int = 12,
+    time_limit_ms: int = 3000,
+) -> Optional[int]:
+    """局面を完全読み切りし、手番側から見た最善の最終石差を返す。
+
+    Args:
+        board: 8x8 の盤面（黒 -1、白 1、空 0）。
+        turn: 手番（黒 -1、白 1）。
+        endgame_empties: 読み切りを行う空きマス数の上限。これより空きが多ければ読まない。
+        time_limit_ms: 読み切りの思考時間上限（ミリ秒）。
+
+    Returns:
+        双方が最善を尽くしたときの手番側の石差。空きが多い・時間内に読み切れない場合は None。
+    """
+    my, opp = board_to_bitboards(board, turn)
+    empties = 64 - (my | opp).bit_count()
+    if empties > endgame_empties:
+        return None
+
+    mask = legal_moves_mask(my, opp)
+    if mask == 0:
+        if legal_moves_mask(opp, my) == 0:
+            # 終局済み
+            return my.bit_count() - opp.bit_count()
+        # パス：相手の手番として読み、符号を反転する
+        opp_result = solve_position_disc_diff(board, -turn, endgame_empties, time_limit_ms)
+        return None if opp_result is None else -opp_result
+
+    if mask.bit_count() == 1:
+        # 強制 1 手は play_with_score が探索しないため、着手後の局面を評価する
+        only_move = divmod(mask.bit_length() - 1, 8)
+        score, _, solved = _evaluate_after_move(
+            my, opp, turn, only_move, time_limit_ms, endgame_empties
+        )
+    else:
+        agent = BitboardTeacherAgent(
+            time_limit_ms=time_limit_ms,
+            endgame_empties=endgame_empties,
+        )
+        _, score = agent.play_with_score(_EvalGame(board, turn))  # type: ignore[arg-type]
+        tt_entry = agent._tt.get((my, opp))
+        solved = not (tt_entry is not None and tt_entry[0] < empties)
+
+    if not solved:
+        return None
+    return round(score / 10000.0)
+
+
 def _win_prob(score: float, is_exact: bool) -> float:
     """中盤評価値または終盤石差(×10000)を [0, 1] の期待勝率へ正規化する。"""
     scaled = (score / 10000.0) / 6.0 if is_exact else score / 180.0

@@ -7,8 +7,8 @@ from typing import Any, Optional
 from utils.logging_utils import ThrottlingFilter
 import threading
 import queue
-from analysis.game_analyzer import _initial_board, analyze_game
-from analysis.models import GameAnalysis
+from analysis.game_analyzer import _initial_board, analyze_game, solve_position_disc_diff
+from analysis.models import GameAnalysis, MoveAnalysis
 from board import Board
 from game import Game
 from gui import GameGUI
@@ -85,6 +85,10 @@ class App:
         self.analysis_queue: queue.Queue[tuple[str, Any, int]] = queue.Queue()
         self._analysis_generation: int = 0
         self.resume_pending: bool = False
+        # 打ち直し準備中に盤面上へ表示する補足（人間への切り替え・推奨手・勝敗確定など）
+        self.resume_notices: list[str] = []
+        # 打ち直しの 1 手だけ人間が打つ側（画面のプレイヤー設定は変えない。None なら無し）
+        self._resume_human_override: Optional[int] = None
 
     def run(self):
         """
@@ -242,6 +246,7 @@ class App:
             self._invalidate_ai_thinking() # 思考中の古い AI 結果を無効化
             self._invalidate_analysis()
             self.game.reset()
+            self._resume_human_override = None  # 打ち直しの一時的な人間化を解除
             # 現在のプレイヤー設定を引き継いでリセット
             self.game.set_players(self.black_player_id, self.white_player_id)
             self.game_started = True # ゲーム開始状態にする
@@ -250,6 +255,7 @@ class App:
             self._invalidate_ai_thinking() # 思考中の古い AI 結果を無効化
             self._invalidate_analysis()
             self.game.reset()
+            self._resume_human_override = None  # 打ち直しの一時的な人間化を解除
             # プレイヤー設定も初期化 (両者人間)
             self.black_player_id = 0
             self.white_player_id = 0
@@ -286,6 +292,12 @@ class App:
 
         if player_changed:
             self.game.set_players(self.black_player_id, self.white_player_id)
+            if self._resume_human_override is not None:
+                if clicked_player == self._resume_human_override:
+                    # 打ち直しの 1 手を担当する側を選び直した場合は、その選択を優先する
+                    self._resume_human_override = None
+                else:
+                    self.game.agents[self._resume_human_override] = None
             if self.game_started and not self.game.game_over:
                 self._invalidate_ai_thinking()
             logging.info(
@@ -298,12 +310,14 @@ class App:
         if self.gui.is_restart_button_clicked(mouse_click_pos, game_over=False):
             self._invalidate_ai_thinking() # 思考中の古い AI 結果を無効化
             self.game.reset()
+            self._resume_human_override = None  # 打ち直しの一時的な人間化を解除
             self.game.set_players(self.black_player_id, self.white_player_id) # 設定引き継ぎ
             self.game_started = True # ゲームは開始状態のまま
             logging.info("Game restarted.") # pragma: no cover
         elif self.gui.is_reset_button_clicked(mouse_click_pos, game_over=False):
             self._invalidate_ai_thinking() # 思考中の古い AI 結果を無効化
             self.game.reset()
+            self._resume_human_override = None  # 打ち直しの一時的な人間化を解除
             self.black_player_id = 0 # 設定リセット
             self.white_player_id = 0
             self.game.set_players(self.black_player_id, self.white_player_id)
@@ -348,8 +362,12 @@ class App:
         valid_moves = self.game.get_valid_moves()
         # クリックされたセルが合法手か判定
         if (row, col) in valid_moves:
+            mover = self.game.turn
             # 石を置く処理を実行
             if self.game.place_stone(row, col):
+                # 打ち直しの 1 手を打ったら、以後は画面のプレイヤー設定で進める
+                if self._resume_human_override == mover:
+                    self._restore_screen_players()
                 logging.info(f"Human player placed stone at ({row}, {col}).") # pragma: no cover
                 self.game.set_message("") # メッセージをクリア
                 self.game.switch_turn()   # 手番を交代
@@ -470,6 +488,7 @@ class App:
         self.analysis_result = None
         self.analysis_mode = False
         self.resume_pending = False
+        self.resume_notices = []
         self.analysis_move_index = 0
         self.analysis_pv_step = 0
         while not self.analysis_queue.empty():
@@ -598,6 +617,8 @@ class App:
             else None
         )
         target_turn = self.game.history[move_index][1]
+        # 巻き戻すと最終盤面が失われるため、負けた側は巻き戻す前に求める
+        human_side = self._resume_human_side(target_turn)
 
         self.game.replay(move_index - 1)
         self.game.turn = target_turn
@@ -609,25 +630,138 @@ class App:
         self.game.game_over = False
         self.game_started = True
 
-        msg = _t(
-            "game.resumed_from_move",
-            default="第{move}手から打ち直し",
-            move=move_index + 1,
-        )
+        # 前回の打ち直しの上書きが残っていれば、画面の設定に戻してから適用し直す
+        self._restore_screen_players()
+        notices: list[str] = []
+        if self._apply_resume_human_override(human_side):
+            notices.append(
+                _t(
+                    "game.resume_switched_to_human",
+                    default="{color}は 1 手だけ人間が打ちます（以後は画面の設定で進行）",
+                    color=self._color_name(human_side),
+                )
+            )
         if ma is not None:
             r, c = ma.best_move
-            msg = f"{msg}（推奨: {chr(ord('A') + c)}{r + 1}）"
-        self.game.set_message(f"{msg} — プレイヤーを選んで「対局再開」")
+            notices.append(
+                _t(
+                    "game.resume_recommended",
+                    default="推奨手: {move}",
+                    move=f"{chr(ord('A') + c)}{r + 1}",
+                )
+            )
+        sealed = self._resume_sealed_notice(ma, target_turn, human_side)
+        if sealed is not None:
+            # 長い文言は改行で 2 行に分けて表示する
+            notices.extend(sealed.split("\n"))
+        if self.game.agents[target_turn] is None:
+            notices.append(
+                _t("game.resume_instruction", default="盤面をクリックするか「対局再開」で再開")
+            )
+        else:
+            notices.append(
+                _t("game.resume_instruction_ai", default="「対局再開」で AI の手番から再開")
+            )
+        self.resume_notices = notices
+
+        self.game.set_message(
+            _t(
+                "game.resumed_from_move",
+                default="第{move}手から打ち直し",
+                move=move_index + 1,
+            )
+        )
+
+    def _resume_human_side(self, target_turn: int) -> int:
+        """打ち直しで人間が担当する側を返す（負けた側。引き分けなら打ち直す手番の側）。"""
+        if self.analysis_result is not None:
+            loser = self.analysis_result.loser
+        else:
+            final_board = self.game.history[-1][2]
+            black = sum(row.count(-1) for row in final_board)
+            white = sum(row.count(1) for row in final_board)
+            loser = 1 if black > white else (-1 if white > black else 0)
+        return loser if loser != 0 else target_turn
+
+    def _apply_resume_human_override(self, side: int) -> bool:
+        """打ち直しの 1 手だけ、指定した側を人間が打つようにする。
+
+        画面のプレイヤー設定（black_player_id / white_player_id）は変えず、
+        その側のエージェントだけを一時的に人間（None）にする。
+
+        Returns:
+            その側が AI で、人間に切り替えた場合 True。もともと人間なら False。
+        """
+        if self.game.agents[side] is None:
+            return False
+        self.game.agents[side] = None
+        self._resume_human_override = side
+        return True
+
+    def _restore_screen_players(self) -> None:
+        """打ち直しの一時的な人間化を解除し、画面のプレイヤー設定どおりのエージェントに戻す。"""
+        if self._resume_human_override is None:
+            return
+        self._resume_human_override = None
+        self.game.set_players(self.black_player_id, self.white_player_id)
+
+    @staticmethod
+    def _color_name(side: int) -> str:
+        """手番の値（黒 -1、白 1）を表示用の色名に変換する。"""
+        if side == -1:
+            return _t("game.color_black", default="黒")
+        return _t("game.color_white", default="白")
+
+    def _resume_sealed_notice(
+        self, ma: Optional[MoveAnalysis], target_turn: int, human_side: int
+    ) -> Optional[str]:
+        """打ち直す局面が完全読み切りで、人間側の勝ちが無くなっていれば、その旨の文言を返す。
+
+        Args:
+            ma: 打ち直す手の解析結果（解析対象外の手なら None）。
+            target_turn: 打ち直す局面の手番。
+            human_side: 人間が担当する側。
+
+        Returns:
+            負け確定・引き分けまでの文言。勝ちの可能性が残る・読み切れない場合は None。
+        """
+        if ma is not None and ma.is_exact and ma.best_disc_diff is not None:
+            mover_diff: Optional[int] = ma.best_disc_diff
+        else:
+            # 解析対象外の手（勝った側の手・合法手 1 手の局面など）は、終盤ならその場で読み切る
+            mover_diff = solve_position_disc_diff(self.game.board.board, target_turn)
+        if mover_diff is None:
+            return None
+
+        human_diff = mover_diff if human_side == target_turn else -mover_diff
+        color = self._color_name(human_side)
+        if human_diff < 0:
+            return _t(
+                "game.resume_loss_sealed",
+                default="完全読み切り: 相手が最善なら{color}に勝ち目なし\n（最善でも {diff} 石差負け）",
+                color=color,
+                diff=-human_diff,
+            )
+        if human_diff == 0:
+            return _t(
+                "game.resume_draw_sealed",
+                default="完全読み切り: 相手が最善なら{color}に勝ち目なし\n（最善でも引き分け）",
+                color=color,
+            )
+        return None
 
     def _confirm_resume_play(self) -> None:
         """打ち直し準備状態を確定し、選択中のプレイヤー設定で対局を再開する。"""
         self.resume_pending = False
+        self.resume_notices = []
         self._invalidate_analysis()
         self.game.set_message("")
 
     def _back_to_analysis_from_resume(self) -> None:
         """打ち直し準備状態から解説画面へ戻る。"""
         self.resume_pending = False
+        self.resume_notices = []
+        self._restore_screen_players()
         if self.game.history:
             self.game.replay(len(self.game.history) - 1)
         self.game.game_over = True
@@ -646,6 +780,7 @@ class App:
             self._invalidate_ai_thinking()
             self._invalidate_analysis()
             self.game.reset()
+            self._resume_human_override = None  # 打ち直しの一時的な人間化を解除
             self.black_player_id = 0
             self.white_player_id = 0
             self.game.set_players(self.black_player_id, self.white_player_id)
@@ -860,6 +995,11 @@ class App:
         # 各ボタンを描画 (game_over=False)
         if self.resume_pending:
             self.gui.draw_resume_pending_buttons()
+            # 人間の手番なら合法手が帯に隠れないようにする
+            human_moves = (
+                self.game.get_valid_moves() if self.game.agents[self.game.turn] is None else []
+            )
+            self.gui.draw_resume_notices(self.resume_notices, human_moves)
         else:
             self.gui.draw_undo_button(game_over=False)
             self.gui.draw_restart_button(game_over=False)

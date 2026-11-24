@@ -17,6 +17,10 @@ from ui_elements import Button, RadioButton, Label  # noqa: E402
 if TYPE_CHECKING:
     from analysis.models import GameAnalysis
 
+# 打ち直し準備中の補足表示（盤面上部の帯）の余白と背景の不透明度（0〜255）
+RESUME_NOTICE_PADDING = 6
+RESUME_NOTICE_BG_ALPHA = 200
+
 class GameGUI:
     """Pygame ベースのリバーシゲーム UI。
 
@@ -990,6 +994,50 @@ class GameGUI:
         """打ち直し準備状態用のボタン行を描画する。"""
         for _, label, rect in self._get_resume_pending_button_specs():
             self._get_button_fit(rect, label).draw(self.screen)
+
+    def draw_resume_notices(
+        self, notices: list[str], avoid_cells: Optional[list[tuple[int, int]]] = None
+    ) -> None:
+        """打ち直し準備中の補足（人間への切り替え・推奨手・勝敗確定など）を盤面に重ねて描画する。
+
+        画面のレイアウトを変えずに複数行を表示するため、盤面の上端に半透明の帯を重ねる。
+        avoid_cells（人間の合法手など）が上端の帯に隠れる場合は、隠れない下端に帯を置く。
+        盤面の幅に収まらない行は、幅に合わせて縮小する。
+        """
+        if not notices:
+            return
+        board_rect = self._calculate_board_rect()
+        line_height = self.font.get_height()
+        band_height = line_height * len(notices) + RESUME_NOTICE_PADDING * 2
+        band_top = self._resume_notice_band_top(board_rect, band_height, avoid_cells or [])
+        band = pygame.Surface((board_rect.width, band_height), pygame.SRCALPHA)
+        band.fill((*Color.BLACK, RESUME_NOTICE_BG_ALPHA))
+        self.screen.blit(band, (board_rect.left, band_top))
+
+        max_text_width = board_rect.width - RESUME_NOTICE_PADDING * 2
+        for i, notice in enumerate(notices):
+            text_surface = self._get_rendered_text(notice, Color.WHITE)
+            if text_surface.get_width() > max_text_width:
+                scale = max_text_width / text_surface.get_width()
+                text_surface = pygame.transform.smoothscale(
+                    text_surface,
+                    (max_text_width, max(1, int(text_surface.get_height() * scale))),
+                )
+            center_y = band_top + RESUME_NOTICE_PADDING + line_height * i + line_height // 2
+            text_rect = text_surface.get_rect(center=(board_rect.centerx, center_y))
+            self.screen.blit(text_surface, text_rect)
+
+    def _resume_notice_band_top(
+        self, board_rect: pygame.Rect, band_height: int, avoid_cells: list[tuple[int, int]]
+    ) -> int:
+        """補足の帯を置く Y 座標を返す（上端の帯が avoid_cells を隠し、下端なら隠さない場合は下端）。"""
+        covered_rows = -(-band_height // self.cell_size)  # 帯が覆う行数（切り上げ）
+        board_rows = board_rect.height // self.cell_size
+        top_hides = any(row < covered_rows for row, _ in avoid_cells)
+        bottom_hides = any(row >= board_rows - covered_rows for row, _ in avoid_cells)
+        if top_hides and not bottom_hides:
+            return board_rect.bottom - band_height
+        return board_rect.top
 
     def get_clicked_resume_pending_button(self, pos: tuple[int, int]) -> Optional[str]:
         """クリックされた打ち直し準備ボタンのアクション名を返す。"""
