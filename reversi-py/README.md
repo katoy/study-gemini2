@@ -26,7 +26,7 @@ Python と Pygame で作られたリバーシゲームです。
 - 「待った」（Undo）、リスタート、リセット、パス処理に対応
 - 日本語 UI とフォント設定に対応
 - プレイヤー設定欄はエージェントが増えて表示領域（最大 240px）を超えるとマウスホイールでスクロール可能（スクロールバー表示）
-- **包括的なテスト体制**: 422 テスト（単体 379・統合 9・強さ検証 34）、カバレッジ 90%+（GitHub Actions CI）/ 99%+（ローカル `ci_check.sh`）/ 100%（`check.sh`）
+- **包括的なテスト体制**: 424 テスト（単体 380・統合 10・強さ検証 34）、カバレッジ 90%+（GitHub Actions CI）/ 99%+（ローカル `ci_check.sh`）/ 100%（`check.sh`）
 - **AI 強さ検証**: Tier 1（8x8 盤面での強さテスト、34 テスト） / Tier 2（詳細ベンチマーク）で複数 AI の強さを確認
 - **GitHub Actions CI**: Lint / 型チェック / テスト / Strength テスト / カバレッジ / サーバーテスト
 
@@ -327,7 +327,7 @@ uv run python -m server.api_server
 uv run pytest --ignore=tests/integration -q
 ```
 
-目安: 379 件のテスト（`pyproject.toml` の `addopts` により `strength` マーカーテストは自動除外）
+目安: 380 件のテスト（`pyproject.toml` の `addopts` により `strength` マーカーテストは自動除外）
 
 ### サーバー単体テスト
 
@@ -347,7 +347,7 @@ uv run pytest tests/server/ -v
 uv run pytest tests/integration/ -v
 ```
 
-目安: 9 件のテスト（API サーバーの実起動、`ApiAgent` との通信）
+目安: 10 件のテスト（API サーバーの実起動、`ApiAgent` との通信）
 
 ### AI 強さ検証テスト
 
@@ -721,13 +721,13 @@ sequenceDiagram
 
 ### テストと CI
 
-- `tests/`: テストコード（422 テスト = 379 単体テスト + 9 統合テスト + 34 強さテスト）
+- `tests/`: テストコード（424 テスト = 380 単体テスト + 10 統合テスト + 34 強さテスト）
   - `tests/agents/test_*.py`: エージェント単体テスト
     - `tests/agents/test_time_limits.py`: 時間制限付きの 6 種類（Negamax / Minimax / Transposition / Pattern / MCTS / AlphaZero 終盤読み切り）が実局面で制限内に返り、盤面を書き換えないことを確認（6 テスト）
   - `tests/training/test_*.py`: AlphaZero 訓練モジュールのテスト
   - `tests/config/test_*.py`: エージェント定義・多言語対応のテスト
   - `tests/server/test_api_server.py`: サーバーテスト（36 テスト）
-  - `tests/integration/test_api_integration.py`: 統合テスト（9 テスト）
+  - `tests/integration/test_api_integration.py`: 統合テスト（10 テスト）
   - `tests/postman/`: Newman による API テスト
   - `tests/test_strength.py`: AI 強さ検証テスト（34 テスト、Tier 1、8x8 盤面、`strength` マーカー。詳細は [AI 強さ検証テスト](#ai-強さ検証テスト) を参照）
 

@@ -85,6 +85,7 @@ AGENT_DEFINITIONS = [
         'params': {
             'api_url': 'http://127.0.0.1:5001/play',
             'agent_type': 'transposition',
+            'timeout': 10,
         }
     },
     {
@@ -94,6 +95,7 @@ AGENT_DEFINITIONS = [
         'params': {
             'api_url': 'http://127.0.0.1:5001/play',
             'agent_type': 'pattern',
+            'timeout': 10,
         }
     },
     {
@@ -113,6 +115,7 @@ AGENT_DEFINITIONS = [
         'params': {
             'api_url': 'http://127.0.0.1:5001/play',
             'agent_type': 'alphazero_minimax',
+            'timeout': 20,
         }
     },
 ]

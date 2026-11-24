@@ -1,4 +1,5 @@
 # tests/config/test_agents.py
+import os
 import unittest
 import sys
 from pathlib import Path
@@ -9,6 +10,7 @@ if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
 
 try:
+    from agents.api_agent import ApiAgent
     from config.agents_config import (
         AGENT_DEFINITIONS,
         get_agent_options,
@@ -16,6 +18,7 @@ try:
         get_agent_definition,
     )
     from config.agent_config_utils import get_agent_params
+    from server.api_server import _select_agent
 except ImportError as e:
     print(f"テストのインポートエラー: {e}")
     print("config/agents_config.py が見つからないか、インポートできません。")
@@ -155,6 +158,43 @@ class TestConfigAgents(unittest.TestCase):
             ["negamax_3k", "negamax_6k"],
         )
         self.assertTrue(all(d["params"].get("timeout") == 10 for d in negamax_options))
+
+    def test_api_agent_timeouts_exceed_server_time_limits(self):
+        """各 API エージェントの HTTP タイムアウトがサーバー側の思考時間上限より十分長い"""
+        time_limit_env_keys = {
+            "NEGAMAX_TIME_LIMIT_MS",
+            "MINIMAX_TIME_LIMIT_MS",
+            "TRANSPOSITION_TIME_LIMIT_MS",
+            "PATTERN_TIME_LIMIT_MS",
+            "ALPHAZERO_MINIMAX_ENDGAME_TIME_LIMIT_MS",
+        }
+        clean_env = {k: v for k, v in os.environ.items() if k not in time_limit_env_keys}
+
+        with patch.dict(os.environ, clean_env, clear=True):
+            for defn in AGENT_DEFINITIONS:
+                if defn["id"] == 0:
+                    continue
+                with self.subTest(agent_id=defn["id"], display_name=defn["display_name"]):
+                    api_agent = ApiAgent(**defn["params"])
+                    server_agent = _select_agent(defn["params"]["agent_type"])
+                    self.assertIsNotNone(server_agent)
+
+                    limits_ms = [
+                        getattr(server_agent, "time_limit_ms", 0),
+                        getattr(server_agent, "_time_limit_ms", 0),
+                    ]
+                    solver = getattr(server_agent, "_solver", None)
+                    if solver is not None:
+                        limits_ms.append(getattr(solver, "time_limit_ms", 0))
+
+                    max_time_limit_ms = max(limits_ms)
+                    required_timeout_sec = max_time_limit_ms / 1000.0 + 4.0
+                    self.assertGreaterEqual(
+                        api_agent.timeout,
+                        required_timeout_sec,
+                        f"{defn['display_name']} timeout={api_agent.timeout}s is too short "
+                        f"for server limit {max_time_limit_ms}ms",
+                    )
 
 
 if __name__ == '__main__':
