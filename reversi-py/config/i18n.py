@@ -56,7 +56,8 @@ class Translator:
                 break
 
         if value is None:
-            return default if default is not None else key
+            # キーが無い場合も既定文字列のプレースホルダ（{move} など）を埋める
+            value = default if default is not None else key
 
         if kwargs:
             try:

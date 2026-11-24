@@ -32,7 +32,10 @@ def test_global_t_helper(tmp_path, monkeypatch):
     # We need to ensure the global translator is initialized with this mock dir
     import config.i18n as i18n
     monkeypatch.setattr(i18n, "TRANSLATIONS_DIR", str(translations_dir))
-    i18n._translator = i18n.Translator(translations_dir=str(translations_dir), lang_code="ja")
+    # テスト後に元の翻訳器へ戻すため monkeypatch で差し替える（直接代入すると他のテストに漏れる）
+    monkeypatch.setattr(
+        i18n, "_translator", i18n.Translator(translations_dir=str(translations_dir), lang_code="ja")
+    )
 
     assert i18n._t("test") == "テスト"
 
@@ -147,3 +150,16 @@ def test_get_translator_lazy_initialization(tmp_path, monkeypatch):
     finally:
         i18n_module._translator = original_translator
         i18n_module.TRANSLATIONS_DIR = original_dir
+
+
+def test_translate_formats_default_when_key_missing(tmp_path):
+    """キーが無く既定文字列を使う場合も、プレースホルダを埋めて返す。"""
+    translations_dir = tmp_path / "translations"
+    translations_dir.mkdir()
+    (translations_dir / "main.ja.json").write_text('{"ja": {}}', encoding="utf-8")
+    translator = Translator(translations_dir=str(translations_dir), lang_code="ja")
+    assert translator.translate("missing", default="第{move}手", move=3) == "第3手"
+    # 既定文字列が無ければキー名を返す
+    assert translator.translate("missing.key") == "missing.key"
+    # 既定文字列に無いプレースホルダ名を渡しても例外にせず、そのまま返す
+    assert translator.translate("missing", default="第{move}手", other=1) == "第{move}手"
